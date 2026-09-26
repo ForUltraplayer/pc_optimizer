@@ -93,7 +93,7 @@ internal static class AppCacheMeasurements
         Add(AppCacheProbeContract.RULE_COUNT, new IntegerValue(rules.Count), SOURCE_SCAN);
         for (var index = 0; index < rules.Count; index++)
         {
-            AddRule(list, rules[index], index, observedAt);
+            AddRule(list, rules[index], index, catalog.AppGroups, observedAt);
         }
 
         Add(AppCacheProbeContract.SQUIRREL_COUNT, new IntegerValue(squirrel.Count), SOURCE_SCAN);
@@ -127,7 +127,7 @@ internal static class AppCacheMeasurements
     /// <summary>
     /// 규칙 하나의 측정값을 더한다.
     /// </summary>
-    private static void AddRule(List<Measurement> list, RuleObservation rule, int index, DateTimeOffset observedAt)
+    private static void AddRule(List<Measurement> list, RuleObservation rule, int index, IReadOnlyDictionary<string, string> appGroups, DateTimeOffset observedAt)
     {
         string Name(string field) => AppCacheProbeContract.Name(AppCacheProbeContract.RULE_PREFIX, index, field);
         void Add(string field, MeasurementValue value, string? unit = null, MeasurementQuality quality = MeasurementQuality.Observed)
@@ -135,7 +135,7 @@ internal static class AppCacheMeasurements
 
         Add(AppCacheProbeContract.FIELD_ID, new TextValue(rule.Rule.Id));
         Add(AppCacheProbeContract.FIELD_NAME, new TextValue(rule.Rule.Name));
-        Add(AppCacheProbeContract.FIELD_APP, new TextValue(rule.Metadata?.AppLabel ?? rule.Rule.AppGroup));
+        Add(AppCacheProbeContract.FIELD_APP, new TextValue(rule.Metadata?.AppLabel ?? appGroups.GetValueOrDefault(rule.Rule.Id, rule.Rule.Name)));
         Add(AppCacheProbeContract.FIELD_ORIGIN, new TextValue(rule.Rule.Origin == RuleOrigin.Supplement ? AppCacheProbeContract.ORIGIN_SUPPLEMENT : AppCacheProbeContract.ORIGIN_COMMUNITY));
         Add(AppCacheProbeContract.FIELD_STATE, new TextValue(rule.State));
         if (rule.Bytes is { } bytes)

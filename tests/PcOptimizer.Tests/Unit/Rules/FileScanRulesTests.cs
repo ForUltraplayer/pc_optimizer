@@ -264,6 +264,6 @@ public sealed class FileScanRulesTests
         Assert.Equal(FileScanSummaryRule.POLICY_FINDING_ID, finding.Id);
         Assert.Equal(CannotVerifyReason.ProbeError, finding.CannotVerifyReason);
         Assert.Contains("UnknownKind", finding.Detail, StringComparison.Ordinal);
-        Assert.Contains("protect.json", finding.Detail, StringComparison.Ordinal);
+        Assert.Contains("PcOptimizer.Rules.protect.json", finding.Detail, StringComparison.Ordinal);
     }
 }

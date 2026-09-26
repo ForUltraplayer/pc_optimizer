@@ -1,7 +1,7 @@
 /**
  * @file    : FileScanServiceTests.cs
  * @author  : rudals252
- * @brief   : 공유 파일 스캔 서비스의 보호 정책 무효 시 순회 안 함, 포함 보호 정책만 읽기(출력 폴더 protect.json 미사용), 검사 ID별 한 번 순회·새 검사 ID 재순회, 임시 위치 관측(중첩 위치 합계·부분·없음·접근 거부·패턴), 임의 디렉터리 합계 조회를 가짜 환경·열거로 검증
+ * @brief   : 공유 파일 스캔 서비스의 보호 정책 무효 시 순회 안 함, 포함 보호 정책만 읽기(출력 폴더에 protect.json이 없어도 유효, 공유 출력 폴더에 쓰지 않음), 검사 ID별 한 번 순회·새 검사 ID 재순회, 임시 위치 관측(중첩 위치 합계·부분·없음·접근 거부·패턴), 임의 디렉터리 합계 조회를 가짜 환경·열거로 검증
  */
 
 // 기본 패키지
@@ -109,7 +109,9 @@ public sealed class FileScanServiceTests
     }
 
     /// <summary>
-    /// 포함 보호 정책은 Probes 어셈블리 리소스로만 읽는다. 출력 폴더에 protect.json을 복사하지 않으며, 포함 정책은 유효해서 순회가 시작된다.
+    /// 포함 보호 정책은 Probes 어셈블리 리소스로만 읽는다. 출력 폴더(<see cref="AppContext.BaseDirectory"/>)에 protect.json이 없는 상태에서도
+    /// 유효한 정책을 돌려주고 순회가 시작되므로, 출력 폴더 파일을 읽는 구현이면(파일 없음 → null → 무효) 이 테스트가 실패한다.
+    /// 공유 출력 폴더에 파일을 쓰지 않는다(쓰기 테스트는 프로세스가 도중에 끝나면 파일을 남길 수 있어 두지 않음).
     /// </summary>
     [Fact]
     public async Task 포함_보호_정책만_읽고_출력_폴더의_protect_json은_쓰지_않는다()
@@ -120,31 +122,10 @@ public sealed class FileScanServiceTests
         var policy = FileScanService.ReadBundledPolicy();
         var result = await Service(Tree(), policy).GetOrScanAsync(Context(), CancellationToken.None);
 
-        Assert.True(ProtectionPolicyParser.Parse(policy!).IsValid);
+        Assert.NotNull(policy);
+        Assert.True(ProtectionPolicyParser.Parse(policy).IsValid);
         Assert.True(result.IsPolicyValid);
         Assert.NotNull(result.Traversal);
-    }
-
-    /// <summary>
-    /// 사용자 쓰기 가능한 출력 폴더에 무효(보호 루트 없음) protect.json을 놓아도 포함 정책을 쓴다. 같은 클래스라 위 검사와 동시에 실행되지 않으며, 끝나면 만든 파일을 지운다.
-    /// </summary>
-    [Fact]
-    public void 출력_폴더의_protect_json을_바꿔도_포함_정책을_쓴다()
-    {
-        const string TAMPERED = """{ "schemaVersion": 1, "protectedRoots": [ { "kind": "everything" } ] }""";
-        Directory.CreateDirectory(Path.GetDirectoryName(OUTPUT_POLICY)!);
-        File.WriteAllText(OUTPUT_POLICY, TAMPERED);
-        try
-        {
-            var policy = FileScanService.ReadBundledPolicy();
-
-            Assert.NotEqual(TAMPERED, policy);
-            Assert.True(ProtectionPolicyParser.Parse(policy!).IsValid);
-        }
-        finally
-        {
-            File.Delete(OUTPUT_POLICY);
-        }
     }
 
     /// <summary>같은 검사 ID는 한 번만 순회해 같은 결과를 돌려주고, 새 검사 ID는 다시 순회한다.</summary>

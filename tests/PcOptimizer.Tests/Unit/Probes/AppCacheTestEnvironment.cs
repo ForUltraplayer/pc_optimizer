@@ -1,7 +1,7 @@
 /**
  * @file    : AppCacheTestEnvironment.cs
  * @author  : rudals252
- * @brief   : 앱 캐시 프로브 파이프라인 테스트용 가짜 PC(프로필·다른 드라이브 Steam 라이브러리·npm 설정 재정의·보호 폴더 NuGet 설정·Squirrel 앱·Adobe·NVIDIA 캐시, 레지스트리(ProfileList 선택), 보호 정책, 규칙 파일(커뮤니티 fixture 선택), Chrome·Edge 프로필 폴더)와 프로브 생성 도우미
+ * @brief   : 앱 캐시 프로브 파이프라인 테스트용 가짜 PC(프로필·다른 드라이브 Steam 라이브러리·npm 설정 재정의·보호 폴더 NuGet 설정·Squirrel 앱·Adobe·NVIDIA 캐시, 레지스트리(ProfileList 선택), 보호 정책, 규칙 파일(커뮤니티 fixture 선택), Chrome·Edge 프로필·게임·Adobe 폴더)와 프로브 생성 도우미
  */
 
 // 기본 패키지
@@ -188,11 +188,16 @@ internal sealed class AppCacheTestEnvironment
             .Dir(PROFILE, D("AppData"), D("Documents"), F(".npmrc", 300))
             .Dir(DOCUMENTS, F("private.docx", 999))
             .Dir(PROFILE + @"\AppData", D("Local"), D("Roaming"))
-            .Dir(ROAMING, D("Adobe"))
-            .Dir(ROAMING + @"\Adobe", D("Common"))
+            .Dir(ROAMING, D("Adobe"), D("3Stars"))
+            .Dir(ROAMING + @"\3Stars", F("save.tmp", 11))
+            .Dir(ROAMING + @"\Adobe", D("Common"), D("CameraRaw"), D("InDesign"))
+            .Dir(ROAMING + @"\Adobe\CameraRaw", D("Logs"))
+            .Dir(ROAMING + @"\Adobe\CameraRaw\Logs", F("raw.log", 13))
+            .Dir(ROAMING + @"\Adobe\InDesign", D("Logs"))
+            .Dir(ROAMING + @"\Adobe\InDesign\Logs", F("id.log", 17))
             .Dir(ROAMING + @"\Adobe\Common", D("Media Cache Files"))
             .Dir(ROAMING + @"\Adobe\Common\Media Cache Files", F("clip.cfa", 500))
-            .Dir(LOCAL, D("NVIDIA"), D("Discord"), D("slack"), D("Vendor"), D("Temp"), D("Google"), D("Microsoft"))
+            .Dir(LOCAL, D("NVIDIA"), D("Discord"), D("slack"), D("Vendor"), D("Temp"), D("Google"), D("Microsoft"), D("3SwitcheD"), D("AmidEvil"))
             .Dir(LOCAL + @"\NVIDIA", D("DXCache"), D("GLCache"))
             .Dir(LOCAL + @"\NVIDIA\DXCache", F("s1", 50))
             .Dir(LOCAL + @"\NVIDIA\GLCache", F("s2", 70))
@@ -204,6 +209,11 @@ internal sealed class AppCacheTestEnvironment
             .Dir(LOCAL + @"\Vendor", F("a.log", 5), F("keep.log", 7), F("b.txt", 9), D("Sub"))
             .Dir(LOCAL + @"\Vendor\Sub", F("c.log", 11))
             .Dir(LOCAL + @"\Temp", F("t.tmp", 1))
+            .Dir(LOCAL + @"\3SwitcheD", D("cache"))
+            .Dir(LOCAL + @"\3SwitcheD\cache", F("c.bin", 19))
+            .Dir(LOCAL + @"\AmidEvil", D("Saved"))
+            .Dir(LOCAL + @"\AmidEvil\Saved", D("Logs"))
+            .Dir(LOCAL + @"\AmidEvil\Saved\Logs", F("AmidEvil.log", 23))
             .Dir(LOCAL + @"\Google", D("Chrome"))
             .Dir(LOCAL + @"\Google\Chrome", D("User Data"))
             .Dir(LOCAL + @"\Google\Chrome\User Data", D("Default"))
@@ -241,7 +251,7 @@ internal sealed class AppCacheTestEnvironment
                 .Dir(PROFILE + @"\.nuget", D("packages"))
                 .Dir(PROFILE + @"\.nuget\packages", D("newtonsoft.json"))
                 .Dir(PROFILE + @"\.nuget\packages\newtonsoft.json", F("newtonsoft.json.13.0.3.nupkg", 400))
-                .Dir(LOCAL, D("npm-cache"), D("pip"), D("NVIDIA"), D("Discord"), D("slack"), D("Vendor"), D("Temp"), D("Google"), D("Microsoft"))
+                .Dir(LOCAL, D("npm-cache"), D("pip"), D("NVIDIA"), D("Discord"), D("slack"), D("Vendor"), D("Temp"), D("Google"), D("Microsoft"), D("3SwitcheD"), D("AmidEvil"))
                 .Dir(LOCAL + @"\npm-cache", D("_cacache"))
                 .Dir(LOCAL + @"\npm-cache\_cacache", F("a", 100), F("b", 200))
                 .Dir(LOCAL + @"\pip", D("Cache"))

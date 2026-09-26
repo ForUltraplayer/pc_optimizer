@@ -61,7 +61,7 @@ public sealed class FileScanProbeTests
         var issue = Assert.Single(result.Issues);
         Assert.Equal(CannotVerifyReason.ProbeError, issue.Reason);
         Assert.Contains("MalformedJson", issue.Summary, StringComparison.Ordinal);
-        Assert.Contains("protect.json", issue.Summary, StringComparison.Ordinal);
+        Assert.Contains("PcOptimizer.Rules.protect.json", issue.Summary, StringComparison.Ordinal);
         Assert.Equal(FileScanProbeContract.POLICY_INVALID, (Find(result, FileScanProbeContract.POLICY_STATE)?.Value as TextValue)?.Value);
         Assert.Empty(source.Enumerated);
     }

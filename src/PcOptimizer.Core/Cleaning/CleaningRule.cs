@@ -36,7 +36,7 @@ public sealed record ExcludeKeySpec(ExcludeKind Kind, string PathTemplate, IRead
 /// <param name="Id">규칙 ID(출처 접두사 + 섹션 이름, 예: "winapp2:Discord").</param>
 /// <param name="Name">표시 이름(섹션 이름에서 " *" 제거).</param>
 /// <param name="Origin">출처.</param>
-/// <param name="Section">분류(Section 값, 없으면 LangSecRef 값, 둘 다 없으면 null). 앱 카드 묶음에는 <see cref="AppGroup"/>를 씁니다.</param>
+/// <param name="Section">분류(Section 값, 없으면 LangSecRef 값, 둘 다 없으면 null). 앱 카드 묶음 기준은 <see cref="AppGroupResolver"/>가 규칙 목록 전체를 보고 정합니다.</param>
 /// <param name="DetectKeys">레지스트리 탐지 키(여러 개면 OR).</param>
 /// <param name="DetectFiles">파일·폴더 탐지 경로 템플릿(여러 개면 OR, 와일드카드 가능).</param>
 /// <param name="FileKeys">관측 대상.</param>
@@ -67,12 +67,6 @@ public sealed record CleaningRule(
 
     /// <summary>지원하는 규칙인지 여부.</summary>
     public bool IsSupported => UnsupportedReason is null;
-
-    /// <summary>
-    /// 앱 카드 묶음 기준입니다. winapp2 <c>Section=</c> 텍스트 값(예: "Google Chrome Web Browser")이 있고 숫자가 아니면 그 값,
-    /// 아니면 규칙 이름(끝의 " *" 제거)입니다. 숫자 <c>LangSecRef</c>·숫자 Section 값은 앱 이름이 아닌 분류 번호라 묶음 기준으로 쓰지 않습니다.
-    /// </summary>
-    public string AppGroup => Section is { } section && !string.IsNullOrWhiteSpace(section) && !section.Trim().All(char.IsAsciiDigit) ? section.Trim() : Name;
 
     /// <summary>
     /// 출처와 섹션 이름으로 규칙 ID를 만듭니다.

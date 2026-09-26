@@ -1,7 +1,7 @@
 /**
  * @file    : AppCacheProbeTests.cs
  * @author  : rudals252
- * @brief   : 앱 캐시 프로브 전체 흐름(가짜 PC): 보충 규칙 탐지·관측과 앱 카드, 기본 폴더 없이 설정으로 옮긴 캐시 탐지, 겹친 커뮤니티 규칙 병합, 실제 파싱 항목의 Section= 앱 카드 묶음, 설정 재정의(스캔 루트 밖), Steam 게임 본체 제외, NuGet 보호 폴더 설정 경로 우회 금지, Squirrel 이름만(메타데이터 목록), 다른 사용자·Public·정션 경로, ProfileList 없음 기록, 관리자 검사의 기본 위치만, 무결성·보호 정책 실패, 인증 토큰이 측정값·로그·내보내기에 남지 않음을 검증
+ * @brief   : 앱 캐시 프로브 전체 흐름(가짜 PC): 보충 규칙 탐지·관측과 앱 카드, 기본 폴더 없이 설정으로 옮긴 캐시 탐지, 겹친 커뮤니티 규칙 병합, 실제 파싱 항목의 Section= 앱 카드 묶음(범주 Games·Adobe 제외), 설정 재정의(스캔 루트 밖), Steam 게임 본체 제외, NuGet 보호 폴더 설정 경로 우회 금지, Squirrel 이름만(메타데이터 목록), 다른 사용자·Public·정션 경로, ProfileList 없음 기록, 관리자 검사의 기본 위치만, 무결성·보호 정책 실패, 인증 토큰이 측정값·로그·내보내기에 남지 않음을 검증
  */
 
 // 사용자 패키지
@@ -195,6 +195,26 @@ public sealed class AppCacheProbeTests
     }
 
     /// <summary>
+    /// 실제 파싱한 범주·제품군 Section 항목: Section=Games(스냅샷 521개 공유)인 서로 다른 게임 3개와 Section=Adobe(31개 공유)인 Adobe 제품 2개는
+    /// 한 카드로 묶지 않고 규칙 이름별 카드다. 같은 fixture의 Chrome·Edge Section 묶음은 그대로다.
+    /// </summary>
+    [Fact]
+    public async Task 범주_Section의_게임과_Adobe_규칙은_규칙별_카드다()
+    {
+        var (_, snapshot) = await RunAsync(new AppCacheTestEnvironment(communityFixture: AppCacheTestEnvironment.GROUPING_FIXTURE));
+        var cards = new AppCacheRule().Evaluate(snapshot).Where(f => f.Id.StartsWith(AppCacheRule.FINDING_ID_PREFIX, StringComparison.Ordinal)).ToList();
+
+        Assert.DoesNotContain(cards, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + "Games" || f.Id == AppCacheRule.FINDING_ID_PREFIX + "Adobe");
+        Assert.Equal("3 Stars of Destiny: 규칙 위치의 파일 관측 11 B", Assert.Single(cards, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + "3 Stars of Destiny").Title);
+        Assert.Equal("3SwitcheD: 규칙 위치의 파일 관측 19 B", Assert.Single(cards, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + "3SwitcheD").Title);
+        Assert.Equal("AMID EVIL: 규칙 위치의 파일 관측 23 B", Assert.Single(cards, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + "AMID EVIL").Title);
+        Assert.Equal("Adobe Camera Raw: 규칙 위치의 파일 관측 13 B", Assert.Single(cards, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + "Adobe Camera Raw").Title);
+        Assert.Equal("Adobe InDesign: 규칙 위치의 파일 관측 17 B", Assert.Single(cards, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + "Adobe InDesign").Title);
+        Assert.Single(cards, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + "Google Chrome Web Browser");
+        Assert.Single(cards, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + "Microsoft Edge Web Browser");
+    }
+
+    /// <summary>
     /// ProfileList를 읽지 못한 PC: 목록을 읽지 못했다는 측정값을 남기고 규칙 목록 요약이 이를 밝히며,
     /// 현재 프로필의 부모 폴더(C:\Users) 추정으로 다른 사용자(C:\Users\other)는 계속 막는다.
     /// </summary>
@@ -332,6 +352,7 @@ public sealed class AppCacheProbeTests
         Assert.Equal(ProbeStatus.Failed, result.Status);
         Assert.Equal(AppCacheProbeContract.CATALOG_POLICY_INVALID, Text(snapshot, AppCacheProbeContract.CATALOG_STATE));
         Assert.Empty(environment.Source.Enumerated);
+        Assert.Contains("PcOptimizer.Rules.protect.json", Assert.Single(result.Issues).Summary, StringComparison.Ordinal);
     }
 
     /// <summary>
