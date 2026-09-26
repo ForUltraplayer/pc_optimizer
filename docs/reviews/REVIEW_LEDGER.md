@@ -23,8 +23,10 @@
 | REV-008 | P1 | 미해결 | P7 정리 실행기 | 도구 보고 캐시 경로를 8.3 별칭 정규화 없이 접두 비교 — 보호 우회 가능 |
 | REV-009 | P2 | 미해결 | P7 정리 실행기 | `Inspect` 관문 7종에 직접 테스트 없음(실제 OS 의존 private) |
 | REV-010 | P2 | 미해결 | P7 정리 실행기 | Kill 실패 시 무기록·기능 영구 비활성·'도구 미설치' 오진 |
-| REV-011 | P2 | 미해결 | UI 커밋 | 필수 파일 헤더 누락/삭제(3파일), 공개 멤버 한글 XML 주석 누락 |
+| REV-011 | P2 | 미해결 | UI 커밋 | 필수 파일 헤더 누락/삭제(ad06cca 3파일 + 4e8a5bc 3파일), 공개 멤버 한글 XML 주석 누락 |
 | REV-012 | P3 | 미해결 | P7 정리 실행기 | pip·dotnet 인자가 사용자 승인 스펙 문구보다 2개 많음 |
+| REV-013 | P2 | 미해결 | UI 정리 결과 | 도구 실행 전 거절(Busy·만료·대상 변경·차단)이 '일부만 정리됐을 수 있음' 실패로 표시·잔존 |
+| REV-014 | P2 | 미해결 | UI 개요 | 드라이버 타일이 온라인 '요청' 여부로 '후보 0개' 표시 — 취소·실패·미비교와 비교 완료를 구분 못 함 |
 
 ## REV-001 — 보호 경로와 스캔 경로의 검증 정책을 분리
 
@@ -237,6 +239,29 @@
 - 위치: `CacheToolProcess.cs:89`(`--disable-pip-version-check`), `:91`(`--force-english-output`).
 - 실제: 09-27 스펙 "…만 허용한다" 목록에 없는 인자. 무해하나 사용자 승인 목록·고정 인자 테스트(`CacheCleanupTests.cs:133`)와 정확히 일치해야 한다.
 - 기대: 인자 삭제(pip는 `PIP_DISABLE_PIP_VERSION_CHECK=1` env와 중복) 또는 스펙 개정 후 테스트 갱신. 사용자 확인 필요.
+- 대응 기록: 아직 없음.
+
+## 2026-09-27 독립 리뷰 2 (Claude 세션, 커밋 `4e8a5bc`)
+
+전체 보고서: [2026-09-27-claude-independent-review.md](2026-09-27-claude-independent-review.md) 하단 "4e8a5bc" 절. diff·`.trx`만으로 검토. 컨트롤러가 HEAD `d6f926e`에서 Release 빌드 0/0, 기본 1122/1122, Smoke 21/21을 직접 실행해 확인했다(Online·ToolSmoke 미실행).
+
+- 실행기·관문: 변경 없음(BeforeBytes 추가만). 확인 문구를 계획에서 재구성한 것은 개선. 새 내비게이션은 필터만이며 정리 서비스에 닿지 않는다.
+- 결과 의미: "확인됨"은 실행 직전 재측정과 도구 후 재측정의 비교이며 종료 코드에 의존하지 않는다. "확보 완료" 표현 없음.
+- 스모크 +56줄은 읽기 전용 ScanService 위의 실제 MainViewModel 구동이며 도구·실제 캐시를 건드리지 않는다.
+- 판정: Needs fixes — REV-013, REV-014, REV-011(추가분).
+
+## REV-013 — 실행 전 거절을 정리 실패로 표시
+
+- 위치: `src/PcOptimizer.App/ViewModels/CacheToolsViewModel.cs:93-94,101-105`, `CleanupOutcomeViewModel.cs:13,17`, `MainWindow.xaml.cs:41`.
+- 실제: `ExecuteAsync`의 모든 결과에 Outcome을 만들어, 도구를 실행하지 않은 Busy·PlanExpired·TargetChanged·Blocked·NormalUserRequired도 "최근 정리: 완료를 확인하지 못했습니다" + "일부 캐시만 정리됐을 수 있습니다"로 표시되고 메인 화면에 재검사 후에도 남는다. 같은 창의 Message는 `Cleanup_Changed`로 모순. 예외 catch는 도구 시작 전 예외에도 `"ToolFailed"`를 부여.
+- 기대: 도구가 실제 실행된 경우(Completed/ToolFailed)에만 Outcome 생성, 미실행 코드는 "실행하지 않음" 제목. PlanExpired·TargetChanged 테스트 추가.
+- 대응 기록: 아직 없음.
+
+## REV-014 — 드라이버 타일이 온라인 요청을 비교 완료로 취급
+
+- 위치: `src/PcOptimizer.App/ViewModels/MainViewModel.cs:336`(`_lastScanIncludedOnline = onlineRequested`, Cancelled/Partial 포함), `MainViewModel.Overview.cs` DriverCount, 테스트 `MainViewModelTests` diff L927-928.
+- 실제: 취소된 온라인 검사나 NVIDIA/WUA 조회 실패 뒤에도 "후보 0개"로 표시되어 비교 완료와 구분되지 않는다.
+- 기대: 드라이버·온라인 Finding의 실제 상태(완료/NotRequested/NetworkFailed/Cancelled) 또는 ScanOutcome.Completed로 라벨 도출, 별도 "온라인 확인 불가" 상태.
 - 대응 기록: 아직 없음.
 
 ## 독립 검증 기록

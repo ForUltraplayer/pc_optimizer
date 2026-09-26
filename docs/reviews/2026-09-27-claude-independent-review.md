@@ -54,3 +54,30 @@
 ## 출시 판정
 
 **일반 권한 수동 검증 진행 가능. 출시 전에는 REV-008~012 필수.**
+
+
+---
+
+# 추가 리뷰 — 커밋 `4e8a5bc` (feat(ui): connect improvement navigation and verified cleanup outcomes)
+
+컨트롤러 검증(HEAD d6f926e): Release 빌드 경고 0/오류 0, 기본 1122/1122, Smoke 21/21.
+
+## 실행기·관문
+변경 없음. `CacheCleanupResult.BeforeBytes`(init-only) 추가, 실행 시 재검사 값으로 채움. 허용 목록·지문 비교·재검사·만료 2회·일회용·직렬화 그대로. 확인 문구를 변경 가능한 Message가 아닌 계획에서 재구성(`CacheToolsViewModel.cs:85-86,109-111`). 새 내비게이션 버튼은 필터만.
+
+## 결과 의미
+"확인됨" = 실행 직전 재측정 vs 도구 후 재측정(`CacheCleanupService.cs:76,82`). 종료 코드 의존 없음. 제목은 도구 종료→크기 존재→감소/불변/증가 순(`CleanupOutcomeViewModel.cs:13-20`). "확보 완료" 없음, 감소 문구에 논리 크기 주석 동반.
+
+## Important
+- I1 → REV-013: 실행 전 거절도 Outcome 생성·"일부만 정리됐을 수 있음" 표시·메인 화면 잔존.
+- I2 → REV-011 추가분: `CleanupOutcomeViewModel.cs:1`, `CleanupOutcomeView.xaml:1`, `CleanupOutcomeView.xaml.cs:1` 헤더 없음; 공개 멤버 주석 누락(`CleanupOutcomeViewModel.cs:10-21`, `CacheToolsViewModel.cs:34-38`, `MainViewModel.Overview.cs:14-22` + ShowSettings/ShowDrivers 명령, `CleanupOutcomeView.xaml.cs:6-7`); 새 테스트 summary 없음.
+- I3 → REV-014: 드라이버 타일이 온라인 요청 여부로 "후보 0개".
+
+## Minor
+- 크기 포맷 매직 넘버·단위 문자열 코드 내장, 두 포매터 불일치("0.0 MB" vs "900 B"), 999,950 B → "1,000.0 KB", 1000 기반 단위(탐색기는 1024).
+- `Cleanup_OutcomeUnverified`에 "최근 정리:" 접두 없음.
+- 메인 화면 잔존 결과에 시각 없음, 재검사 AppCache 카드와 비교 없음.
+- ShowDrivers가 자리표시 CategoryItem(Driver,0) 삽입 가능; ShowSettings/ShowDrivers에 CanExecute 없음(검사 전·중 클릭 가능).
+- "설정 후보" 필터는 비-Driver Candidate 전부인데 도움말은 "주사율·전원 등".
+- `ResultsAnchor`가 영구 탭 정지·포커스 시각·자동화 이름 없음.
+- 필드 순서(`_lastScanIncludedOnline`), 스모크 헤더 @brief·using 그룹, `window.Close()`와 `using var vm` 이중 Dispose 의존, `actual-overview.png`는 미익명 ViewModel 렌더(옵트인·gitignore이나 원장에 명시 필요).
