@@ -31,6 +31,14 @@
     <PublishReadyToRun>false</PublishReadyToRun>
   </PropertyGroup>
 
+  <!--
+    항상 관리자 권한으로 실행하므로, 사용자 환경 변수(HKCU\Environment)의 DOTNET_STARTUP_HOOKS로 사용자 폴더 어셈블리가
+    관리자 권한 프로세스에 로드되지 않게 시작 훅 지원을 끈다(스펙 §0 심층 방어).
+  -->
+  <PropertyGroup>
+    <StartupHookSupport>false</StartupHookSupport>
+  </PropertyGroup>
+
   <ItemGroup>
     <!-- 한국어 UI 문자열 리소스: 빌드 시 공개 강한 형식 접근자(Strings)를 obj에 생성해 XAML x:Static과 코드에서 쓴다 -->
     <EmbeddedResource Update="Resources\Strings.resx">
