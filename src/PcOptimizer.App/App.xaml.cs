@@ -44,11 +44,12 @@ public partial class App : Application
         AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
         var elevation = WindowsElevationState.Capture();
-        var interactiveSid = InteractiveSessionUser.TryGetSid(out var sid) ? sid : null;
+        var sessionUserResolved = InteractiveSessionUser.TryGetSid(out var sid);
+        var interactiveSid = sessionUserResolved ? sid : null;
         var userScope = UserScopeResolver.Resolve(elevation.CurrentUserSid, interactiveSid);
 
-        // SID·계정명은 기록하지 않는다(권한과 범위만).
-        logger.Info(LOG_CATEGORY, $"AppStarted elevated={elevation.IsElevated} scope={userScope}");
+        // SID·계정명은 기록하지 않는다(권한과 범위·판정 성공 여부만).
+        logger.Info(LOG_CATEGORY, $"AppStarted elevated={elevation.IsElevated} scope={userScope} sessionUserResolved={sessionUserResolved}");
 
         // 앱 캐시 규칙은 실행 모드와 관계없이 Probes 어셈블리에 포함된 리소스만 읽는다(RuleCatalogLoader.CreateEmbedded, 출력 폴더에는 규칙 파일이
         // 없고 파일 시스템에서 읽지도 않음). 포함 sources.json과 SHA-256이 맞을 때만 쓰며 다운로드·사용자 규칙 경로는 없다. 관리자 권한으로 실행 중인

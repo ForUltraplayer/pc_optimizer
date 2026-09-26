@@ -501,6 +501,8 @@ public sealed class MainWindowLayoutTests
             Assert.DoesNotContain(Descendants<Button>(root), b => AutomationProperties.GetAutomationId(b) == "ElevatedRescanButton");
             Assert.DoesNotContain(Descendants<TextBlock>(root), t => AutomationProperties.GetAutomationId(t) == "ElevatedBanner");
             Assert.Equal(Visibility.Collapsed, ((FrameworkElement)banner.Parent).Visibility);
+            var optionsExpander = (Expander)window.FindName("OptionsExpander");
+            Assert.DoesNotContain("관리자 재검사", (string)optionsExpander.Header);
             window.Close();
         });
     }

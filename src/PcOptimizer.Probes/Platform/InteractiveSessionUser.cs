@@ -23,24 +23,26 @@ public static class InteractiveSessionUser
     public static bool TryGetSid(out string? sid)
     {
         sid = null;
-        if (!TryQuery(NativeMethods.WTS_USER_NAME, out var user) || string.IsNullOrEmpty(user)
-            || !TryQuery(NativeMethods.WTS_DOMAIN_NAME, out var domain))
-        {
-            return false;
-        }
-
         try
         {
+            if (!TryQuery(NativeMethods.WTS_USER_NAME, out var user) || string.IsNullOrEmpty(user)
+                || !TryQuery(NativeMethods.WTS_DOMAIN_NAME, out var domain))
+            {
+                return false;
+            }
+
             var account = string.IsNullOrEmpty(domain) ? new NTAccount(user) : new NTAccount(domain, user);
             sid = ((SecurityIdentifier)account.Translate(typeof(SecurityIdentifier))).Value;
             return true;
         }
         catch (IdentityNotMappedException)
         {
+            sid = null;
             return false;
         }
         catch (SystemException)
         {
+            sid = null;
             return false;
         }
     }
