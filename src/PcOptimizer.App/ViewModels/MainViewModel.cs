@@ -17,6 +17,7 @@ using PcOptimizer.App.Resources;
 using PcOptimizer.App.Services;
 using PcOptimizer.Core.Abstractions;
 using PcOptimizer.Core.Models;
+using PcOptimizer.Core.Rules;
 
 namespace PcOptimizer.App.ViewModels;
 
@@ -24,7 +25,7 @@ namespace PcOptimizer.App.ViewModels;
 /// 메인 화면 모델입니다. 엔진 결과는 항상 <see cref="IUiDispatcher"/>를 거쳐 UI 스레드에서 반영합니다.
 /// 건수는 PC 상태가 아니라 Finding 기준이며, 후보 0건을 전체 정상으로 표시하지 않습니다.
 /// </summary>
-public sealed partial class MainViewModel : ObservableObject
+public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
     private const string LOG_CATEGORY = nameof(MainViewModel);
     private const string PROBE_ID_SEPARATOR = ", ";
@@ -40,10 +41,23 @@ public sealed partial class MainViewModel : ObservableObject
     private List<FindingCardViewModel> _allCards = [];
     private CancellationTokenSource? _scanCancellation;
     private int _scanGeneration;
+    private bool _disposed;
+
+    [ObservableProperty]
+    private bool _showCommunityDetails;
+
+    /// <summary>접어 둔 커뮤니티 규칙 카드 수를 보여 줍니다.</summary>
+    public string CommunitySummary => DisplayText.Format(Strings.Community_Summary, _allCards.Count(IsCommunityCard));
+
+    partial void OnShowCommunityDetailsChanged(bool value) => RefreshVisibleCards();
+
+    private static bool IsCommunityCard(FindingCardViewModel card) => card.Finding.Category == FindingCategory.AppCache
+        && card.Finding.Measured.Any(m => m.Name.EndsWith(".origin", StringComparison.Ordinal) && m.Value is TextValue { Value: AppCacheProbeContract.ORIGIN_COMMUNITY })
+        && !card.Finding.Measured.Any(m => m.Name.EndsWith(".origin", StringComparison.Ordinal) && m.Value is TextValue { Value: AppCacheProbeContract.ORIGIN_SUPPLEMENT });
 
     /// <summary>검사 상태.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StateText), nameof(IsScanning), nameof(CanChangeOptions), nameof(StartButtonText))]
+    [NotifyPropertyChangedFor(nameof(StateText), nameof(IsScanning), nameof(CanChangeOptions), nameof(StartButtonText), nameof(CanOpenCacheTools))]
     [NotifyCanExecuteChangedFor(nameof(StartScanCommand), nameof(CancelScanCommand), nameof(ExportCommand))]
     private ScanState _state = ScanState.Idle;
 
@@ -84,7 +98,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     /// <summary>아직 종료 중인 프로브 안내(없으면 null).</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasDrainingNote))]
+    [NotifyPropertyChangedFor(nameof(HasDrainingNote), nameof(CanOpenCacheTools))]
     private string? _drainingNote;
 
     /// <summary>내보내기 등 최근 동작 결과 안내(없으면 null).</summary>
@@ -137,6 +151,7 @@ public sealed partial class MainViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(relauncher);
 
         _scanService = scanService;
+        _scanService.DrainingChanged += OnDrainingChanged;
         _exporter = exporter;
         _exportPathPicker = exportPathPicker;
         _settingsPolicy = settingsPolicy;
@@ -161,6 +176,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     /// <summary>검사 옵션(온라인 확인 등)을 바꿀 수 있는지 여부(검사 중에는 바꾸지 않음).</summary>
     public bool CanChangeOptions => !IsScanning;
+
+    /// <summary>진단 작업이 실제 종료된 뒤에만 정리 도구를 엽니다.</summary>
+    public bool CanOpenCacheTools => !IsScanning && !HasDrainingNote;
 
     /// <summary>상태 문자열("상태: …").</summary>
     public string StateText => DisplayText.Format(Strings.State_Format, DisplayText.State(State));
@@ -224,6 +242,12 @@ public sealed partial class MainViewModel : ObservableObject
                 State = previousState;
                 StatusMessage = Strings.Scan_Busy;
             }).ConfigureAwait(false);
+            return;
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn(LOG_CATEGORY, $"ScanFailed error={ex.GetType().Name}");
+            await _dispatcher.InvokeAsync(() => { State = ScanState.Partial; StatusMessage = Strings.Scan_Failed; }).ConfigureAwait(false);
             return;
         }
         finally
@@ -307,6 +331,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         var report = result.Report;
         _allCards = [.. report.Findings.Select(finding => new FindingCardViewModel(finding, _settingsPolicy, _linkPolicy))];
+        OnPropertyChanged(nameof(CommunitySummary));
         if (onlineRequested)
         {
             LastOnlineCheckAtUtc = report.CompletedAtUtc;
@@ -317,7 +342,7 @@ public sealed partial class MainViewModel : ObservableObject
         CannotVerifyCount = report.Findings.Count(f => f.Verdict == Verdict.CannotVerify);
         InfoCount = report.Findings.Count(f => f.Verdict == Verdict.Info);
         LastMeasuredAtUtc = report.CompletedAtUtc;
-        DrainingNote = CreateDrainingNote(report);
+        DrainingNote = CreateDrainingNote();
         LastResult = result;
         RebuildCategories(report.Findings);
         State = report.Outcome switch
@@ -331,17 +356,34 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>
     /// 아직 끝나지 않은 프로브가 있으면 "아직 종료 중" 안내를 만든다.
     /// </summary>
-    private string? CreateDrainingNote(ScanReport report)
+    private string? CreateDrainingNote()
     {
-        string[] draining = [.. report.ProbeSummaries
-            .Where(summary => summary.IsStillRunning)
-            .Select(summary => summary.ProbeId)
-            .Union(_scanService.DrainingProbeIds, StringComparer.Ordinal)
-            .Order(StringComparer.Ordinal)];
+        string[] draining = [.. _scanService.DrainingProbeIds.Order(StringComparer.Ordinal)];
 
         return draining.Length == 0
             ? null
             : DisplayText.Format(Strings.Draining_Format, string.Join(PROBE_ID_SEPARATOR, draining));
+    }
+
+    /// <summary>변경 시점의 스냅샷 대신 UI 실행 시점의 현재 목록을 읽습니다.</summary>
+    private async void OnDrainingChanged(object? sender, EventArgs e)
+    {
+        try
+        {
+            await _dispatcher.InvokeAsync(() =>
+            {
+                if (!_disposed) { DrainingNote = CreateDrainingNote(); }
+            });
+        }
+        catch (Exception ex) { _logger.Warn(LOG_CATEGORY, $"DrainingUiFailed error={ex.GetType().Name}"); }
+    }
+
+    /// <summary>창이 닫히면 변경 구독을 해제하고 진행 중 검사를 취소합니다.</summary>
+    public void Dispose()
+    {
+        _disposed = true;
+        _scanService.DrainingChanged -= OnDrainingChanged;
+        _scanCancellation?.Cancel();
     }
 
     /// <summary>
@@ -373,7 +415,8 @@ public sealed partial class MainViewModel : ObservableObject
     {
         var selected = SelectedCategory;
         Cards.Clear();
-        foreach (var card in _allCards.Where(card => selected is null || selected.Includes(card.Finding.Category)))
+        foreach (var card in _allCards.Where(card => (selected is null || selected.Includes(card.Finding.Category))
+            && (ShowCommunityDetails || !IsCommunityCard(card))))
         {
             Cards.Add(card);
         }

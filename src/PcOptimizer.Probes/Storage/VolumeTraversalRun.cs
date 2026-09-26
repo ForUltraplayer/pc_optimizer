@@ -92,7 +92,14 @@ internal sealed class VolumeTraversalRun
                 continue;
             }
 
-            results.Add(TraverseRoot(target, volumeRoot));
+            var result = TraverseRoot(target, volumeRoot);
+            // 마지막 OS 호출·최종 합계 계산이 경계를 넘겨도 관측 완료 여부는 보존한다.
+            if (IsOverBudget())
+            {
+                TimedOut = true;
+                result = result with { TimedOut = true };
+            }
+            results.Add(result);
         }
 
         return results;

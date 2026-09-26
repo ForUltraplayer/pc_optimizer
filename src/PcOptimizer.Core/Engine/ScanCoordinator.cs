@@ -32,6 +32,12 @@ namespace PcOptimizer.Core.Engine;
 /// </remarks>
 public sealed class ScanCoordinator
 {
+    /// <summary>실제로 종료 중인 작업 목록 변경을 전달합니다.</summary>
+    public event EventHandler? DrainingChanged
+    {
+        add => _executor.DrainingChanged += value;
+        remove => _executor.DrainingChanged -= value;
+    }
     private const string LOG_CATEGORY = nameof(ScanCoordinator);
     private const int SCAN_IDLE = 0;
     private const int SCAN_RUNNING = 1;

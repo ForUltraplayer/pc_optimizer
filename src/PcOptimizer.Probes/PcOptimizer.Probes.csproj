@@ -36,6 +36,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PcOptimizer.Core\PcOptimizer.Core.csproj" />
+    <InternalsVisibleTo Include="PcOptimizer.Tests" />
   </ItemGroup>
 
   <ItemGroup>

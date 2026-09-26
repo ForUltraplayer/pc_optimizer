@@ -9,6 +9,8 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.IO;
 
 // 사용자 패키지
 using PcOptimizer.App.Resources;
@@ -27,6 +29,45 @@ namespace PcOptimizer.Tests.Unit.App;
 /// </summary>
 public sealed class MainWindowLayoutTests
 {
+    /// <summary>진단과 정리 화면을 세 배율로 렌더링합니다. 실제 모니터 DPI 변경 검증과는 별개입니다.</summary>
+    [Theory]
+    [InlineData(1.0)]
+    [InlineData(1.5)]
+    [InlineData(2.0)]
+    public void RenderDiagnosticAndCleanupAtThreeScales(double scale)
+    {
+        RunOnSta(() =>
+        {
+            var main = new MainWindow(CreateScannedViewModel());
+            var tools = new CacheToolsWindow();
+            tools.ViewModel.Message = "npm 캐시\n실행할 도구: C:\\Program Files\\nodejs\\node.exe\n캐시 위치: C:\\Users\\예시\\AppData\\Local\\npm-cache\n관측한 논리 크기: 123.4 MB\n이 확인 결과는 5분 동안 유효합니다.";
+            foreach (var (window, name, size) in new (Window, string, Size)[]
+            {
+                (main, "diagnostic", new Size(1100, 740)), (tools, "cache-tools", new Size(660, 560)),
+            })
+            {
+                var root = (FrameworkElement)window.Content;
+                if (root is Panel panel) { panel.Background = Brushes.White; }
+                if (root is Control control) { control.Background = Brushes.White; }
+                root.Measure(size);
+                root.Arrange(new Rect(size));
+                root.UpdateLayout();
+                Assert.NotEmpty(Descendants<TextBlock>(root));
+                var output = Environment.GetEnvironmentVariable("PCOPTIMIZER_UI_ARTIFACTS");
+                if (!string.IsNullOrEmpty(output))
+                {
+                    Directory.CreateDirectory(output);
+                    var bitmap = new RenderTargetBitmap((int)(size.Width * scale), (int)(size.Height * scale), 96 * scale, 96 * scale, PixelFormats.Pbgra32);
+                    bitmap.Render(root);
+                    var encoder = new PngBitmapEncoder();
+                    encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                    using var file = File.Create(Path.Combine(output, $"{name}-{scale * 100:0}.png"));
+                    encoder.Save(file);
+                }
+                window.Close();
+            }
+        });
+    }
     private const double LAYOUT_WIDTH = 900;
     private const double LAYOUT_HEIGHT = 2000;
     private const int PATH_SEGMENTS = 40;

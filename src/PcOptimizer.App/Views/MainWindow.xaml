@@ -220,6 +220,7 @@
 
         <!-- 상단: 시작/취소·내보내기·관리자 권한 재검사·온라인 확인 -->
         <WrapPanel Grid.Row="1" Margin="16,8,16,0" Orientation="Horizontal">
+            <Button Content="{x:Static res:Strings.Cleanup_Title}" Click="OpenCacheTools" IsEnabled="{Binding CanOpenCacheTools}" Margin="0,0,8,8" Padding="10,6" />
             <ui:Button x:Name="StartScanButton"
                        Appearance="Primary"
                        Content="{Binding StartButtonText}"
@@ -263,6 +264,7 @@
 
         <!-- 상태·요약 영역 -->
         <StackPanel Grid.Row="2" Margin="16,0,16,8">
+            <CheckBox IsChecked="{Binding ShowCommunityDetails}" Content="{Binding CommunitySummary}" Margin="0,4,0,6" />
             <Border Visibility="{Binding HasElevatedBanner, Converter={StaticResource BoolToVisibility}}"
                     Margin="0,0,0,6" Padding="10,6" CornerRadius="6" BorderThickness="1"
                     BorderBrush="#FF8A5A00" Background="#FFFFF4DC">

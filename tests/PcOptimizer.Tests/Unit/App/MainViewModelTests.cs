@@ -187,6 +187,24 @@ public sealed class MainViewModelTests
         Assert.Contains("fixture.hanging", vm.DrainingNote, StringComparison.Ordinal);
     }
 
+    /// <summary>늦은 작업이 끝나면 재검사 없이 안내가 사라지고 과거 리포트는 유지됩니다.</summary>
+    [Fact]
+    public async Task LateCompletionClearsLiveNote()
+    {
+        var delayed = new DelayedProbe("fixture.delayed");
+        using var vm = CreateViewModel([delayed]);
+        await vm.StartScanCommand.ExecuteAsync(null);
+        Assert.True(vm.HasDrainingNote);
+        var report = vm.LastResult;
+        Assert.False(vm.CanOpenCacheTools);
+        var cleared = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(vm.DrainingNote) && !vm.HasDrainingNote) { cleared.TrySetResult(); } };
+        delayed.Complete();
+        await cleared.Task.WaitAsync(WAIT_BOUND);
+        Assert.Same(report, vm.LastResult);
+        Assert.True(vm.CanOpenCacheTools);
+    }
+
     /// <summary>[유지]는 현재 검사의 카드만 접고, 다시 검사하면 새 카드는 펼쳐져 있다.</summary>
     [Fact]
     public async Task 유지는_현재_검사에서만_접는다()

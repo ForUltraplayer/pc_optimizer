@@ -37,6 +37,8 @@
   <ItemGroup>
     <!-- 앱 캐시 규칙과 보호 정책(protect.json)은 Probes 어셈블리에 리소스로 들어가며 출력 폴더로 복사하지 않는다. 배포물의 저작자 표시·라이선스 고지만 복사한다 -->
     <None Include="..\..\rules\LICENSE-winapp2.md" Link="rules\LICENSE-winapp2.md" CopyToOutputDirectory="PreserveNewest" />
+    <!-- 배포용 원본·버전 메타데이터. 실행 시에는 이 사본을 읽지 않고 포함 리소스만 사용한다. -->
+    <None Include="..\..\rules\*.ini;..\..\rules\*.json" Link="rules\%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

@@ -11,6 +11,18 @@ namespace PcOptimizer.Core.Drivers;
 /// </summary>
 public static class NvidiaUrlAllowlist
 {
+    /// <summary>화면에서 여는 NVIDIA 링크는 알려진 드라이버 경로만 허용합니다.</summary>
+    public static bool IsAllowedLink(Uri uri)
+    {
+        if (!OfficialUrl.TryParse(uri.AbsoluteUri, out _) || !IsAllowedHost(uri)) { return false; }
+        var path = uri.AbsolutePath;
+        // 인코딩된 구분자·우회 경로를 받지 않는다.
+        if (path.Contains('%', StringComparison.Ordinal)) { return false; }
+        return OfficialUrl.AsciiHost(uri) == WWW_HOST
+            ? path.StartsWith("/en-us/drivers/", StringComparison.Ordinal)
+                || path.StartsWith("/Download/driverResults.aspx/", StringComparison.Ordinal)
+            : path.StartsWith("/Windows/", StringComparison.Ordinal) && path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
+    }
     /// <summary>상세 페이지 호스트.</summary>
     public const string WWW_HOST = "www.nvidia.com";
 

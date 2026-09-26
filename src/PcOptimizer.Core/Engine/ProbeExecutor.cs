@@ -49,6 +49,9 @@ internal sealed class ProbeExecutor
     /// </summary>
     public IReadOnlyCollection<string> DrainingProbeIds => [.. _draining.Keys];
 
+    /// <summary>종료 중 목록이 바뀌면 실행 스레드에서 알립니다.</summary>
+    public event EventHandler? DrainingChanged;
+
     /// <summary>
     /// 프로브의 이전 호출이 아직 종료 중인지 확인합니다.
     /// </summary>
@@ -276,6 +279,7 @@ internal sealed class ProbeExecutor
         CancellationTokenSource linkedCts)
     {
         _draining[probeId] = scanId;
+        NotifyDrainingChanged();
         _ = probeTask.ContinueWith(
             completed => DiscardLateResult(probeId, scanId, completed, timeoutCts, linkedCts),
             CancellationToken.None,
@@ -296,10 +300,21 @@ internal sealed class ProbeExecutor
         // 실패한 늦은 호출의 예외를 관찰해 미관찰 예외로 남지 않게 한다(원문은 기록하지 않음).
         var errorType = completed.Exception?.InnerException?.GetType().Name ?? "none";
         _draining.TryRemove(new KeyValuePair<string, Guid>(probeId, scanId));
+        NotifyDrainingChanged();
         _logger.Info(
             LOG_CATEGORY,
             $"{ScanLogEvents.LATE_RESULT_DISCARDED} probe={probeId} scan={scanId} taskStatus={completed.Status} error={errorType}");
         linkedCts.Dispose();
         timeoutCts.Dispose();
+    }
+
+    /// <summary>화면 구독자의 실패가 실행 정리를 방해하지 않도록 격리합니다.</summary>
+    private void NotifyDrainingChanged()
+    {
+        foreach (EventHandler handler in DrainingChanged?.GetInvocationList() ?? [])
+        {
+            try { handler(this, EventArgs.Empty); }
+            catch (Exception ex) { _logger.Warn(LOG_CATEGORY, $"DrainingNotificationFailed error={ex.GetType().Name}"); }
+        }
     }
 }

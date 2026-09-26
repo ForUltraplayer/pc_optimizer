@@ -86,6 +86,11 @@ public sealed class SteamLibraryReader : IAppConfigReader
 
         var libraries = new List<string> { root };
         var content = ConfigFileText.Read(_environment, _source, Path.Join(root, LIBRARY_FILE_RELATIVE), MAX_LIBRARY_FILE_BYTES);
+        if (content.Unreadable)
+        {
+            return new AppConfigReading(APP, AppConfigReadState.Unreadable, AppConfigValueOrigin.Registry, []);
+        }
+
         if (content.Text is not null)
         {
             if (SteamLibraryFoldersParser.Parse(content.Text) is not { } parsed)

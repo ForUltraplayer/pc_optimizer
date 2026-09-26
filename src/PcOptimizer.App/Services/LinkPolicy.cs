@@ -1,7 +1,7 @@
 /**
  * @file    : LinkPolicy.cs
  * @author  : rudals252
- * @brief   : 외부 링크 열기 정책(엄격한 HTTPS URL이며 공식 링크 표의 호스트+경로 접두사 또는 NVIDIA 허용 호스트일 때만, 검증한 정규 URL을 셸로 열기). 그 밖의 스킴·호스트·실행 파일은 열지 않음
+ * @brief   : 외부 링크의 엄격한 HTTPS·공식 호스트 및 경로 허용 목록을 확인해 정규 URL만 셸로 열기
  */
 
 // 기본 패키지
@@ -19,8 +19,8 @@ namespace PcOptimizer.App.Services;
 /// <remarks>
 /// 허용 조건: <see cref="OfficialUrl.TryParse"/>를 통과한 HTTPS URL(사용자 정보·비기본 포트·IP·끝 점·공백·역슬래시 없음)이면서
 /// (1) 공식 링크 표(vendor-links.json) 항목과 같은 ASCII 호스트이고 경로가 그 항목 경로로 시작하거나,
-/// (2) NVIDIA 허용 호스트(www.nvidia.com, *.download.nvidia.com)입니다. 규칙은 NVIDIA 조회 응답에서 검증한 URL만 OpenLink로 내보내며,
-/// 이 정책은 출처와 관계없이 같은 호스트 조건을 다시 확인합니다. 호스트는 퓨니코드로 비교해 유사 문자 도메인을 막습니다.
+/// (2) NVIDIA 허용 호스트의 드라이버 페이지 또는 Windows 배포 파일 경로입니다.
+/// 이 정책은 출처와 관계없이 호스트와 경로를 다시 확인합니다. 호스트는 퓨니코드로 비교해 유사 문자 도메인을 막습니다.
 /// 열 때는 검증한 <see cref="Uri.AbsoluteUri"/>(정규화한 문자열)를 그대로 <see cref="Process.Start(ProcessStartInfo)"/>(UseShellExecute)에 넘깁니다.
 /// </remarks>
 public sealed class LinkPolicy
@@ -104,7 +104,7 @@ public sealed class LinkPolicy
             return false;
         }
 
-        if ((_catalog is not null && _catalog.IsAllowedLink(uri)) || NvidiaUrlAllowlist.IsAllowedHost(uri))
+        if ((_catalog is not null && _catalog.IsAllowedLink(uri)) || NvidiaUrlAllowlist.IsAllowedLink(uri))
         {
             validated = uri;
             return true;

@@ -73,7 +73,7 @@ public partial class App : Application
             ElevationRelauncher.CreateDefault(elevation, logger),
             launchMode);
 
-        var window = new MainWindow(viewModel);
+        var window = new MainWindow(viewModel, logger);
         MainWindow = window;
         window.Show();
 

@@ -34,7 +34,7 @@ public sealed class SettingsUriPolicyTests
     [InlineData("ms-settings:gaming-gamemode")]
     [InlineData("ms-settings:storagesense")]
     [InlineData("ms-settings:startupapps")]
-    [InlineData("ms-settings:windowsupdate")]
+    [InlineData("ms-settings:windowsupdate-optionalupdates")]
     public void 허용된_URI는_실행한다(string uri)
     {
         var policy = CreatePolicy();

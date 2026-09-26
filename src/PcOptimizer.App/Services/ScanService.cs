@@ -29,6 +29,12 @@ namespace PcOptimizer.App.Services;
 /// </summary>
 public sealed class ScanService
 {
+    /// <summary>종료 중 목록의 변경을 전달합니다.</summary>
+    public event EventHandler? DrainingChanged
+    {
+        add => _coordinator.DrainingChanged += value;
+        remove => _coordinator.DrainingChanged -= value;
+    }
     /// <summary>내장 판정 규칙 버전. 앱 캐시 규칙 스냅샷(winapp2) 버전·커밋은 규칙 목록 요약 Finding에 따로 기록합니다.</summary>
     public const string BUILTIN_RULES_VERSION = "builtin-p6";
 

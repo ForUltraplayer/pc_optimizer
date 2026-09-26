@@ -34,7 +34,7 @@ public sealed class WindowsUpdateDriverRuleTests
         Assert.Equal(Verdict.Candidate, finding.Verdict);
         Assert.Equal(WindowsUpdateDriverRule.CANDIDATES_FINDING_ID, finding.Id);
         Assert.Contains("Windows Update에서 제공되는 드라이버 후보 2개", finding.Title, StringComparison.Ordinal);
-        Assert.Equal("ms-settings:windowsupdate", Assert.Single(finding.Actions.OfType<OpenSettingsAction>()).Uri);
+        Assert.Equal("ms-settings:windowsupdate-optionalupdates", Assert.Single(finding.Actions.OfType<OpenSettingsAction>()).Uri);
         Assert.Contains("테스트 제조사 - Display - 1.2.3.4", finding.Detail, StringComparison.Ordinal);
         Assert.Contains("테스트 제조사 - Net - 5.6.7.8", finding.Detail, StringComparison.Ordinal);
         Assert.Contains("모든 제조사의 최신 드라이버를 모은 목록은 아니에요", finding.Detail, StringComparison.Ordinal);

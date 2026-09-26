@@ -18,6 +18,15 @@ namespace PcOptimizer.Tests.Unit.Rules;
 /// </summary>
 public sealed class DisplayRefreshRuleTests
 {
+    /// <summary>드라이버의 기본값 0/1을 실제 현재 Hz로 비교하지 않습니다.</summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void DriverDefaultFrequencyIsNotUpgradeCandidate(int frequency)
+    {
+        var finding = Assert.Single(Evaluate(false, null, new FakeDisplay(PATH_A, RefreshHz: frequency, SignalHz: null, SameModeRates: [60, 144])));
+        Assert.Equal(Verdict.CannotVerify, finding.Verdict);
+    }
     private const string PATH_A = @"\\?\DISPLAY#TST0001#5&aaaa&0&UID1#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}";
     private const string PATH_B = @"\\?\DISPLAY#TST0002#5&aaaa&0&UID2#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}";
     private const string PATH_C = @"\\?\DISPLAY#TST0003#5&aaaa&0&UID3#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}";

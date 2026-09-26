@@ -9,6 +9,7 @@ using Wpf.Ui.Controls;
 
 // 사용자 패키지
 using PcOptimizer.App.ViewModels;
+using PcOptimizer.Core.Abstractions;
 
 namespace PcOptimizer.App.Views;
 
@@ -17,15 +18,26 @@ namespace PcOptimizer.App.Views;
 /// </summary>
 public partial class MainWindow : FluentWindow
 {
+    private readonly IAppLogger _logger;
     /// <summary>
     /// 화면 모델로 메인 창을 만듭니다.
     /// </summary>
     /// <param name="viewModel">메인 화면 모델.</param>
-    public MainWindow(MainViewModel viewModel)
+    public MainWindow(MainViewModel viewModel, IAppLogger? logger = null)
     {
+        _logger = logger ?? NullAppLogger.Instance;
         ArgumentNullException.ThrowIfNull(viewModel);
         InitializeComponent();
         DataContext = viewModel;
         Loaded += (_, _) => StartScanButton.Focus();
+        Closed += (_, _) => viewModel.Dispose();
+    }
+
+    private async void OpenCacheTools(object sender, System.Windows.RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel || !viewModel.CanOpenCacheTools) { return; }
+        var window = new CacheToolsWindow(_logger) { Owner = this };
+        window.ShowDialog();
+        if (window.ViewModel.NeedsRescan) { await viewModel.StartScanCommand.ExecuteAsync(null); }
     }
 }

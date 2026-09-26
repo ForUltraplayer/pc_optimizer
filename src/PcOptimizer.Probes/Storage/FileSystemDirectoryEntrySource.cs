@@ -37,12 +37,21 @@ public sealed class FileSystemDirectoryEntrySource : IDirectoryEntrySource
         {
             // GetAttributes는 reparse point 자체의 속성을 돌려주므로 대상 쪽으로 따라가지 않는다.
             var attributes = File.GetAttributes(path);
+            if ((attributes & (FileAttributes.Offline | (FileAttributes)0x00040000 | (FileAttributes)0x00400000)) != 0)
+            {
+                return RootPresence.Placeholder;
+            }
+
+            if (attributes.HasFlag(FileAttributes.ReparsePoint))
+            {
+                return RootPresence.ReparsePoint;
+            }
             if (!attributes.HasFlag(FileAttributes.Directory))
             {
                 return RootPresence.NotDirectory;
             }
 
-            return attributes.HasFlag(FileAttributes.ReparsePoint) ? RootPresence.ReparsePoint : RootPresence.Directory;
+            return RootPresence.Directory;
         }
         catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
         {

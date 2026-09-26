@@ -63,6 +63,8 @@ public sealed class LinkPolicyTests
     [InlineData("https://www.dell.com:444/support/home/")]
     [InlineData("ms-settings:display")]
     [InlineData("https://www.nvidia.com/ a")]
+    [InlineData("https://www.nvidia.com/other/")]
+    [InlineData("https://us.download.nvidia.com/other/file.exe")]
     public void 허용되지_않은_링크는_거부한다(string? url)
     {
         var policy = CreatePolicy();

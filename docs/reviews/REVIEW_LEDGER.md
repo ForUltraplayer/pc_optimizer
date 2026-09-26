@@ -1,6 +1,6 @@
 # 공유 리뷰 원장
 
-사용자 요청에 따라 Codex의 독립 검토 결과를 구현자·리뷰어가 파일로 확인하고 대응하기 위한 원장이다. 대화의 인라인 코멘트만 읽었다고 가정하지 않는다. 마지막 기록일: 2026-09-26.
+사용자 요청에 따라 Codex의 검토 결과를 구현자·리뷰어가 파일로 확인하고 대응하기 위한 원장이다. 마지막 기록일: 2026-09-27. 사용자의 ‘이어서 작업 진행’ 지시 이후 Codex가 구현도 인계받았다. 이후 자기 수정 검증과 별도 독립 리뷰를 구분한다.
 
 ## 읽기와 대응
 
@@ -14,12 +14,12 @@
 | ID | 중요도 | 상태 | 대상 | 요약 |
 |---|---|---|---|---|
 | REV-001 | P1 | 검증 완료 | P4 보호 정책 | 드라이브 루트 Known Folder 보호 및 기존 스캔 루트 제한 독립 확인 |
-| REV-002 | P2 | 주요 수정 검증·최종 조회 경계 보류 | P4 파일 순회 | 추가 OS 조회 중단·관측 합계 보존 확인, 마지막 조회 초과 표시 미해결 |
-| REV-003 | P2 | 미해결 | P2 UI / P7 | 작업이 실제 종료돼도 ‘종료 중’ 안내가 다음 검사까지 남음 |
-| REV-004 | 제품 범위 | 범위 결정 필요 | 구현 계획 | 사용자가 기대한 기존 도구 통합이 계획에서 2차로 연기됨 |
+| REV-002 | P2 | 수정됨·재검증 대기 | P4 파일 순회 | 마지막 조회 경계 회귀 2개 통과, 관측 완료와 예산 초과 분리 |
+| REV-003 | P2 | 수정됨·재검증 대기 | P2 UI / P7 | 실행 상태 이벤트와 구독 해제, 늦은 완료 후 안내 제거 회귀 통과 |
+| REV-004 | 제품 범위 | 사용자 결정 반영 | 구현 계획 | npm·pip·NuGet HTTP 공식 정리와 Windows 도구 연결을 1차에 포함 |
 | REV-005 | P2 | 검증 완료(장치 ID 범위) | P3a 내보내기 | 장치 내부 ID 원문 노출 보완 확인 |
-| REV-006 | P2 | 미해결·독립 재현 | P5 앱 설정 읽기 | 설정 파일 본문을 읽기 전에 중간 reparse 경로를 검사하지 않음 |
-| REV-007 | P2 | 미해결·독립 재현 | P5 앱 설정 읽기 | 접근 거부 설정 파일이 ‘설정 없음’으로 바뀜 |
+| REV-006 | P2 | 수정됨·재검증 대기 | P5 앱 설정 읽기 | 사전 메타데이터 검사·본문 읽기 공급자 경계, 실제 링크 fixture 통과 |
+| REV-007 | P2 | 수정됨·재검증 대기 | P5 앱 설정 읽기 | 읽기 실패 보존 및 기본 캐시 미탐지 시 최종 사유 카드 회귀 통과 |
 
 ## REV-001 — 보호 경로와 스캔 경로의 검증 정책을 분리
 
@@ -228,3 +228,39 @@
 - 실제 UAC 승인/취소 UI, 다른 계정 자격 증명 입력, 화면 배치 전체는 위 결과로 검증됐다고 간주하지 않는다.
 - P4: 완료 승인 전 작업본을 별도 복사해 추가 재현 테스트 3개 실행, 3개 실패. 실제 개인 폴더를 스캔하거나 수정하지 않은 fake 환경 테스트다.
 - 재현 파일은 `docs/reviews/repro`에 보관하므로 일반 테스트 빌드에 자동 포함되지 않는다. 검증용 복사본의 `tests/PcOptimizer.Tests/Unit/Probes/`에 복사 후 `dotnet test PcOptimizer.sln --configuration Release --filter "FullyQualifiedName~IndependentReviewTests"`로 실행한다. 수정 시 정식 회귀 테스트로 편입할 수 있다.
+
+## 2026-09-27 인계 후 대응 기록 (Codex 구현·자체 검증)
+
+- **REV-006**: `ConfigFileText`가 본문 요청 전에 상위 경로·파일의 reparse/placeholder/접근 실패를 검사한다. `FileSystemDirectoryEntrySource.ProbeRoot`는 파일 링크도 파일 유형보다 먼저 확인한다. `SystemPathEnvironment.ReadSmallTextFile`도 실제 모든 조상/파일을 확인하고 바이트 상한 안에서 읽는다. 가짜 공급자의 미등록 경로는 실제 읽기 공급자가 판정한다. 실제 공급자는 Missing을 읽지 않는다. Steam 설정의 Program Files 예외는 유지한다. 원장 재현을 정식 `ConfigReadBoundaryReviewTests`로 편입했다. 정상 파일/중간 링크/파일 링크/크기 초과 실제 fixture도 통과했다. 동시 악의적 경로 교체를 원자적으로 봉쇄하는 OS 핸들 기반 보안 경계까지 구현한 것은 아니다.
+- **REV-007**: Missing만 부재로 보고 나머지 읽기 실패를 Unreadable로 유지한다. `SteamLibraryReader`도 실패를 무시하지 않는다. `AppCacheProbe`는 Unreadable 설정을 설치 탐지 근거로 쓰지 않으면서 최종 설정 사유 카드에는 남긴다. 기본 npm 캐시가 없는 가짜 PC 회귀 통과.
+- **REV-002**: `VolumeTraversalRun.Run`이 루트 완료 뒤 경과 시간을 확인한다. 마지막 ID/할당 크기 조회에서 초과하면 루트·볼륨 TimedOut은 true지만 실제 누락이 없으면 Timeout skip/LookupsSkipped는 0으로 보존한다. 회귀 2개 통과. 요약 문구도 시간 예산 초과를 무조건 부분 관측이라고 하지 않도록 수정했다.
+- **REV-003**: `ProbeExecutor` → `ScanCoordinator` → `ScanService` → `MainViewModel` 변경 이벤트를 추가했다. UI 디스패치 시점의 현재 목록으로 안내를 갱신하며 과거 Report 플래그와 합치지 않는다. 창 종료 시 구독 해제·검사 취소. 늦은 작업 완료 후 재검사 없이 안내가 없어지고 같은 리포트가 유지되는 회귀 통과. 종료 중에는 정리 도구도 열지 않는다.
+- **REV-004**: 사용자 답변 ‘자동 조치도 1차에 포함’, 이어 ‘공식 도구의 캐시 정리부터: npm·pip·NuGet HTTP 캐시, Windows 정리 도구 연결’을 반영했다. `docs/superpowers/specs/2026-09-27-first-release-actions.md`가 기존 조회 전용 원칙의 명시적 예외다. 별도 도구 창에서 대상 확인→사용자 확인→공식 명령→재관측→재검사. 일반 권한·현재 프로필 아래·보호 경계만 자동 실행하며 이동한 외부 캐시는 수동 관리 안내. 커뮤니티 카드는 기본 요약+펼치기이고 자동 정리에는 사용하지 않는다. 후속 단계의 다른 자동 조치까지 승인받았다는 뜻은 아니다.
+
+### P6 검토 및 이탈 4건 판단
+
+- 원 구현 `6451f31..5231f28`의 네트워크 옵트인, 설치 정보 보존, NVIDIA/WUA 어댑터와 fixture, 공식 링크 흐름을 검토하고 기본·실제 온라인 테스트를 재실행했다.
+- Studio 목록 실패 시 Ambiguous 유지: 반대 계열에 같은 설치 버전이 있는지 모르는 상태이므로 보수적 판정 유지.
+- GPU 이름 정확 일치: 미매칭을 임의 제품으로 추측하지 않는 동작 유지. 노트북 매핑 제한은 알려진 한계다.
+- NVIDIA 링크: App의 호스트만 허용하는 예외를 호스트+드라이버 경로로 좁혔다. 다른 경로 거절 회귀 추가. 검증된 `Uri.AbsoluteUri`로 여는 동작 유지.
+- WUA 링크: `ms-settings:windowsupdate-optionalupdates`로 규칙·UI 허용 목록·회귀 테스트를 일치시켰다. 근거: https://learn.microsoft.com/en-us/windows/apps/develop/launch/launch-settings
+
+### 추가 이월 항목 처리
+
+- P3a의 드라이버 기본 주사율 0/1 오탐을 CannotVerify로 처리하고 회귀 2개 추가.
+- 테스트용 `TestDirectory` 정리가 정션을 따라가던 위험을 제거: 루트 경계 검사 후 직접 항목만 순회하고 링크 자체만 제거한다.
+- 예상 밖 검사 예외에서 UI Scanning 고착을 해제한다.
+- 원장에 있던 나머지 minor를 일괄 해결했다고 표시하지 않는다. 특히 짧은 사용자명과 구조 문자열의 내보내기 과치환, 경로 토큰화 경계, OneDrive 계정 값 전체 읽기, 실제 비관리자/UAC·SDK 없는 PC·다중 DPI 조작 검증은 후속 검토 대상이다.
+
+### 검증 근거
+
+- Release 빌드: 경고 0/오류 0.
+- 기본: `dotnet test tests/PcOptimizer.Tests -c Release --no-restore --filter "Category!=Smoke&Category!=Online&Category!=ToolSmoke"` — **1113/1113**. `ToolSmoke`는 새로 추가한 선택형 실제 도구 테스트라 기본 필터에서 반드시 제외한다.
+- 실환경: `--no-build --no-restore --filter "Category=Smoke"` — **21/21**(46초). 처음 샌드박스 안 실행은 권한 제한으로 9건 실패했고, 제한 밖 재실행은 모두 통과했다. 제한 환경 실패를 제품 회귀와 구분한다.
+- 실제 온라인: `Category=Online` — **3/3**(36초), 검색만. WUA 설치·다운로드 없음.
+- 실제 pip: `PCOPTIMIZER_TEST_PYTHON`에 기존 Python 3.12/pip 26.2.1을 지정하고 `Category=ToolSmoke` — **1/1**. Python은 테스트용 Codex 런타임이며 제품 의존성/자동 발견 경로로 넣지 않았다.
+- npm·NuGet·pip 모두 소유한 임시 fixture 캐시만 정리했고 형제 프로젝트/설치 패키지 fixture 보존을 확인했다. 사용자 캐시 정리 없음.
+- WPF 진단/정리 창 100·150·200% 렌더링 6개 이미지 확인. 실제 모니터 DPI 전환·키보드 전체 조작 검증은 아님.
+- self-contained win-x64 배포 성공. 포함 런타임 10.0.12, 규칙 원본·출처·라이선스 포함. 배포 EXE 실제 창 생성, 정상 종료 코드 0 확인. 별도 .NET 미설치 PC 실행은 미검증.
+
+동일 구현자가 수행한 수정 검증이므로 REV-002/003/006/007은 `수정됨·재검증 대기`로 유지한다. 상세 변경·출시 제한은 `docs/reviews/2026-09-27-validation.md`를 읽고 재검토한다.
