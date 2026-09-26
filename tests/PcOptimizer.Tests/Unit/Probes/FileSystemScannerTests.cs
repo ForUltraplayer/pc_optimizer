@@ -325,7 +325,10 @@ public sealed class FileSystemScannerTests
         Assert.Equal([@"X:\a", @"X:\b"], source.Enumerated);
     }
 
-    /// <summary>볼륨 시간 예산을 넘기면 남은 폴더는 시간 초과로 세고 멈추며, 그때까지의 집계는 보존하고 같은 볼륨의 다음 루트는 시작하지 않는다.</summary>
+    /// <summary>
+    /// 볼륨 시간 예산을 넘기면 남은 폴더는 시간 초과로 세고 멈추며, 그때까지의 집계는 보존하고 같은 볼륨의 다음 루트는 시작하지 않는다.
+    /// 예산은 폴더 안 항목마다 확인하므로, 열거 도중 예산을 넘긴 폴더(d2)는 관측한 항목이 없으면 크기 없이 시간 초과로 센다.
+    /// </summary>
     [Fact]
     public async Task 시간_예산을_넘기면_부분_집계로_멈춘다()
     {
@@ -345,8 +348,9 @@ public sealed class FileSystemScannerTests
         Assert.Equal(RootScanState.Scanned, root.State);
         Assert.True(root.TimedOut);
         Assert.Equal(3, source.Enumerated.Count);
-        Assert.Equal(1 + 40 + 20, root.Totals!.Bytes);
-        Assert.Equal(1, root.Totals.Skips.Timeout);
+        Assert.Equal(1 + 40, root.Totals!.Bytes);
+        Assert.Equal(2, root.Totals.Skips.Timeout);
+        Assert.Equal(ScanSkipReason.Timeout, result.GetEnumerationFailure(ROOT + @"\d2"));
         Assert.True(root.Totals.IsPartial);
         Assert.Equal(RootScanState.TimedOut, result.Roots[1].State);
         Assert.Null(result.Roots[1].Totals);

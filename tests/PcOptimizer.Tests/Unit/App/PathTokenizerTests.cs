@@ -11,6 +11,10 @@ using System.Text.Json;
 using PcOptimizer.App.Services;
 using PcOptimizer.Core.Models;
 using PcOptimizer.Core.Rules;
+using PcOptimizer.Core.Cleaning;
+using PcOptimizer.Probes.Storage;
+using PcOptimizer.Tests.Unit.Engine.Fakes;
+using PcOptimizer.Tests.Unit.Probes;
 using PcOptimizer.Tests.Unit.Rules;
 
 namespace PcOptimizer.Tests.Unit.App;
@@ -121,5 +125,50 @@ public sealed class PathTokenizerTests
         Assert.Contains(
             candidate.GetProperty("measured").EnumerateArray(),
             m => m.GetProperty("value").TryGetProperty("value", out var value) && value.GetString() == PLACEHOLDER + @"\folder-1");
+    }
+
+    /// <summary>
+    /// 프로필 밖으로 리디렉션된 Known Folder(D:)와 다른 드라이브의 동기화 루트(E:)는 실제 프로브·규칙 출력을 기본 내보내기해도
+    /// 전체 경로와 상위 폴더 이름이 JSON에 남지 않는다(보호 루트는 출처 이름만 기록).
+    /// </summary>
+    [Fact]
+    public async Task 프로필_밖_보호_루트_경로는_내보내기에_없다()
+    {
+        const string DOCUMENTS = @"D:\Kim Private\Docs";
+        const string CLOUD = @"E:\Cloud Sync\OneDriveRoot";
+        var environment = FileScanServiceTests.Environment()
+            .WithKnownFolder(ProtectedKnownFolder.Documents, DOCUMENTS)
+            .WithVariable("OneDrive", CLOUD);
+        const string POLICY = """{ "schemaVersion": 1, "protectedRoots": [ { "kind": "knownFolder", "folder": "Documents" }, { "kind": "cloudSyncEnvironment", "provider": "OneDrive", "variable": "OneDrive" } ] }""";
+        var probe = new FileScanProbe(FileScanServiceTests.Service(FileScanServiceTests.Tree(), POLICY, environment), new FakeClock());
+        var probeResult = await probe.RunAsync(FileScanServiceTests.Context(), CancellationToken.None);
+        var snapshot = new ScanSnapshot(Guid.NewGuid(), [probeResult]);
+        var findings = new FileScanSummaryRule().Evaluate(snapshot)
+            .Concat(new TempLocationsRule().Evaluate(snapshot))
+            .Concat(new UnclassifiedFolderRule().Evaluate(snapshot))
+            .ToList();
+        Assert.Contains(findings, f => f.Id == FileScanSummaryRule.SUMMARY_FINDING_ID);
+        var report = new ScanReport
+        {
+            ScanId = Guid.NewGuid(),
+            StartedAtUtc = FileScanTestData.OBSERVED_AT,
+            CompletedAtUtc = FileScanTestData.OBSERVED_AT,
+            Outcome = ScanOutcome.Completed,
+            AppVersion = "1.0.0",
+            RulesVersion = "test",
+            UserContext = new UserContext("anon", IsElevated: false),
+            ProbeSummaries = [],
+            Findings = findings,
+        };
+
+        var json = new ReportExporter(new PersonalDataScrubber(FileScanServiceTests.PROFILE, "tester", "DESKTOP-FAKE01")).SerializeAnonymized(report);
+
+        foreach (var forbidden in new[] { "Kim Private", "Cloud Sync", "OneDriveRoot", @"D:\\", @"E:\\" })
+        {
+            Assert.DoesNotContain(forbidden, json, StringComparison.OrdinalIgnoreCase);
+        }
+
+        Assert.Contains(FileScanProbeContract.PROTECTED_LABEL_KNOWN_FOLDER + "Documents", json, StringComparison.Ordinal);
+        Assert.Contains(FileScanProbeContract.PROTECTED_LABEL_CLOUD + "OneDrive", json, StringComparison.Ordinal);
     }
 }

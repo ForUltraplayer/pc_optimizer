@@ -247,6 +247,7 @@
   <data name="FileScan_Detail_Skips" xml:space="preserve"><value>건너뛴 항목: 보호 제외 {0} · 접근 거부 {1} · 사용 중/변경 중 {2} · 링크(정션 등) {3} · 클라우드 자리 표시자 {4} · 시간 초과 {5}</value><comment>{0}~{5}=사유별 개수</comment></data>
   <data name="FileScan_Detail_TimedOutVolumes" xml:space="preserve"><value>제한 시간 안에 모두 검사하지 못해 부분 집계한 볼륨: {0}</value><comment>{0}=볼륨 루트 목록</comment></data>
   <data name="FileScan_Detail_HardLinks" xml:space="preserve"><value>64MiB 이상 파일은 파일 ID로 확인해 하드링크 {0}개를 한 번만 셌고, 더 작은 파일은 확인하지 않아 합계에 중복이 섞였을 수 있어요(논리 크기 추정)</value><comment>{0}=한 번만 센 하드링크 수</comment></data>
+  <data name="FileScan_Detail_ProtectionUnresolved" xml:space="preserve"><value>보호 정책 항목 {0}개는 이 PC에서 위치를 찾지 못했어요(설치되지 않은 동기화 앱 등). 문서·사진·바탕화면·동영상·음악은 이때도 사용자 폴더의 기본 위치를 보호해요</value><comment>{0}=위치를 찾지 못한 항목 수</comment></data>
   <data name="FileScan_Detail_SyncCoverage" xml:space="preserve"><value>동기화 폴더는 OneDrive·Dropbox만 감지해요(Google Drive는 1차에서 감지하지 않아요)</value></data>
   <data name="FileScan_Title_PolicyInvalid" xml:space="preserve"><value>보호 정책을 읽지 못해 파일 검사를 하지 않았어요</value></data>
   <data name="FileScan_Evidence_PolicyInvalid" xml:space="preserve"><value>보호할 폴더를 확인할 수 없으면 개인 파일을 건드리지 않도록 파일 순회를 시작하지 않아요. 다른 검사는 계속했어요</value></data>

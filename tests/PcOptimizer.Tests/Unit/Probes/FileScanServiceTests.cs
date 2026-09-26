@@ -153,4 +153,39 @@ public sealed class FileScanServiceTests
         Assert.Equal(1, profile.Skips.AccessDenied);
         Assert.False(result.TryGetDirectoryTotals(PROFILE + @"\Documents", out _));
     }
+
+    /// <summary>
+    /// 문서 Known Folder 위치를 읽지 못해도 프로필 기본 위치(Documents)는 보호되어 열거하지 않는다(실패 시 닫힘).
+    /// </summary>
+    [Fact]
+    public async Task 위치를_못_읽은_Known_Folder의_기본_위치는_열거하지_않는다()
+    {
+        var source = Tree();
+        var environment = new FakePathEnvironment { Profile = PROFILE }
+            .WithVariable("ProgramData", @"C:\ProgramData")
+            .WithVariable("TEMP", TEMP)
+            .WithVariable("SystemRoot", @"C:\Windows")
+            .WithVariable("LocalAppData", PROFILE + @"\AppData\Local");
+
+        var result = await Service(source, environment: environment).GetOrScanAsync(Context(), CancellationToken.None);
+
+        Assert.Equal(1, result.Protection!.UnresolvedCount);
+        Assert.DoesNotContain(source.Enumerated, path => path.EndsWith(@"\Documents", StringComparison.OrdinalIgnoreCase));
+        Assert.True(result.TryGetDirectoryTotals(PROFILE, out var profile));
+        Assert.Equal(1, profile.Skips.ProtectedExcluded);
+    }
+
+    /// <summary>리디렉션된 문서 폴더가 있어도 프로필에 남은 기본 Documents 폴더는 열거하지 않는다.</summary>
+    [Fact]
+    public async Task 리디렉션_뒤_남은_기본_폴더도_열거하지_않는다()
+    {
+        var source = Tree();
+        var environment = Environment().WithKnownFolder(ProtectedKnownFolder.Documents, PROFILE + @"\OneDrive\Documents");
+
+        var result = await Service(source, environment: environment).GetOrScanAsync(Context(), CancellationToken.None);
+
+        Assert.DoesNotContain(source.Enumerated, path => path.EndsWith(@"\Documents", StringComparison.OrdinalIgnoreCase));
+        Assert.True(result.Protection!.IsProtected(PROFILE + @"\OneDrive\Documents"));
+        Assert.True(result.Protection.IsProtected(PROFILE + @"\Documents"));
+    }
 }

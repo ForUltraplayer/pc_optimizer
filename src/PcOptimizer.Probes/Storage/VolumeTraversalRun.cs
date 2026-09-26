@@ -1,7 +1,7 @@
 /**
  * @file    : VolumeTraversalRun.cs
  * @author  : rudals252
- * @brief   : 볼륨 하나의 루트들을 깊이 우선으로 메타데이터만 순회(보호·placeholder·reparse를 항목마다 재확인, 디렉터리별 접근 거부·사용 중 부분 집계, 64MiB 이상 파일 ID 하드링크 중복 제거, 압축·희소 할당 크기, 시간 예산·취소)하고 하위 합계를 bottom-up으로 계산하는 내부 실행기
+ * @brief   : 볼륨 하나의 루트들을 깊이 우선으로 메타데이터만 순회(보호·placeholder·reparse를 항목마다 재확인, 디렉터리별 접근 거부·사용 중 부분 집계, 64MiB 이상 파일 ID 하드링크 중복 제거, 압축·희소 할당 크기, 폴더 안 항목마다 시간 예산·취소 확인)하고 하위 합계를 bottom-up으로 계산하는 내부 실행기
  */
 
 // 기본 패키지
@@ -151,7 +151,10 @@ internal sealed class VolumeTraversalRun
                 break;
             }
 
-            ListDirectory(stack.Pop(), stack, created);
+            if (ListDirectory(stack.Pop(), stack, created))
+            {
+                timedOut = true;
+            }
         }
 
         ComputeTotals(created);
@@ -167,17 +170,28 @@ internal sealed class VolumeTraversalRun
 
     /// <summary>
     /// 디렉터리 하나를 열거해 파일을 집계하고 들어갈 하위 디렉터리를 쌓는다. 실패하면 그때까지 읽은 항목만 쓰고 사유를 기록한다.
+    /// 항목을 하나 읽고 처리할 때마다 취소와 시간 예산을 확인한다(OS 열거 호출 한 번 자체는 중단할 수 없음).
+    /// 예산을 넘기면 그때까지 관측한 항목만 집계하고 이 디렉터리를 시간 초과로 기록한다.
     /// </summary>
-    private void ListDirectory(DirectoryNode directory, Stack<DirectoryNode> stack, List<DirectoryNode> created)
+    /// <returns>이 디렉터리 안에서 시간 예산을 넘겼으면 true.</returns>
+    private bool ListDirectory(DirectoryNode directory, Stack<DirectoryNode> stack, List<DirectoryNode> created)
     {
         _patterns.TryGetValue(directory.Path, out var pattern);
         pattern?.MarkEnumerated();
 
         var entries = new List<DirectoryEntry>();
+        var timedOut = false;
         try
         {
             foreach (var entry in _source.Enumerate(directory.Path))
             {
+                _ct.ThrowIfCancellationRequested();
+                if (IsOverBudget())
+                {
+                    timedOut = true;
+                    break;
+                }
+
                 entries.Add(entry);
             }
         }
@@ -195,6 +209,13 @@ internal sealed class VolumeTraversalRun
 
         foreach (var entry in entries)
         {
+            _ct.ThrowIfCancellationRequested();
+            if (IsOverBudget())
+            {
+                timedOut = true;
+                break;
+            }
+
             if (entry.IsDirectory)
             {
                 HandleDirectory(directory, entry, stack, created);
@@ -204,6 +225,15 @@ internal sealed class VolumeTraversalRun
                 HandleFile(directory, entry, pattern);
             }
         }
+
+        if (timedOut)
+        {
+            directory.Fail(ScanSkipReason.Timeout);
+            pattern?.Fail(ScanSkipReason.Timeout);
+            TimedOut = true;
+        }
+
+        return timedOut;
     }
 
     /// <summary>

@@ -112,4 +112,28 @@ public sealed class FileScanProbeTests
         Assert.Equal([".pak=2000000000", ".mp4=500000000"], extensions.Values);
         Assert.Equal(new TextValue(FakeDirectoryEntrySource.DEFAULT_WRITE.ToString("o", System.Globalization.CultureInfo.InvariantCulture)), Find(result, Name(FileScanProbeContract.FIELD_NEWEST_WRITE_UTC))!.Value);
     }
+
+    /// <summary>
+    /// 보호 루트는 경로가 아니라 출처 이름과 개수만 측정값으로 내고, 위치를 못 읽은 항목 수를 기록한다.
+    /// 위치를 못 읽은 문서 폴더의 기본 위치에 있는 큰 파일(가짜 메타데이터)은 미분류 후보가 되지 않는다.
+    /// </summary>
+    [Fact]
+    public async Task 보호_루트는_출처_이름만_내고_기본_위치를_후보로_올리지_않는다()
+    {
+        var source = FileScanServiceTests.Tree().Dir(PROFILE + @"\Documents", FakeDirectoryEntrySource.File("huge.vhdx", 5 * GB));
+        var environment = new FakePathEnvironment { Profile = PROFILE }
+            .WithVariable("ProgramData", @"C:\ProgramData")
+            .WithVariable("TEMP", PROFILE + @"\AppData\Local\Temp")
+            .WithVariable("SystemRoot", @"C:\Windows")
+            .WithVariable("LocalAppData", PROFILE + @"\AppData\Local");
+        var probe = new FileScanProbe(FileScanServiceTests.Service(source, environment: environment), new FakeClock());
+
+        var result = await probe.RunAsync(FileScanServiceTests.Context(), CancellationToken.None);
+
+        var labels = Assert.IsType<TextListValue>(Find(result, FileScanProbeContract.PROTECTED_ROOT_LABELS)!.Value);
+        Assert.Equal([FileScanProbeContract.PROTECTED_LABEL_KNOWN_FOLDER + "Documents"], labels.Values);
+        Assert.Equal(new IntegerValue(1), Find(result, FileScanProbeContract.PROTECTED_UNRESOLVED_COUNT)!.Value);
+        Assert.Equal(new IntegerValue(0), Find(result, FileScanProbeContract.UNCLASSIFIED_COUNT)!.Value);
+        Assert.DoesNotContain(result.Measurements, m => m.Value is TextValue text && text.Value.EndsWith(@"\Documents", StringComparison.OrdinalIgnoreCase));
+    }
 }

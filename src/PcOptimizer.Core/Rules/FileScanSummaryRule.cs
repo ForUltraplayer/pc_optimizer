@@ -1,7 +1,7 @@
 /**
  * @file    : FileScanSummaryRule.cs
  * @author  : rudals252
- * @brief   : 공유 파일 스캔 요약 정보(관측 루트 수·소요 시간, 관측 용량은 확보 가능량이 아님, 보호 폴더 수, 사유별 건너뜀 개수, 시간 초과 볼륨, 하드링크·중복 가능, 동기화 폴더 감지 범위)와 보호 정책 무효 시 파일 검사 미실행 확인 불가를 내는 순수 판정 규칙
+ * @brief   : 공유 파일 스캔 요약 정보(관측 루트 수·소요 시간, 관측 용량은 확보 가능량이 아님, 보호 폴더 수, 사유별 건너뜀 개수, 시간 초과 볼륨, 하드링크·중복 가능, 위치를 찾지 못한 보호 항목 수, 동기화 폴더 감지 범위)와 보호 정책 무효 시 파일 검사 미실행 확인 불가를 내는 순수 판정 규칙
  */
 
 // 기본 패키지
@@ -129,6 +129,12 @@ public sealed class FileScanSummaryRule : IRule
         }
 
         detail.Add(SnapshotValues.Format(CoreStrings.FileScan_Detail_HardLinks, Integer(FileScanProbeContract.HARD_LINK_DUPLICATE_COUNT).ToString(CultureInfo.InvariantCulture)));
+        var unresolved = Integer(FileScanProbeContract.PROTECTED_UNRESOLVED_COUNT);
+        if (unresolved > 0)
+        {
+            detail.Add(SnapshotValues.Format(CoreStrings.FileScan_Detail_ProtectionUnresolved, unresolved.ToString(CultureInfo.InvariantCulture)));
+        }
+
         detail.Add(CoreStrings.FileScan_Detail_SyncCoverage);
 
         var seconds = (Integer(FileScanProbeContract.ELAPSED_MS) / MILLISECONDS_PER_SECOND).ToString(SECONDS_FORMAT, CultureInfo.InvariantCulture);
