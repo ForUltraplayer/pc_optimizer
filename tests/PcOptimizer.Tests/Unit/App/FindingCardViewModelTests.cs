@@ -37,7 +37,9 @@ public sealed class FindingCardViewModelTests
             detail: null,
             recommendation: new Recommendation("fake text", "fake condition"),
             impact: new Impact("fake benefit", "fake side effect"),
-            actions: actions);
+            actions: actions,
+            explanation: new Explanation("테스트 설명", "테스트 효과", "테스트 주의"),
+            safety: SafetyLevel.Safe);
     }
 
     /// <summary>

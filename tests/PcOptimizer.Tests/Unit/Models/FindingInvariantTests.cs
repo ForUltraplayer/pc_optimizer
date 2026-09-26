@@ -21,15 +21,21 @@ public class FindingInvariantTests
     private static readonly Recommendation VALID_RECOMMENDATION =
         new("설정에서 더 높은 주사율 후보 확인", "동일 해상도 조건 확인 후 선택");
 
+    private static readonly Explanation VALID_EXPLANATION =
+        new("테스트 설명", "테스트 효과", "테스트 주의");
+
     /// <summary>
     /// 테스트용 Finding을 만든다. 지정하지 않은 값은 유효한 기본값을 쓴다.
+    /// Candidate 판정에는 기본으로 유효한 설명·안전 수준을 채운다(불변식 위반 케이스는 명시적으로 null을 넘긴다).
     /// </summary>
     private static Finding CreateFinding(
         Verdict verdict,
         CannotVerifyReason? reason = null,
         Recommendation? recommendation = null,
         string evidence = VALID_EVIDENCE,
-        string id = VALID_ID)
+        string id = VALID_ID,
+        Explanation? explanation = null,
+        SafetyLevel? safety = null)
     {
         return new Finding(
             id: id,
@@ -42,7 +48,9 @@ public class FindingInvariantTests
             detail: null,
             recommendation: recommendation,
             impact: null,
-            actions: [new ShowDetailsAction()]);
+            actions: [new ShowDetailsAction()],
+            explanation: explanation ?? (verdict == Verdict.Candidate ? VALID_EXPLANATION : null),
+            safety: safety ?? (verdict == Verdict.Candidate ? SafetyLevel.Safe : null));
     }
 
     /// <summary>
@@ -149,5 +157,18 @@ public class FindingInvariantTests
 
         Assert.Equal(verdict, finding.Verdict);
         Assert.Null(finding.Recommendation);
+    }
+
+    /// <summary>Candidate는 설명 3줄과 안전 수준이 없으면 만들 수 없다.</summary>
+    [Fact]
+    public void CandidateRequiresExplanationAndSafety()
+    {
+        var recommendation = new Recommendation("권고", "조건");
+        Assert.Throws<FindingInvariantException>(() => new Finding(
+            "x", FindingCategory.Power, "제목", [], "근거", Verdict.Candidate, null, null, recommendation, null, [],
+            explanation: null, safety: SafetyLevel.Safe));
+        Assert.Throws<FindingInvariantException>(() => new Finding(
+            "x", FindingCategory.Power, "제목", [], "근거", Verdict.Candidate, null, null, recommendation, null, [],
+            explanation: new Explanation("무엇", "효과", "주의"), safety: null));
     }
 }

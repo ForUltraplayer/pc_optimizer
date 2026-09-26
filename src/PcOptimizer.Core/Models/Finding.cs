@@ -16,8 +16,8 @@ namespace PcOptimizer.Core.Models;
 /// <item>Id·Title은 비어 있을 수 없다.</item>
 /// <item>CannotVerify이면 CannotVerifyReason이 필수이고, 그 외 판정이면 null이어야 한다.</item>
 /// <item>Candidate이면 Recommendation과 Evidence(공백이 아닌 문자열)가 필수다.</item>
+/// <item>Candidate이면 설명 3줄(<see cref="Explanation"/>)과 안전 수준(<see cref="SafetyLevel"/>)이 필수다. 그 외 판정에서는 선택 필드다.</item>
 /// </list>
-/// 초보자용 설명 3줄(<see cref="Explanation"/>)과 안전 수준(<see cref="SafetyLevel"/>)은 선택 필드다.
 /// 위반하면 <see cref="FindingInvariantException"/>을 던진다.
 /// </remarks>
 public sealed record Finding
@@ -36,8 +36,8 @@ public sealed record Finding
     /// <param name="recommendation">권고. Candidate이면 필수.</param>
     /// <param name="impact">영향.</param>
     /// <param name="actions">사용자 동작 목록.</param>
-    /// <param name="explanation">초보자용 설명 3줄. Task 3부터 Candidate이면 필수.</param>
-    /// <param name="safety">안전 수준. Task 3부터 Candidate이면 필수.</param>
+    /// <param name="explanation">초보자용 설명 3줄. Candidate이면 필수.</param>
+    /// <param name="safety">안전 수준. Candidate이면 필수.</param>
     /// <exception cref="FindingInvariantException">불변식을 어긴 경우.</exception>
     public Finding(
         string id,
@@ -54,7 +54,8 @@ public sealed record Finding
         Explanation? explanation = null,
         SafetyLevel? safety = null)
     {
-        ValidateInvariants(id, title, measured, evidence, verdict, cannotVerifyReason, recommendation, actions);
+        ValidateInvariants(
+            id, title, measured, evidence, verdict, cannotVerifyReason, recommendation, actions, explanation, safety);
 
         Id = id;
         Category = category;
@@ -104,10 +105,10 @@ public sealed record Finding
     /// <summary>사용자 동작 목록.</summary>
     public IReadOnlyList<FindingAction> Actions { get; }
 
-    /// <summary>초보자용 설명 3줄. Task 3부터 Candidate이면 필수.</summary>
+    /// <summary>초보자용 설명 3줄. Candidate이면 필수.</summary>
     public Explanation? Explanation { get; }
 
-    /// <summary>안전 수준. Task 3부터 Candidate이면 필수.</summary>
+    /// <summary>안전 수준. Candidate이면 필수.</summary>
     public SafetyLevel? Safety { get; }
 
     /// <summary>
@@ -121,7 +122,9 @@ public sealed record Finding
         Verdict verdict,
         CannotVerifyReason? cannotVerifyReason,
         Recommendation? recommendation,
-        IReadOnlyList<FindingAction> actions)
+        IReadOnlyList<FindingAction> actions,
+        Explanation? explanation,
+        SafetyLevel? safety)
     {
         if (string.IsNullOrWhiteSpace(id))
         {
@@ -170,6 +173,18 @@ public sealed record Finding
         {
             throw new FindingInvariantException(
                 "Candidate 판정에는 Evidence가 필요합니다.", nameof(evidence));
+        }
+
+        if (verdict == Verdict.Candidate && explanation is null)
+        {
+            throw new FindingInvariantException(
+                "Candidate에는 설명 3줄(Explanation)이 필요합니다.", nameof(explanation));
+        }
+
+        if (verdict == Verdict.Candidate && safety is null)
+        {
+            throw new FindingInvariantException(
+                "Candidate에는 안전 수준(Safety)이 필요합니다.", nameof(safety));
         }
     }
 }
