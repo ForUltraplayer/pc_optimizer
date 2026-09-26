@@ -25,6 +25,7 @@ namespace PcOptimizer.Probes.Applications;
 /// <param name="SupplementReport">보충 규칙 해석 요약.</param>
 /// <param name="Metadata">규칙 ID별 검토 메타데이터.</param>
 /// <param name="ParseElapsed">해석 소요 시간.</param>
+/// <param name="AppGroups">규칙 ID별 앱 카드 묶음 기준(<see cref="AppGroupResolver"/>, 불러올 때 한 번 계산).</param>
 public sealed record RuleCatalog(
     string State,
     string? FailedFile,
@@ -33,7 +34,8 @@ public sealed record RuleCatalog(
     ParseReport? CommunityReport,
     ParseReport? SupplementReport,
     IReadOnlyDictionary<string, RuleMetadata> Metadata,
-    TimeSpan ParseElapsed)
+    TimeSpan ParseElapsed,
+    IReadOnlyDictionary<string, string> AppGroups)
 {
     /// <summary>무결성을 확인하고 해석했는지 여부.</summary>
     public bool IsVerified => State == AppCacheProbeContract.CATALOG_VERIFIED;
@@ -46,7 +48,7 @@ public sealed record RuleCatalog(
     /// <returns>규칙이 없는 목록.</returns>
     public static RuleCatalog Failed(string state, string file)
     {
-        return new RuleCatalog(state, file, null, [], null, null, new Dictionary<string, RuleMetadata>(), TimeSpan.Zero);
+        return new RuleCatalog(state, file, null, [], null, null, new Dictionary<string, RuleMetadata>(), TimeSpan.Zero, new Dictionary<string, string>());
     }
 }
 
@@ -183,15 +185,18 @@ public sealed class RuleCatalogLoader
 
         var community = Winapp2Parser.Parse(texts[RuleSourceManifest.KIND_WINAPP2], RuleOrigin.Community);
         var supplement = Winapp2Parser.Parse(texts[RuleSourceManifest.KIND_SUPPLEMENT], RuleOrigin.Supplement);
+        List<CleaningRule> rules = [.. community.Rules, .. supplement.Rules];
+        var appGroups = AppGroupResolver.Resolve(rules);
         return new RuleCatalog(
             AppCacheProbeContract.CATALOG_VERIFIED,
             null,
             manifest.Find(RuleSourceManifest.KIND_WINAPP2),
-            [.. community.Rules, .. supplement.Rules],
+            rules,
             community.Report,
             supplement.Report,
             metadata,
-            _time.GetElapsedTime(start));
+            _time.GetElapsedTime(start),
+            appGroups);
     }
 
     /// <summary>

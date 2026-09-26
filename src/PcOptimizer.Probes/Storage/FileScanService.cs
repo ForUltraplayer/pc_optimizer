@@ -18,7 +18,7 @@ namespace PcOptimizer.Probes.Storage;
 /// 공유 파일 스캔 서비스입니다. 캐시는 가장 최근 검사 ID 하나만 보관하고, 새 검사 ID가 오면 버립니다.
 /// </summary>
 /// <remarks>
-/// 포함 보호 정책(Probes 어셈블리 리소스 <c>rules\protect.json</c>)이 없거나 무효이면 아무 것도 순회하지 않고 <see cref="DirectoryScanResult.InvalidPolicy"/>를 돌려줍니다.
+/// 포함 보호 정책(Probes 어셈블리 리소스 <see cref="POLICY_RESOURCE_NAME"/>, 원본은 저장소 <c>rules/protect.json</c>)이 없거나 무효이면 아무 것도 순회하지 않고 <see cref="DirectoryScanResult.InvalidPolicy"/>를 돌려줍니다.
 /// 순회는 처음 호출한 쪽의 취소 토큰으로 취소되며, 이후 호출은 자기 토큰으로 기다리기만 취소할 수 있습니다.
 /// </remarks>
 public sealed class FileScanService : IFileScanService

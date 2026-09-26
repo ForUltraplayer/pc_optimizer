@@ -22,7 +22,7 @@ namespace PcOptimizer.Probes.Storage;
 internal static class FileScanMeasurements
 {
     private const string SOURCE_SCAN = "FileSystemEnumerator (metadata only)";
-    private const string SOURCE_POLICY = @"rules\protect.json";
+    private const string SOURCE_POLICY = "Embedded resource " + FileScanService.POLICY_RESOURCE_NAME + " (Probes assembly)";
     private const string SOURCE_SELECTOR = "UnclassifiedFolderSelector";
     private const string ISO_8601_FORMAT = "o";
     private const char ENVIRONMENT_MARK = '%';
