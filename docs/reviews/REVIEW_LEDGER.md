@@ -1,6 +1,6 @@
 # 공유 리뷰 원장
 
-사용자 요청에 따라 Codex의 검토 결과를 구현자·리뷰어가 파일로 확인하고 대응하기 위한 원장이다. 마지막 기록일: 2026-09-27(Claude 독립 리뷰 추가). 사용자의 ‘이어서 작업 진행’ 지시 이후 Codex가 구현도 인계받았다. 이후 자기 수정 검증과 별도 독립 리뷰를 구분한다.
+사용자 요청에 따라 Codex의 검토 결과를 구현자·리뷰어가 파일로 확인하고 대응하기 위한 원장이다. 마지막 기록일: 2026-09-27(REV-008~014 수정 근거 추가). 사용자의 ‘이어서 작업 진행’ 지시 이후 Codex가 구현도 인계받았다. 이후 자기 수정 검증과 별도 독립 리뷰를 구분한다.
 
 ## 읽기와 대응
 
@@ -20,13 +20,13 @@
 | REV-005 | P2 | 검증 완료(장치 ID 범위) | P3a 내보내기 | 장치 내부 ID 원문 노출 보완 확인 |
 | REV-006 | P2 | 수정됨·재검증 대기 | P5 앱 설정 읽기 | 사전 메타데이터 검사·본문 읽기 공급자 경계, 실제 링크 fixture 통과 |
 | REV-007 | P2 | 수정됨·재검증 대기 | P5 앱 설정 읽기 | 읽기 실패 보존 및 기본 캐시 미탐지 시 최종 사유 카드 회귀 통과 |
-| REV-008 | P1 | 미해결 | P7 정리 실행기 | 도구 보고 캐시 경로를 8.3 별칭 정규화 없이 접두 비교 — 보호 우회 가능 |
-| REV-009 | P2 | 미해결 | P7 정리 실행기 | `Inspect` 관문 7종에 직접 테스트 없음(실제 OS 의존 private) |
-| REV-010 | P2 | 미해결 | P7 정리 실행기 | Kill 실패 시 무기록·기능 영구 비활성·'도구 미설치' 오진 |
-| REV-011 | P2 | 미해결 | UI 커밋 | 필수 파일 헤더 누락/삭제(ad06cca 3파일 + 4e8a5bc 3파일), 공개 멤버 한글 XML 주석 누락 |
-| REV-012 | P3 | 미해결 | P7 정리 실행기 | pip·dotnet 인자가 사용자 승인 스펙 문구보다 2개 많음 |
-| REV-013 | P2 | 미해결 | UI 정리 결과 | 도구 실행 전 거절(Busy·만료·대상 변경·차단)이 '일부만 정리됐을 수 있음' 실패로 표시·잔존 |
-| REV-014 | P2 | 미해결 | UI 개요 | 드라이버 타일이 온라인 '요청' 여부로 '후보 0개' 표시 — 취소·실패·미비교와 비교 완료를 구분 못 함 |
+| REV-008 | P1 | 수정됨·재검증 대기 | P7 정리 실행기 | 도구 보고 캐시 경로를 8.3 별칭 정규화 없이 접두 비교 — 보호 우회 가능 |
+| REV-009 | P2 | 수정됨·재검증 대기 | P7 정리 실행기 | `Inspect` 관문 7종에 직접 테스트 없음(실제 OS 의존 private) |
+| REV-010 | P2 | 수정됨·재검증 대기 | P7 정리 실행기 | Kill 실패 시 무기록·기능 영구 비활성·'도구 미설치' 오진 |
+| REV-011 | P2 | 수정됨·재검증 대기 | UI 커밋 | 필수 파일 헤더 누락/삭제(ad06cca 3파일 + 4e8a5bc 3파일), 공개 멤버 한글 XML 주석 누락 |
+| REV-012 | P3 | 수정됨·재검증 대기 | P7 정리 실행기 | pip·dotnet 인자가 사용자 승인 스펙 문구보다 2개 많음 |
+| REV-013 | P2 | 수정됨·재검증 대기 | UI 정리 결과 | 도구 실행 전 거절(Busy·만료·대상 변경·차단)이 '일부만 정리됐을 수 있음' 실패로 표시·잔존 |
+| REV-014 | P2 | 수정됨·재검증 대기 | UI 개요 | 드라이버 타일이 온라인 '요청' 여부로 '후보 0개' 표시 — 취소·실패·미비교와 비교 완료를 구분 못 함 |
 | REV-015 | 제품 범위 | 범위 결정 필요 | 개요 화면 | 일반인 대상인데 '공간 확보' 묶음의 자동 조치가 개발 도구 캐시뿐 — 기대 오해 방지 재설계 제안 |
 
 ## REV-001 — 보호 경로와 스캔 경로의 검증 정책을 분리
@@ -213,34 +213,39 @@
 - 실제: `DOCUME~1` 같은 8.3 별칭으로 설정된 캐시 경로가 프로필 하위 검사를 통과하고 Known Folder 보호를 우회할 수 있다(IsProtected 내부의 GetLongPathNameW 여부는 diff에서 미확인). 악용성은 낮음(자기 설정, npm/pip는 하위만 삭제, NuGet은 .dat 검사).
 - 기대: P4/P5 가드와 동일하게 `environment.NormalizePath`(GetFullPath+GetLongPathNameW) 정규화 후 비교.
 - 완료 근거: 8.3 별칭 fixture가 보호 경로로 거절되는 테스트, 기존 정리 테스트 회귀.
-- 대응 기록: 아직 없음.
+- 대응 기록 (2026-09-27, Codex 구현자, `4c1e93d`): `CachePathInspector.CanonicalPath`로 캐시·현재 프로필·보호 루트를 긴 절대 경로로 정규화한다. 없는 말단도 조상부터 정규화하고, 남은 `~` 별칭은 보수적으로 거절한다. Locate도 같은 정규화를 사용한다. `OtherUserLocationGuard.Create`의 현재 프로필 정규화도 맞췄다. `CachePathInspectorTests`의 보호 폴더 별칭/없는 말단/프로필 별칭/미해석 별칭 회귀 통과. 실제 OS 스모크는 존재·없는 말단 보호를 확인했으나 이 볼륨은 새 폴더에 8.3 별칭을 만들지 않아 실제 별칭 우회 재현까지 확인한 것은 아니다.
+- 검증 근거: [REV-008~014 수정·검증 기록](2026-09-27-rev008-014-fixes.md). 기본 1169/1169, Smoke 22/22, ToolSmoke 1/1. 구현자 자체 검증이며 독립 재검증을 대체하지 않는다.
 
 ## REV-009 — Inspect 관문 직접 테스트 부재
 
 - 위치: `SystemCacheToolBackend.Inspect`(private/static, 실제 WindowsIdentity·레지스트리·FS 의존). 보호 거절 테스트는 가짜 `Allowed=false`(`CacheCleanupTests.cs:83`)뿐.
 - 미검증 관문: OutsideUserProfile, ProtectedPath, 다른 사용자, 링크/placeholder 하위, InspectionIncomplete, UnexpectedHttpCacheContent, 승격 거절. 09-27 스펙 출시 검증 항목 "보호 거절"에 해당.
 - 기대: IPathEnvironment/IRegistryReader/IDirectoryEntrySource/승격 상태 주입, 관문별 가짜 FS 테스트.
-- 대응 기록: 아직 없음.
+- 대응 기록 (2026-09-27, Codex 구현자, `4c1e93d`): `CachePathInspector`에 IPathEnvironment/IRegistryReader/IDirectoryEntrySource/승격/SID/정책/단조 시간을 주입했다. 실행기는 이 클래스를 실행 직전에 호출한다. `CachePathInspectorTests`에서 프로필 밖, 보호 대상과 상위, 다른 사용자, 루트/조상/하위 정션, 루트/하위 placeholder, 접근·열거 실패, 항목/시간 예산(빈 폴더 마지막 열거 포함), NuGet 비-.dat, 승격을 직접 검증했다. 단순 Allowed=false 가짜 백엔드만 검사한 것이 아니다.
+- 검증 근거: [REV-008~014 수정·검증 기록](2026-09-27-rev008-014-fixes.md). 기본 1169/1169, Smoke 22/22, ToolSmoke 1/1. 구현자 자체 검증이며 독립 재검증을 대체하지 않는다.
 
 ## REV-010 — Kill 실패 경로 무기록·오진
 
 - 위치: `src/PcOptimizer.Probes/Actions/CacheToolProcess.cs:69-71`.
 - 실제: Kill 예외를 삼키고 전역 `_unfinishedProcess`를 세워 이후 모든 RunAsync(LocateAsync 포함)가 false → UI가 `Cleanup_Unavailable`("도구가 설치돼 있어야…")로 표시. 로그 없음.
 - 기대: 실패 로그(형식 이름), 별도 코드(ProcessStillRunning)로 UI 안내, 거절 플래그는 유지(올바름).
-- 대응 기록: 아직 없음.
+- 대응 기록 (2026-09-27, Codex 구현자, `4c1e93d`): `CacheProcessGuard`가 Kill/종료 관측 예외 유형만 로그에 남기고, 실제 종료 확인 전까지 실행을 막는다. 핸들을 보존해 다음 요청에서 종료를 확인한 뒤에만 차단을 해제한다. `ProcessStillRunning`을 backend→service→VM 전용 문구로 전달한다. 프로세스 전역 중복 실행은 대기열 없이 Busy로 거절한다. `CacheProcessGuardTests`의 Kill 실패+Timeout/뒤늦은 종료/익명 로그, `CacheCleanupTests.RunningToolIsNotMisdiagnosedAsUninstalled` 통과. 죽일 수 없는 실제 프로세스를 생성한 테스트는 아니다.
+- 검증 근거: [REV-008~014 수정·검증 기록](2026-09-27-rev008-014-fixes.md). 기본 1169/1169, Smoke 22/22, ToolSmoke 1/1. 구현자 자체 검증이며 독립 재검증을 대체하지 않는다.
 
 ## REV-011 — 파일 헤더·XML 주석 누락
 
 - 위치: `src/PcOptimizer.App/ViewModels/MainViewModel.Overview.cs:1`(신규, 헤더 없음), `Views/CacheToolsWindow.xaml:1`(신규, 없음), `Views/MainWindow.xaml:1`(이 범위에서 헤더 제거). 공개 멤버 주석: `FindingCardViewModel.cs:92,163-166`, `MainViewModel.Overview.cs:14-41`, `MainViewModel.cs:94`.
 - 기대: 공통 제약의 헤더·한글 XML 주석 복구. 브랜치 마무리 전 필수.
-- 대응 기록: 아직 없음.
+- 대응 기록 (2026-09-27, Codex 구현자, `4c1e93d`): 지적된 UI 파일 6개의 @file/@author/@brief 헤더를 복원했다. FindingCardViewModel/MainViewModel.Overview/MainViewModel/CacheToolsViewModel/CleanupOutcomeViewModel 및 CleanupOutcomeView 공개 멤버·생성 프로퍼티·명령의 한글 설명과 해당 테스트 summary를 보완했다. Release 빌드 0경고/0오류, git diff --check 통과.
+- 검증 근거: [REV-008~014 수정·검증 기록](2026-09-27-rev008-014-fixes.md). 기본 1169/1169, Smoke 22/22, ToolSmoke 1/1. 구현자 자체 검증이며 독립 재검증을 대체하지 않는다.
 
 ## REV-012 — 승인 인자 목록 초과
 
 - 위치: `CacheToolProcess.cs:89`(`--disable-pip-version-check`), `:91`(`--force-english-output`).
 - 실제: 09-27 스펙 "…만 허용한다" 목록에 없는 인자. 무해하나 사용자 승인 목록·고정 인자 테스트(`CacheCleanupTests.cs:133`)와 정확히 일치해야 한다.
 - 기대: 인자 삭제(pip는 `PIP_DISABLE_PIP_VERSION_CHECK=1` env와 중복) 또는 스펙 개정 후 테스트 갱신. 사용자 확인 필요.
-- 대응 기록: 아직 없음.
+- 대응 기록 (2026-09-27, Codex 구현자, `4c1e93d`): 허용 목록을 넓히지 않고 `--disable-pip-version-check`와 `--force-english-output`을 조회/정리 양쪽에서 삭제했다. 기존 `PIP_DISABLE_PIP_VERSION_CHECK=1`, `DOTNET_CLI_UI_LANGUAGE=en-US` 환경 설정은 유지한다. 따라서 스펙 확장 승인을 요청할 필요가 없다. `CommandsAreFixedAndDoNotUseShell`의 pip/dotnet 정확한 배열 검사와 실제 임시 캐시 npm·pip·NuGet 명령 검증 통과.
+- 검증 근거: [REV-008~014 수정·검증 기록](2026-09-27-rev008-014-fixes.md). 기본 1169/1169, Smoke 22/22, ToolSmoke 1/1. 구현자 자체 검증이며 독립 재검증을 대체하지 않는다.
 
 ## 2026-09-27 독립 리뷰 2 (Claude 세션, 커밋 `4e8a5bc`)
 
@@ -256,14 +261,16 @@
 - 위치: `src/PcOptimizer.App/ViewModels/CacheToolsViewModel.cs:93-94,101-105`, `CleanupOutcomeViewModel.cs:13,17`, `MainWindow.xaml.cs:41`.
 - 실제: `ExecuteAsync`의 모든 결과에 Outcome을 만들어, 도구를 실행하지 않은 Busy·PlanExpired·TargetChanged·Blocked·NormalUserRequired도 "최근 정리: 완료를 확인하지 못했습니다" + "일부 캐시만 정리됐을 수 있습니다"로 표시되고 메인 화면에 재검사 후에도 남는다. 같은 창의 Message는 `Cleanup_Changed`로 모순. 예외 catch는 도구 시작 전 예외에도 `"ToolFailed"`를 부여.
 - 기대: 도구가 실제 실행된 경우(Completed/ToolFailed)에만 Outcome 생성, 미실행 코드는 "실행하지 않음" 제목. PlanExpired·TargetChanged 테스트 추가.
-- 대응 기록: 아직 없음.
+- 대응 기록 (2026-09-27, Codex 구현자, `4c1e93d`): `CacheToolExecution`/`CacheCleanupResult.Started`로 실제 프로세스 시작을 전달한다. 시작 전 거절·예외는 미실행 안내만 표시하며 새 Outcome/NeedsRescan을 만들지 않고 이전 실행 이력을 보존한다. 시작 후 실패나 후속 관측 실패는 실행 이력과 재검사를 유지한다. 만료/변경/보호/시작 실패/사전 예외/종료 대기, Busy Started=false, 과거 Outcome 보존 회귀 통과. 준비 조회와 Windows 설정 열기 오류 문구도 정리 실패에서 분리했다.
+- 검증 근거: [REV-008~014 수정·검증 기록](2026-09-27-rev008-014-fixes.md). 기본 1169/1169, Smoke 22/22, ToolSmoke 1/1. 구현자 자체 검증이며 독립 재검증을 대체하지 않는다.
 
 ## REV-014 — 드라이버 타일이 온라인 요청을 비교 완료로 취급
 
 - 위치: `src/PcOptimizer.App/ViewModels/MainViewModel.cs:336`(`_lastScanIncludedOnline = onlineRequested`, Cancelled/Partial 포함), `MainViewModel.Overview.cs` DriverCount, 테스트 `MainViewModelTests` diff L927-928.
 - 실제: 취소된 온라인 검사나 NVIDIA/WUA 조회 실패 뒤에도 "후보 0개"로 표시되어 비교 완료와 구분되지 않는다.
 - 기대: 드라이버·온라인 Finding의 실제 상태(완료/NotRequested/NetworkFailed/Cancelled) 또는 ScanOutcome.Completed로 라벨 도출, 별도 "온라인 확인 불가" 상태.
-- 대응 기록: 아직 없음.
+- 대응 기록 (2026-09-27, Codex 구현자, `4c1e93d`): NVIDIA·WUA 프로브가 모두 Success(이슈/종료 중 없음)이고 Driver CannotVerify가 없을 때만 비교 완료로 표시한다. 실패·부분·취소·누락은 온라인 확인 불가, 후보가 있으면 후보 수와 일부 확인 불가를 함께 표시한다. 마지막 온라인 확인 시각도 실제 비교 완료 때만 갱신한다. `MainViewModelTests`에서 성공0/실패/부분/취소/Skipped/체크박스만 변경/로컬 재검사/부분 후보를 검증했다. 온라인 공급자 코드는 변경하지 않았다.
+- 검증 근거: [REV-008~014 수정·검증 기록](2026-09-27-rev008-014-fixes.md). 기본 1169/1169, Smoke 22/22, ToolSmoke 1/1. 구현자 자체 검증이며 독립 재검증을 대체하지 않는다.
 
 ## REV-015 — '공간 확보' 기대 오해 방지 (제안, 사용자 결정 대기)
 
@@ -374,3 +381,11 @@
 - 화면: `artifacts/ui-flow/actual-overview.png`는 이번 조회의 실측 결과를 오프스크린 WPF로 렌더링한 것이다. `cleanup-summary-*`의 정리 수치는 예시 fixture이며 실제 정리 결과가 아니다. 100/150/200% 렌더 회귀도 기본 테스트에 포함했다.
 - 배포: 일반 대상 자산만 남아 첫 publish가 NETSDK1047로 실패했다. 이번 빌드 중 제거된 RID 잠금 항목을 기존 커밋 상태로 복원하고 `dotnet restore src/PcOptimizer.App/PcOptimizer.App.csproj -r win-x64 --locked-mode` 뒤 publish 성공. 패키지 버전/잠금 파일 변경 없음. 경로 `artifacts/win-x64-ui` 유지.
 - 구현자 자체 검증이며 기존 REV 독립 검증 상태는 바꾸지 않는다. 이 기록을 포함한 커밋의 App ViewModels/Views, `CacheCleanupService`, 관련 App/Smoke 테스트를 후속 리뷰 대상으로 삼는다.
+
+
+## 2026-09-27 REV-008~014 수정 인계 (Codex 구현자)
+
+- 코드 커밋 `4c1e93d`, 독립 검토 범위 `5457807..4c1e93d`(소스/테스트만). 다른 세션의 `e2fddf2`, `5457807` 문서와 REV-015 제안은 보존했다.
+- 우선 [수정·검증 기록](2026-09-27-rev008-014-fixes.md)을 읽고 각 REV의 재현 테스트와 실제 생산 경로 연결을 검토할 것. 자체 검증을 독립 승인으로 바꾸지 않는다.
+- 평가 배포물은 `artifacts/win-x64-review-fixes/PcOptimizer.App.exe`. 실행 중인 이전 앱은 교체/종료하지 않았다. 폴더 전체를 함께 사용한다.
+- 남은 범위: 이 수정분 독립 재검증, REV-015 제품 구성 결정, 기존 이월 minor, 일반 권한 실제 UI·UAC·다른 SID·DPI 전환·.NET 없는 별도 PC 검증.
