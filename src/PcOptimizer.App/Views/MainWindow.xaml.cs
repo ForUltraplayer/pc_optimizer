@@ -45,6 +45,7 @@ public partial class MainWindow : FluentWindow
         var window = new CacheToolsWindow(_logger) { Owner = this };
         window.ShowDialog();
         if (window.ViewModel.Outcome is { } outcome) { viewModel.LastCleanupOutcome = outcome; }
-        if (window.ViewModel.NeedsRescan) { await viewModel.StartScanCommand.ExecuteAsync(null); }
+        // 검사 중이거나 사양을 읽는 중(프로브 공유)에는 재검사를 시작하지 않는다.
+        if (window.ViewModel.NeedsRescan && viewModel.StartScanCommand.CanExecute(null)) { await viewModel.StartScanCommand.ExecuteAsync(null); }
     }
 }
