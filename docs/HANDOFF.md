@@ -10,6 +10,15 @@
 - REV-012는 추가 인자 두 개를 삭제해 기존 승인 스펙으로 맞췄다. 사용자에게 같은 범위 승인을 다시 요구하지 않는다.
 - 다음 작업: 수정분 독립 재검증(`5457807..4c1e93d`), REV-015/제품 구성 논의, 수동·별도 환경 검증. Codex는 이번 수정의 구현자이므로 자기 검증을 독립 승인으로 기록하지 않는다.
 
+## SP4 진행 상태 (Claude 세션, 2026-09-27 — 세션 한도 대비 갱신)
+
+- 2차 개선 스펙: `docs/superpowers/specs/2026-09-27-improvement-phase2-design.md`(사용자 승인). 계획: `docs/superpowers/plans/2026-09-27-sp4-format-and-admin.md`(Task 1~12).
+- SDD 원장(룰링·라운드 기록): `.superpowers/sdd/2026-09-27-sp4-format-and-admin/progress.md`(git-ignored). 브리프는 같은 폴더 `task-N-brief.md`, 보고서 `task-N-report.md`.
+- 진행: Task 1 완료(aa3ff7d, 리뷰 통과). Task 2 구현 완료(0113f99, 1183/1183) — 리뷰 진행 중. Task 3~12 미착수.
+- 사용자 확정: UI 배치안(scratchpad 목업, 좌측 메뉴 7개·타일 2개·설명 3줄 카드), 내 PC 사양은 fastfetch식 한 열 나열(CPU·메인보드·GPU·RAM·SSD·HDD·모니터 이름 전부), 배포는 GitHub zip 포터블(단일 파일 exe·아이콘, Task 12).
+- 재개 방법: 원장의 마지막 `Task N:` 줄을 보고 그 다음 작업을 subagent-driven-development로 파견. 파견 전 `git status`로 Codex 미커밋 변경 확인(현재 Codex 유휴).
+- 검증 명령 기본 필터: `Category!=Smoke&Category!=Online&Category!=ToolSmoke`.
+
 ## 현재 상태
 
 - 사용자 피드백에 따라 첫 화면을 추천 조치 중심으로 개편했다. `MainViewModel.Overview.cs` 및 두 XAML이 주 변경 범위이며, 전체 결과와 원본 리포트는 보존한다. 상세 근거는 원장의 2026-09-27 UI 대응 기록을 읽을 것.
