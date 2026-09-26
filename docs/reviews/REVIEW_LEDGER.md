@@ -181,6 +181,13 @@
 - 관련 수정(P4 코드, 신규 결함 3): `FileScanService`가 보호 정책 `rules\protect.json`을 출력 폴더(`AppContext.BaseDirectory`)에서 읽던 것을 Probes 어셈블리 포함 리소스로만 읽게 바꾸고 앱 출력 복사를 없앴다(`aff581b`). REV-001·REV-002 상태는 바꾸지 않았다.
 - P5 fix round 3 구현 보고(2026-09-26, 구현 세션): 커밋 `18ea323`. 범주 Section(Games·Adobe)·공유 100개 초과 Section을 앱 묶음에서 제외(AppGroupResolver), protect.json 문구·측정 출처를 포함 리소스 이름으로, 공유 출력 폴더에 쓰던 테스트 제거. 표는 `.superpowers/sdd/2026-09-26-pc-optimizer-implementation-plan/task-P5-report.md` 12장. 구현 세션 자체 실행 결과(빌드 0/0, 기본 803/803, Smoke 18/18, 내보내기 `C:\Users\`·`VEN_` 0건)이며 독립 검증이 아니다. REV 상태 변경 없음.
 
+### P6 인계 — 구현 세션 보고, 독립 검증 전
+
+- P6 구현(2026-09-26, 구현 세션): 커밋 `8180165`. NVIDIA 온라인 조회 어댑터·계열 판정, Windows Update 드라이버 검색(검색 전용), 공식 링크 표(`rules/vendor-links.json`)·AMD/Intel/OEM 링크, App 링크 열기 정책. 보고서 `.superpowers/sdd/2026-09-26-pc-optimizer-implementation-plan/task-P6-report.md`(구현 파일·Studio 매개변수 실측·TDD·빌드/테스트·실제 조회/검색 결과·E2E·우려 12건).
+- 구현 세션 자체 실행 결과이며 독립 검증이 아니다: Release 빌드 경고 0/오류 0, 기본 `Category!=Smoke&Category!=Online` 1085/1085, Smoke 18/18, Online 3/3(실제 NVIDIA 조회·WUA 검색 각 1회, 온라인 E2E 내보내기).
+- 기본 테스트 필터가 `Category!=Smoke&Category!=Online`으로 바뀌었다(계획 문서 3장 갱신). Online 트레이트는 실제 네트워크·Windows Update에 연결하므로 명시적으로만 실행한다.
+- P6을 대상으로 하는 REV 항목은 없다. 작업 중 검토자가 원장 작업본에 추가하던 REV-006/REV-007(P5 앱 설정 읽기, 이 커밋 시점 미커밋)은 이번 작업 범위가 아니며 REV 상태는 바꾸지 않았다.
+
 ### 실행 이력
 
 - P4 4차 수정 재확인(기준 `1b9a9ad`): 빌드 0/0, 관련 회귀 37/37, 기본 761/761. Smoke 미실행. REV-002에 검증 범위와 마지막 조회 경계 보류를 기록했다.
