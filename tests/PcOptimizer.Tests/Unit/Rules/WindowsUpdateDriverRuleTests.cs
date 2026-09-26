@@ -36,7 +36,7 @@ public sealed class WindowsUpdateDriverRuleTests
     [Fact]
     public void 후보가_있으면_설정_열기와_제목을_준다()
     {
-        var finding = Assert.Single(Evaluate(ProbeStatus.Success, WindowsUpdateProbeContract.RESULT_SUCCEEDED, false, "테스트 제조사 - Display - 1.2.3.4", "테스트 제조사 - Net - 5.6.7.8"));
+        var finding = Assert.Single(RULE.Evaluate(CandidateSnapshot()));
 
         Assert.Equal(Verdict.Candidate, finding.Verdict);
         Assert.Equal(WindowsUpdateDriverRule.CANDIDATES_FINDING_ID, finding.Id);

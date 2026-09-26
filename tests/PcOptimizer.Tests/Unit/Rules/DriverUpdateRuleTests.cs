@@ -57,7 +57,7 @@ public sealed class DriverUpdateRuleTests
     [Fact]
     public void 같은_계열_최신이_높으면_후보다()
     {
-        var finding = EvaluateSingle(GameReadyAdapter("616.64", GR_ONLY, DriverRuleTestData.GR_LATEST));
+        var finding = Assert.Single(RULE.Evaluate(CandidateSnapshot()));
 
         Assert.Equal(Verdict.Candidate, finding.Verdict);
         Assert.Equal(FindingCategory.Driver, finding.Category);
