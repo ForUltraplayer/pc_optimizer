@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "notes": "PC Optimizer 포함 규칙 파일의 출처·라이선스·무결성 목록. 앱은 이 목록의 sha256과 앱 폴더 rules\\ 파일의 SHA-256이 모두 같을 때만 규칙을 쓴다(자동 다운로드 없음). 규칙 파일을 고치면 이 값도 함께 갱신해야 한다.",
+  "files": [
+    {
+      "path": "winapp2.ini",
+      "kind": "winapp2",
+      "sha256": "4280084c61725d64c538a55333b694f2ee0a76a8f3adf19f4f0b67ef987e9157",
+      "license": "CC-BY-SA-4.0",
+      "licenseUrl": "https://github.com/MoscaDotTo/Winapp2/blob/master/License.md",
+      "attribution": "Winapp2.ini by the winapp2 project (https://github.com/MoscaDotTo/Winapp2), licensed under CC-BY-SA-4.0.",
+      "sourceUrl": "https://raw.githubusercontent.com/MoscaDotTo/Winapp2/master/Non-CCleaner/Winapp2.ini",
+      "upstreamCommit": "53ae41946c3d3c8bb348d81081c34b6050f0b561",
+      "upstreamCommitDateUtc": "2026-09-15T10:41:40Z",
+      "upstreamCommitResolvedBy": "GitHub API GET /repos/MoscaDotTo/Winapp2/commits/master and /commits?path=Non-CCleaner/Winapp2.ini at download time; raw file at that commit SHA had the same SHA-256 as the master download",
+      "upstreamVersion": "260915",
+      "upstreamEntryCount": "4,068",
+      "upstreamSha256": "c109621ff8c4b02211462e0137fc7b14fa03b07edc8c7b7814b5722cb9b2bba7",
+      "upstreamEtag": "\"accd8e0c9ef6bbdc8dd721532d0c5fbb89e20657a35f3fe35ff34d7b290d7ab7\"",
+      "downloadedAtUtc": "2026-09-26T11:25:03Z",
+      "modifications": "Line endings converted from CRLF to LF (upstreamSha256 is the file as downloaded, sha256 is the bundled LF file). Content otherwise unchanged."
+    },
+    {
+      "path": "supplement.ini",
+      "kind": "supplement",
+      "sha256": "48f580aab6262fbb45c6bf708d42d4836c6c59fa0e73655714614238c30a574f",
+      "license": "CC-BY-SA-4.0",
+      "attribution": "PC Optimizer supplement rules (rudals252), Winapp2.ini format by the winapp2 project."
+    },
+    {
+      "path": "rule-metadata.json",
+      "kind": "metadata",
+      "sha256": "eeef5778962004a934a598778b28e80304df7e7ffab5d4a5d3eddca6bef9824e",
+      "license": "CC-BY-SA-4.0",
+      "attribution": "PC Optimizer reviewed rule metadata (rudals252)."
+    }
+  ]
+}

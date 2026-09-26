@@ -27,8 +27,8 @@ namespace PcOptimizer.App.Services;
 /// </summary>
 public sealed class ScanService
 {
-    /// <summary>내장 규칙 데이터 버전(외부 규칙 파일이 생기기 전까지 코드 내장 규칙만 사용).</summary>
-    public const string BUILTIN_RULES_VERSION = "builtin-p4";
+    /// <summary>내장 판정 규칙 버전. 앱 캐시 규칙 스냅샷(winapp2) 버전·커밋은 규칙 목록 요약 Finding에 따로 기록합니다.</summary>
+    public const string BUILTIN_RULES_VERSION = "builtin-p5";
 
     private const string LOG_CATEGORY = nameof(ScanService);
     private const string ANONYMOUS_ID_PREFIX = "scan-user-";
@@ -93,9 +93,9 @@ public sealed class ScanService
 
     /// <summary>
     /// 기본 구성으로 서비스를 만듭니다. 프로브: 메모리·전원·디스플레이·시스템 정보·그래픽 설정(HAGS)·게임 모드·보안 상태·설치 GPU·볼륨·물리 디스크·
-    /// TRIM 정책·시작 프로그램·파일 스캔 (TRIM 정책만 관리자 권한 필요, 일반 권한에서는 ElevationRequired로 건너뜀). 네트워크 프로브는 없습니다.
-    /// 사용자 범위 프로브는 게임 모드·시작 프로그램·파일 스캔이며 나머지는 시스템 범위입니다.
-    /// 파일 스캔은 공유 서비스(<see cref="FileScanService"/>) 하나를 쓰며, 이후 앱 캐시 검사도 같은 인스턴스를 재사용합니다.
+    /// TRIM 정책·시작 프로그램·파일 스캔·앱 캐시 (TRIM 정책만 관리자 권한 필요, 일반 권한에서는 ElevationRequired로 건너뜀). 네트워크 프로브는 없습니다.
+    /// 사용자 범위 프로브는 게임 모드·시작 프로그램·파일 스캔·앱 캐시이며 나머지는 시스템 범위입니다.
+    /// 파일 스캔과 앱 캐시는 공유 서비스(<see cref="FileScanService"/>) 하나를 함께 씁니다. 앱 캐시 규칙은 앱 폴더의 포함 파일만 읽고 SHA-256을 확인합니다(승격 여부와 무관).
     /// </summary>
     /// <param name="logger">공용 로거.</param>
     /// <param name="limitToSystemScope">시스템 범위 프로브만 실행할지 여부(다른 계정으로 승격된 재검사).</param>
@@ -121,6 +121,7 @@ public sealed class ScanService
                 new TrimPolicyProbe(),
                 new StartupItemsProbe(),
                 new FileScanProbe(fileScan, SystemClock.Instance),
+                AppCacheProbe.CreateDefault(fileScan),
             ],
             [
                 new MemorySpeedRule(),
@@ -137,6 +138,9 @@ public sealed class ScanService
                 new FileScanSummaryRule(),
                 new TempLocationsRule(),
                 new UnclassifiedFolderRule(),
+                new RuleCatalogSummaryRule(),
+                new AppCacheRule(),
+                new SquirrelVersionFoldersRule(),
             ],
             new ScanOptions(),
             new ScanReportVersions(appVersion, BUILTIN_RULES_VERSION),

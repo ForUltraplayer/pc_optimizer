@@ -1,7 +1,7 @@
 /**
  * @file    : ScanServiceSmokeTests.cs
  * @author  : rudals252
- * @brief   : [Smoke] 기본 구성 검사 서비스를 이 PC에서 끝까지 실행하고 익명화 JSON을 임시 폴더에 내보내 메모리·전원·디스플레이·드라이버·그래픽·보안·저장소·시작 프로그램·파일 스캔(임시 위치·미분류) Finding과 개인정보·장치 ID·프로필 하위 폴더 이름 제거를 확인
+ * @brief   : [Smoke] 기본 구성 검사 서비스를 이 PC에서 끝까지 실행하고 익명화 JSON을 임시 폴더에 내보내 메모리·전원·디스플레이·드라이버·그래픽·보안·저장소·시작 프로그램·파일 스캔(임시 위치·미분류)·앱 캐시 Finding과 개인정보·장치 ID·프로필 하위 폴더 이름·앱 캐시 경로·설정 인증 값 제거를 확인
  */
 
 // 기본 패키지
@@ -103,6 +103,8 @@ public sealed class ScanServiceSmokeTests(ITestOutputHelper output)
         var unclassifiedJson = string.Concat(document.RootElement.GetProperty("findings").EnumerateArray()
             .Where(f => f.GetProperty("category").GetString() == nameof(FindingCategory.Unclassified))
             .Select(f => f.GetRawText()));
+        AssertAppCacheExport(result.Report, document, json, profile);
+
         foreach (var candidatePath in profileCandidates)
         {
             var relative = candidatePath[(profile.Length + 1)..];
@@ -110,6 +112,51 @@ public sealed class ScanServiceSmokeTests(ITestOutputHelper output)
             Assert.DoesNotContain(
                 (PersonalDataScrubber.PROFILE_PLACEHOLDER + @"\" + relative).Replace(@"\", @"\\", StringComparison.Ordinal), json, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("'" + Path.GetFileName(candidatePath) + "'", unclassifiedJson, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    /// <summary>
+    /// 앱 캐시(P5): 규칙 목록 요약 Finding이 있고, 익명화 JSON의 앱 캐시 Finding을 출력하며, 설정 파일 인증 값 표지와
+    /// 앱 캐시 측정값의 프로필 밖 절대 경로(%SystemRoot% 아래 제외) 원문이 JSON에 없는지 확인한다.
+    /// </summary>
+    private void AssertAppCacheExport(ScanReport report, JsonDocument document, string json, string profile)
+    {
+        Assert.Contains(report.Findings, f => f.Id == RuleCatalogSummaryRule.FINDING_ID);
+        foreach (var finding in document.RootElement.GetProperty("findings").EnumerateArray()
+            .Where(f => f.GetProperty("category").GetString() == nameof(FindingCategory.AppCache)))
+        {
+            output.WriteLine($"export {finding.GetProperty("id").GetString()} | {finding.GetProperty("verdict").GetString()} | {finding.GetProperty("title").GetString()}");
+        }
+
+        var summary = document.RootElement.GetProperty("findings").EnumerateArray().Single(f => f.GetProperty("id").GetString() == RuleCatalogSummaryRule.FINDING_ID);
+        output.WriteLine("catalog evidence: " + summary.GetProperty("evidence").GetString());
+        output.WriteLine("catalog detail: " + summary.GetProperty("detail").GetString());
+
+        foreach (var marker in new[] { "_authToken", "_auth=", "ClearTextPassword", "packageSourceCredentials", "AutoLoginUser" })
+        {
+            Assert.DoesNotContain(marker, json, StringComparison.OrdinalIgnoreCase);
+        }
+
+        var systemRoot = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        var rawPaths = report.Findings
+            .Where(f => f.Category == FindingCategory.AppCache)
+            .SelectMany(f => f.Measured)
+            .Where(m => m.Name.StartsWith(AppCacheProbeContract.MEASUREMENT_PREFIX, StringComparison.Ordinal))
+            .SelectMany(m => m.Value switch
+            {
+                TextValue text => [text.Value],
+                TextListValue list => list.Values,
+                _ => [],
+            })
+            .Where(value => value.Length > 3 && value[1] == ':' && value[2] == '\\'
+                && !value.StartsWith(profile, StringComparison.OrdinalIgnoreCase)
+                && !value.StartsWith(systemRoot, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        output.WriteLine($"app cache non-profile paths checked: {rawPaths.Count}");
+        foreach (var raw in rawPaths)
+        {
+            Assert.DoesNotContain(raw.Replace(@"\", @"\\", StringComparison.Ordinal), json, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

@@ -1,0 +1,10 @@
+// @file    : libraryfolders-broken.vdf
+// @author  : rudals252
+// @brief   : Steam 라이브러리 리더 테스트용 가짜 libraryfolders.vdf(닫히지 않은 문자열로 형식 오류)
+"libraryfolders"
+{
+	"0"
+	{
+		"path"		"D:\\Unterminated
+	}
+}

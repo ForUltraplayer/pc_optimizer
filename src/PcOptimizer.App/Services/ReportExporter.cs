@@ -1,7 +1,7 @@
 /**
  * @file    : ReportExporter.cs
  * @author  : rudals252
- * @brief   : 검사 리포트를 스키마 버전이 있는 JSON으로 내보내며, 기본 내보내기는 모든 문자열 값의 장치 내부 ID를 내보내기 단위 토큰으로, 개인 경로·사용자명·PC명을 자리표시자로, 프로필 하위 경로와 같은 Finding 문장의 그 폴더 이름을 folder-N 토큰으로 치환
+ * @brief   : 검사 리포트를 스키마 버전이 있는 JSON으로 내보내며, 기본 내보내기는 모든 문자열 값의 장치 내부 ID를 내보내기 단위 토큰으로, 개인 경로·사용자명·PC명을 자리표시자로, 프로필 하위 경로와 앱 캐시 측정값의 절대 경로(드라이브 무관, %SystemRoot% 아래 제외), 같은 Finding 문장의 그 폴더 이름을 folder-N 토큰으로 치환
  */
 
 // 기본 패키지
@@ -13,7 +13,9 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 // 사용자 패키지
+using PcOptimizer.Core.Cleaning;
 using PcOptimizer.Core.Models;
+using PcOptimizer.Core.Rules;
 
 namespace PcOptimizer.App.Services;
 
@@ -51,16 +53,35 @@ public sealed class ReportExporter
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
+    private const string MEASURED_PROPERTY = "measured";
+    private const string NAME_PROPERTY = "name";
+    private const string VALUE_PROPERTY = "value";
+    private const string VALUES_PROPERTY = "values";
+
     private readonly PersonalDataScrubber _scrubber;
+    private readonly string? _systemRoot;
+
+    /// <summary>
+    /// 현재 Windows 폴더를 시스템 경로 예외로 쓰는 내보내기를 만듭니다.
+    /// </summary>
+    /// <param name="scrubber">개인정보 치환기.</param>
+    public ReportExporter(PersonalDataScrubber scrubber)
+        : this(scrubber, Environment.GetFolderPath(Environment.SpecialFolder.Windows))
+    {
+    }
 
     /// <summary>
     /// 내보내기를 만듭니다.
     /// </summary>
     /// <param name="scrubber">개인정보 치환기.</param>
-    public ReportExporter(PersonalDataScrubber scrubber)
+    /// <param name="systemRoot">
+    /// %SystemRoot% 경로(없으면 null). 앱 캐시 측정값의 절대 경로는 드라이브와 관계없이 토큰으로 바꾸되 이 아래의 시스템 경로는 그대로 둡니다.
+    /// </param>
+    public ReportExporter(PersonalDataScrubber scrubber, string? systemRoot)
     {
         ArgumentNullException.ThrowIfNull(scrubber);
         _scrubber = scrubber;
+        _systemRoot = string.IsNullOrWhiteSpace(systemRoot) ? null : systemRoot;
     }
 
     /// <summary>
@@ -86,6 +107,7 @@ public sealed class ReportExporter
         var root = JsonSerializer.SerializeToNode(report, SERIALIZER_OPTIONS)?.AsObject()
             ?? throw new InvalidOperationException("리포트를 JSON으로 바꾸지 못했습니다.");
         var paths = new PathTokenizer();
+        RegisterAppCachePaths(root, paths);
         ScrubStrings(root, new DeviceIdTokenizer(), paths);
         if (root[FINDINGS_PROPERTY] is JsonArray findings)
         {
@@ -111,6 +133,48 @@ public sealed class ReportExporter
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         var json = SerializeAnonymized(report);
         await File.WriteAllTextAsync(path, json, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 앱 캐시 측정값(이름이 appCache.로 시작)의 절대 경로를 드라이브와 관계없이 토큰 대상으로 등록한다.
+    /// 프로필 아래 경로는 기존 프로필 토큰화가, %SystemRoot% 아래 시스템 경로는 예외로 그대로 둔다.
+    /// </summary>
+    private void RegisterAppCachePaths(JsonObject root, PathTokenizer paths)
+    {
+        if (root[FINDINGS_PROPERTY] is not JsonArray findings)
+        {
+            return;
+        }
+
+        foreach (var measurement in findings.OfType<JsonObject>()
+            .Select(finding => finding[MEASURED_PROPERTY])
+            .OfType<JsonArray>()
+            .SelectMany(measured => measured.OfType<JsonObject>()))
+        {
+            if (measurement[NAME_PROPERTY] is not JsonValue name || !name.TryGetValue<string>(out var text)
+                || !text.StartsWith(AppCacheProbeContract.MEASUREMENT_PREFIX, StringComparison.Ordinal)
+                || measurement[VALUE_PROPERTY] is not JsonObject value)
+            {
+                continue;
+            }
+
+            var strings = value[VALUES_PROPERTY] is JsonArray list
+                ? list.OfType<JsonValue>().Select(item => item.TryGetValue<string>(out var s) ? s : null)
+                : [value[VALUE_PROPERTY] is JsonValue single && single.TryGetValue<string>(out var s) ? s : null];
+            foreach (var candidate in strings.OfType<string>())
+            {
+                if (_systemRoot is not null && PathScope.IsDriveAbsolute(candidate) && PathScope.IsSameOrUnder(candidate, _systemRoot))
+                {
+                    continue;
+                }
+
+                var scrubbed = _scrubber.Scrub(candidate);
+                if (!scrubbed.StartsWith(PersonalDataScrubber.PROFILE_PLACEHOLDER, StringComparison.OrdinalIgnoreCase))
+                {
+                    paths.RegisterAbsolutePath(scrubbed);
+                }
+            }
+        }
     }
 
     /// <summary>

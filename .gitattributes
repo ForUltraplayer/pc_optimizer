@@ -1,0 +1,6 @@
+# 규칙 데이터는 무결성 확인(rules/sources.json의 SHA-256) 대상이므로 줄 끝을 LF로 고정한다
+rules/*.ini text eol=lf
+rules/*.json text eol=lf
+rules/*.md text eol=lf
+# 캡처한 원시 바이트 fixture는 줄 끝 변환 없이 보관한다
+*.bin binary

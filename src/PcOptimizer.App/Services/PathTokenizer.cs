@@ -1,7 +1,7 @@
 /**
  * @file    : PathTokenizer.cs
  * @author  : rudals252
- * @brief   : 기본(익명화) 내보내기 한 번 안에서 프로필 자리표시자 아래 경로(%USERPROFILE%\...)를 처음 본 순서의 folder-N 토큰으로 바꾸고, 같은 Finding의 문장에 작은따옴표로 인용된 그 경로의 마지막 폴더 이름도 같은 토큰으로 바꾸는 치환기
+ * @brief   : 기본(익명화) 내보내기 한 번 안에서 프로필 자리표시자 아래 경로(%USERPROFILE%\...)와 등록한 프로필 밖 절대 경로(앱 캐시 측정값의 폴더, 드라이브·UNC 무관)를 처음 본 순서의 folder-N 토큰으로 바꾸고, 같은 Finding의 문장에 작은따옴표로 인용된 그 경로의 마지막 폴더 이름도 같은 토큰으로 바꾸는 치환기
  */
 
 // 기본 패키지
@@ -12,7 +12,8 @@ namespace PcOptimizer.App.Services;
 
 /// <summary>
 /// 프로필 하위 경로 토큰화기입니다(스펙 §8 "폴더 상세 이름/전체 경로는 기본 내보내기에 넣지 않음", 경로 해시로 익명화했다고 보지 않음).
-/// <see cref="PersonalDataScrubber"/>가 프로필 경로를 <c>%USERPROFILE%</c>로 바꾼 뒤에 적용하며, 프로필 밖(ProgramData·시스템) 경로는 그대로 둡니다.
+/// <see cref="PersonalDataScrubber"/>가 프로필 경로를 <c>%USERPROFILE%</c>로 바꾼 뒤에 적용하며, 프로필 밖(ProgramData·시스템) 경로는
+/// <see cref="RegisterAbsolutePath"/>로 등록한 것(앱 캐시 측정값의 폴더)만 바꾸고 나머지는 그대로 둡니다.
 /// 같은 경로(대소문자·구분자·끝 구분자 무시)는 한 내보내기 안에서 같은 토큰이 되고, 내보내기마다 새 인스턴스를 씁니다.
 /// </summary>
 /// <remarks>
@@ -31,22 +32,66 @@ public sealed partial class PathTokenizer
     private const string GROUP_RELATIVE = "rel";
     private const string GROUP_TOKEN = "token";
     private const string QUOTE = "'";
+    private const string UNC_PREFIX = @"\\";
+    private const string ALT_SEPARATOR = "/";
+    private const char DRIVE_SEPARATOR = ':';
+    private const int DRIVE_ROOT_LENGTH = 3;
+    private const int DRIVE_NAME_LENGTH = 2;
+    private const string ABSOLUTE_KEY_PREFIX = "abs:";
+
+    /// <summary>등록한 UNC 경로를 대신하는 뿌리 표시(서버 이름을 남기지 않음).</summary>
+    public const string NETWORK_ROOT = @"\\<network>";
+
+    /// <summary>등록한 절대 경로 뒤에 올 수 있는 경계(구분자·따옴표·문장 부호·끝).</summary>
+    private const string PATH_END_LOOKAHEAD = @"(?=$|[\\/""'|<>*?:;,.)\]\s])";
+
     private static readonly TimeSpan REGEX_TIMEOUT = TimeSpan.FromMilliseconds(REGEX_TIMEOUT_MILLISECONDS);
     private static readonly char[] SEPARATORS = ['\\', '/'];
 
     private readonly Dictionary<string, string> _tokens = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _leafByToken = new(StringComparer.Ordinal);
+    private readonly List<(string Path, Regex Pattern, string Replacement)> _absolute = [];
 
     /// <summary>
-    /// 문자열 안의 프로필 하위 경로를 <c>%USERPROFILE%\folder-N</c>으로 바꿉니다.
+    /// 문자열 안의 프로필 하위 경로를 <c>%USERPROFILE%\folder-N</c>으로, 등록한 절대 경로를 <c>D:\folder-N</c>(UNC는 <see cref="NETWORK_ROOT"/>)으로 바꿉니다.
     /// </summary>
     /// <param name="text">개인정보 치환을 마친 문자열.</param>
     /// <returns>치환한 문자열.</returns>
     public string Tokenize(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
-        return ProfilePathPattern().Replace(
+        var result = ProfilePathPattern().Replace(
             text, match => PersonalDataScrubber.PROFILE_PLACEHOLDER + SEPARATOR + TokenFor(match.Groups[GROUP_RELATIVE].Value));
+        foreach (var (_, pattern, replacement) in _absolute)
+        {
+            result = pattern.Replace(result, _ => replacement);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// 프로필 밖이어도 기본 내보내기에서 가려야 하는 절대 경로(드라이브 경로 또는 UNC)를 등록합니다. 앞으로 <see cref="Tokenize"/>가 이 경로를
+    /// 문자열 어디에서 만나든 토큰으로 바꾸며, 긴 경로부터 바꿉니다. 드라이브 절대 경로·UNC가 아니거나 드라이브 루트이면 무시합니다.
+    /// </summary>
+    /// <param name="path">개인정보 치환을 마친 절대 경로.</param>
+    public void RegisterAbsolutePath(string path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        var normalized = path.Trim().Replace(ALT_SEPARATOR, SEPARATOR, StringComparison.Ordinal).TrimEnd(SEPARATORS);
+        var isUnc = normalized.StartsWith(UNC_PREFIX, StringComparison.Ordinal) && normalized.Length > UNC_PREFIX.Length;
+        var isDrive = normalized.Length > DRIVE_ROOT_LENGTH && char.IsAsciiLetter(normalized[0])
+            && normalized[1] == DRIVE_SEPARATOR && normalized[DRIVE_ROOT_LENGTH - 1] == SEPARATOR[0];
+        if ((!isUnc && !isDrive) || _absolute.Any(item => string.Equals(item.Path, normalized, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        var token = TokenFor(ABSOLUTE_KEY_PREFIX + normalized);
+        var root = isUnc ? NETWORK_ROOT : normalized[..DRIVE_NAME_LENGTH];
+        var pattern = new Regex(Regex.Escape(normalized) + PATH_END_LOOKAHEAD, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, REGEX_TIMEOUT);
+        _absolute.Add((normalized, pattern, root + SEPARATOR + token));
+        _absolute.Sort((left, right) => right.Path.Length.CompareTo(left.Path.Length));
     }
 
     /// <summary>
@@ -116,6 +161,6 @@ public sealed partial class PathTokenizer
     /// <summary>
     /// 이미 토큰화한 경로.
     /// </summary>
-    [GeneratedRegex(@"%USERPROFILE%\\(?<token>folder-[0-9]+)(?![0-9])", RegexOptions.CultureInvariant, REGEX_TIMEOUT_MILLISECONDS)]
+    [GeneratedRegex(@"(?:%USERPROFILE%|[A-Za-z]:|\\\\<network>)\\(?<token>folder-[0-9]+)(?![0-9])", RegexOptions.CultureInvariant, REGEX_TIMEOUT_MILLISECONDS)]
     private static partial Regex TokenPattern();
 }

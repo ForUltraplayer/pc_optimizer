@@ -44,8 +44,9 @@ public partial class App : Application
         // SID·인자 원문은 기록하지 않는다(시작 방식만).
         logger.Info(LOG_CATEGORY, $"AppStarted elevated={elevation.IsElevated} mode={launchMode}");
 
-        // 승격된 인스턴스는 앱에 포함된(번들) 규칙·보호 정책만 쓴다. 지금은 사용자 쓰기 가능한 규칙 파일이 없으며,
-        // P5에서 규칙 파일 로더를 추가할 때 launchMode가 Normal이 아니면 사용자 추가 경로·외부 규칙을 거부하도록 여기서 강제한다.
+        // 규칙·보호 정책은 실행 모드와 관계없이 앱 폴더의 포함 파일(rules\)만 읽는다. 앱 캐시 규칙은 rules\sources.json의 SHA-256이 모두
+        // 맞을 때만 쓰고(RuleCatalogLoader.CreateBundled), 다운로드·사용자 규칙 경로는 없다. 관리자 권한으로 실행 중인 검사(재검사·직접 승격)에서는
+        // 사용자 쓰기 가능한 앱 설정 경로(npm·pip·NuGet·Steam)를 적용하지 않고 기본 위치만 본다(AppCacheProbe, ScanContext.IsElevated 기준).
         var scanService = ScanService.CreateDefault(logger, limitToSystemScope: launchMode == ScanLaunchMode.ElevatedDifferentUser);
 
         var viewModel = new MainViewModel(

@@ -1,0 +1,30 @@
+// @file    : libraryfolders.vdf
+// @author  : rudals252
+// @brief   : Steam 라이브러리 리더 테스트용 가짜 libraryfolders.vdf(Valve KeyValues 형식, 라이브러리 두 곳, 가짜 앱 ID·크기)
+"libraryfolders"
+{
+	"0"
+	{
+		"path"		"C:\\Program Files (x86)\\Steam"
+		"label"		""
+		"contentid"		"1111111111111111111"
+		"totalsize"		"0"
+		"update_clean_bytes_tally"		"123"
+		"time_last_update_verified"		"1700000000"
+		"apps"
+		{
+			"228980"		"1234"
+		}
+	}
+	"1"
+	{
+		"path"		"D:\\SteamLibrary"
+		"label"		"Games \"Fast\""
+		"contentid"		"2222222222222222222"
+		"totalsize"		"1000204886016"
+		"apps"
+		{
+			"1091500"		"70000000000"
+		}
+	}
+}
