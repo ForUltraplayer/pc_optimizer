@@ -28,9 +28,9 @@
 | REV-013 | P2 | 검증 완료 | UI 정리 결과 | Started 플래그로 미실행 코드 분리·Outcome 미생성·메인 화면 미잔존 독립 확인 |
 | REV-014 | P2 | 수정됨·재검증 대기 | UI 개요 | SP4 Task 5: 드라이버 타일 제거, 온라인 완료 판정에서 로컬 Driver CannotVerify 제외(온라인 공급자·NVIDIA 비교 규칙만), 온라인 상태는 옵션 영역 `LastOnlineCheckText`만 |
 | REV-015 | 제품 범위 | 수정됨·재검증 대기 | 개요 화면 | SP4 Task 5: 제안 1·2항(요약 타일 '바로 할 수 있는 것/직접 해야 하는 것', 0이면 숨김, 정리 창은 보호 위치 도구 있을 때만) 구현. 3·4항은 후속 단계 |
-| REV-016 | P1(Task 10 선행) | 미해결 | Task 9→10 사용자 범위 | SystemOnly여도 정리 진입 허용, backend에 대화형 사용자 범위 전달 없음. 현재 승격 거절을 없애기 전 보완 필수 |
+| REV-016 | P1(Task 10 선행) | 수정됨·재검증 대기 | Task 9→10 사용자 범위 | SP4 Task 10 `0c80a8b`: UI `CanOpenCacheTools`에 !IsSystemOnly, `SystemCacheToolBackend(limitToSystemScope)`가 Locate·Inspect·Clear를 관측 전 `UserScopeExcluded`로 거절. 승격 거절 제거는 이후 `34670c5` |
 | REV-017 | P2 | 미해결 | SP4 사양 수집 | WaitAsync 타임아웃 후 살아 있는 프로브 재진입 — 반복 Capture에서 호출 2회 재현 |
-| REV-018 | P2 | 미해결 | SP4 실행 상호 배제 | Spec.IsLoading=true인데 CanOpenCacheTools=true. 상태 변경 알림도 검사 명령만 갱신 |
+| REV-018 | P2 | 수정됨·재검증 대기 | SP4 실행 상호 배제 | SP4 Task 10 `0c80a8b`: `CanOpenCacheTools`에 !Spec.IsLoading, IsLoading 변경 시 CanOpenCacheTools 알림. 종료 대기(IsDraining) 관문은 Task 13 |
 
 ## REV-001 — 보호 경로와 스캔 경로의 검증 정책을 분리
 
@@ -416,6 +416,12 @@
 - 요청: 사용자별 정리의 UI·준비·실행 직전 관문에 범위 전달/재확인. SystemOnly 거절 Started=false, 동일 사용자 허용 회귀를 추가한다.
 - 근거: [Task 9 리뷰](2026-09-27-sp4-task9-review.md), [실패 재현 소스](repro/Sp4Task9ReviewTests.cs).
 - 대응 기록: 2026-09-27 Claude 컨트롤러 — SP4 Task 10 필수 선행 범위로 편입(UI `CanOpenCacheTools`와 `SystemCacheToolBackend(limitToSystemScope)` 양쪽 거절, 재현 테스트 이름 보존). 구현 커밋은 Task 10 완료 시 기록.
+- 대응 기록 (2026-09-27, Claude Opus 5.5 구현자, SP4 Task 10): 상태 `수정됨·재검증 대기`.
+  - 커밋 `0c80a8b`(관문, 승격 거절 제거 전): `MainViewModel.CanOpenCacheTools = CacheToolsAvailable && !IsScanning && !HasDrainingNote && !IsSystemOnly && !Spec.IsLoading`. `SystemCacheToolBackend(IAppLogger?, bool limitToSystemScope)` — true면 `LocateAsync`는 도구 탐색·파일 관측·프로세스 실행 전에 `CacheToolUnavailableException("UserScopeExcluded")`, `InspectAsync`는 열거 없이 `Allowed=false`, `ClearAsync`는 `Started=false`로 거절(npm·pip·NuGet 전부). `CacheToolsWindow(IAppLogger?, bool limitToSystemScope)`에 `MainWindow`가 `viewModel.IsSystemOnly` 전달. 문구 `Cleanup_UserScopeExcluded`.
+  - 커밋 `34670c5`: 위 관문이 통과한 뒤 `NormalUserRequired` 승격 거절을 제거하고 보호 위치(Program Files 계열) 도구만 실행하도록 교체.
+  - 테스트: `MainViewModelTests.SystemOnlyMustNotOfferUserCacheActions`(재현 소스 이름·단언 보존), `CacheCleanupTests.SystemOnlyBackendRefusesBeforeObservation`(npm/pip/NuGet 3건: 계획 없음·Inspect/Clear 거절·Started=false·가짜 파일 시스템 ProbeRoot/Enumerate 0회·탐색/실행/지문 0회), `SystemOnlyWindowShowsUserScopeExcluded`, `FullScopeBackendStillPreparesAndClears`(동일 사용자 허용 회귀). RED: 수정 전 SystemOnly에서 CanOpenCacheTools=true, 백엔드가 계획을 발급(`Assert.Null() Failure: Value is not null`).
+  - 검증(`34670c5` 기준 작업 트리, Release): 빌드 경고 0·오류 0, 기본 필터 1225/1225, Smoke 22/22. Online/ToolSmoke 미실행. 앱 GUI·실제 다른 SID 승격 환경은 실행하지 않았다(단위 테스트 가짜 대역만).
+  - 남은 제한: SystemOnly에서도 정리 버튼은 보이되 비활성(배너가 이유 설명). 독립 재검증 필요.
 
 ## REV-017 — 사양 수집 타임아웃 이후 살아 있는 프로브 재실행
 
@@ -435,6 +441,11 @@
 - 요청: 사양 읽기/종료 중 상태를 실행 가능 조건에 반영하고 CanOpenCacheTools 변경 알림을 연결한다. 실제 정리가 현재 차단돼 있다는 사실과 별개로 Task 10 활성화 전 처리한다. REV-017과 함께 실제 수명을 기준으로 판단한다.
 - 근거: [Task 9 리뷰](2026-09-27-sp4-task9-review.md), [실패 재현 소스](repro/Sp4Task9ReviewTests.cs).
 - 대응 기록: 2026-09-27 Claude 컨트롤러 — `IsLoading` 관문은 Task 10(a)에서, 종료 대기(`IsDraining`) 관문은 Task 13에서 처리.
+- 대응 기록 (2026-09-27, Claude Opus 5.5 구현자, SP4 Task 10 (a)): 상태 `수정됨·재검증 대기`(IsLoading 범위만).
+  - 커밋 `0c80a8b`: `CanOpenCacheTools`에 `!Spec.IsLoading` 추가, `OnSpecPropertyChanged`에서 `IsLoading` 변경 시 `StartScanCommand.NotifyCanExecuteChanged()`와 함께 `OnPropertyChanged(nameof(CanOpenCacheTools))`. 정리 창은 명령이 아니라 Click 처리기(`MainWindow.OpenCacheTools`)와 `IsEnabled` 바인딩이라 `OpenCacheToolsCommand`는 없다.
+  - 테스트: `MainViewModelTests.SpecLoadingMustBlockCacheActions`(재현 소스 이름·단언 보존), `SpecLoadingNotifiesCacheToolsGate`(읽기 시작·종료 시 CanOpenCacheTools 변경 알림 false→true). RED: 수정 전 `Assert.False() Failure … Actual: True`, 알림 목록 `[]`.
+  - 검증: REV-016 기록과 같음(빌드 0/0, 기본 1225/1225, Smoke 22/22).
+  - 남은 제한: 타임아웃 뒤 살아 있는 사양 프로브의 실제 종료 대기(IsDraining)는 이 관문에 없다 — REV-017과 함께 Task 13.
 
 ## 2026-09-27 Task 9 시점 재검증 (Codex)
 
