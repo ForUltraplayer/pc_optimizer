@@ -190,3 +190,4 @@ Independent review dispatched (opus) for 4e8a5bc (UI outcomes/navigation) — re
 Independent review 2 (opus, 4e8a5bc): 실행기 변경 없음·안전; Important 3 → REV-013(실행 전 거절을 실패로 표시), REV-014(드라이버 타일 온라인 요청=비교 완료), REV-011 확대. 원장·보고서 커밋.
 2026-09-27 01:4x: 사용자 지시 '리스트 만들어 작업 대기'. docs/reviews/2026-09-27-worklist.md 작성(A 출시 전 필수 REV-008~014, B 제품 범위 REV-015/REV-004 잔여, C 수동 검증, D 이월 minor, E 마무리 절차). REV-015 원장 등록(제안). Codex가 작업 트리에서 17파일(실행기 포함) 미커밋 수정 중 — REV-008~014 대응 추정. 대기.
 Independent re-verification (opus, 4c1e93d): REV-008/009/011/012/013 검증 완료; REV-010 부분(AggregateException 우회), REV-014 부분(로컬 CannotVerify를 미완료로 계산). 원장·작업 목록 갱신 커밋. 대기.
+2026-09-27: 2차 개선 브레인스토밍 완료(architectural). 결정: 조치 중심, 항목별 확인 기본+묶음 속성, 항상 관리자 권한(사용자 쓰기 가능 도구 미실행·표준 계정 시스템 범위), 격리 없이 즉시 삭제, 설명 3줄+안전 수준 배지, LLM 미사용(질문 파일 계획만). 범위: SP1(A1,A2,B,C,D,F1,F2) SP2(고급 탭: ReBAR·게임모드·HAGS + 커뮤니티 옵션 조사 후 채택) SP3(보드/장치 드라이버 한국어 안내) SP4(형식). 스펙 커밋. 사용자 검토 대기 → writing-plans.
