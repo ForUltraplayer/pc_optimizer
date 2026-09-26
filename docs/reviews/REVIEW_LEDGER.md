@@ -415,7 +415,7 @@
 - 영향과 한계: 현재 NormalUserRequired가 실제 정리를 차단한다. **다른 사용자 데이터 삭제 재현이 아니라 Task 10 활성화 전 보완할 계약 결함**이다. 승격 거절만 제거하면 관리자 프로필과 대화형 사용자 프로필의 구분이 사라진다.
 - 요청: 사용자별 정리의 UI·준비·실행 직전 관문에 범위 전달/재확인. SystemOnly 거절 Started=false, 동일 사용자 허용 회귀를 추가한다.
 - 근거: [Task 9 리뷰](2026-09-27-sp4-task9-review.md), [실패 재현 소스](repro/Sp4Task9ReviewTests.cs).
-- 대응 기록: 아직 없음. Task 9 fix 또는 Task 10 필수 선행 항목으로 구현자가 배정할 것.
+- 대응 기록: 2026-09-27 Claude 컨트롤러 — SP4 Task 10 필수 선행 범위로 편입(UI `CanOpenCacheTools`와 `SystemCacheToolBackend(limitToSystemScope)` 양쪽 거절, 재현 테스트 이름 보존). 구현 커밋은 Task 10 완료 시 기록.
 
 ## REV-017 — 사양 수집 타임아웃 이후 살아 있는 프로브 재실행
 
@@ -425,7 +425,7 @@
 - 실제: WaitAsync 타임아웃 뒤 내부 Task/종료 중 상태를 보존하지 않는다. 사양 새로 고침과 공유 인스턴스를 쓰는 일반 검사가 다시 실행될 수 있다. 일반 검사 종료 중→사양의 반대 방향도 별도 확인할 것.
 - 요청: 두 경로의 실제 실행/종료 상태를 공유하고, 타임아웃과 실제 종료를 분리한다. 재진입 차단·늦은 종료 후 복구를 양방향으로 검증한다.
 - 근거: [Task 9 리뷰](2026-09-27-sp4-task9-review.md), [실패 재현 소스](repro/Sp4Task9ReviewTests.cs).
-- 대응 기록: 아직 없음.
+- 대응 기록: 2026-09-27 Claude 컨트롤러 — SP4 신규 Task 13(실행 수명 공유·종료 견고성)에 REV-010 잔여와 함께 배정. 실행 순서 10 → 13 → 11 → 12.
 
 ## REV-018 — 사양 읽기 중 정리 창 진입 가드 누락
 
@@ -434,7 +434,7 @@
 - 재현: `SpecLoadingMustBlockCacheActions`. IsLoading=true와 StartScan.CanExecute=false를 확인했지만 CanOpenCacheTools=true라 실패.
 - 요청: 사양 읽기/종료 중 상태를 실행 가능 조건에 반영하고 CanOpenCacheTools 변경 알림을 연결한다. 실제 정리가 현재 차단돼 있다는 사실과 별개로 Task 10 활성화 전 처리한다. REV-017과 함께 실제 수명을 기준으로 판단한다.
 - 근거: [Task 9 리뷰](2026-09-27-sp4-task9-review.md), [실패 재현 소스](repro/Sp4Task9ReviewTests.cs).
-- 대응 기록: 아직 없음.
+- 대응 기록: 2026-09-27 Claude 컨트롤러 — `IsLoading` 관문은 Task 10(a)에서, 종료 대기(`IsDraining`) 관문은 Task 13에서 처리.
 
 ## 2026-09-27 Task 9 시점 재검증 (Codex)
 
