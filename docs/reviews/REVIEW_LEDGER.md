@@ -118,6 +118,18 @@
     - 이미 받은 항목의 메모리 집계(확장자·크기 합산)는 예산 뒤에도 끝까지 수행한다. 이는 OS 호출이 아니라서 짧지만 0은 아니다.
     - 예산 초과 뒤 받은 큰 파일들은 하드링크 중복 확인이 빠져 논리 크기 추정(중복 가능)이 된다.
     - 실제 대량 항목 폴더에서의 시간은 측정하지 않았다(가짜 열거·가짜 조회로 검증).
+- 대응 기록 (2026-09-26, P4 리뷰 4차 수정, 구현자, 커밋 `b00fa49`) — 3차 기록 정정:
+  - 정정: 3차 기록의 "예산 초과분은 진행 중이던 OS 조회 한 번으로 제한"은 `c8d2c59`에서 사실이 아니었다. 예산 확인이 파일마다 한 번이라, 64MiB 이상이면서 압축·희소인 파일은 파일 ID 조회가 예산을 넘겨도 같은 파일의 할당 크기 조회가 이어졌다. 실제 상한은 조회 두 번이었다.
+  - 수정: `VolumeTraversalRun.HandleFile`이 할당 크기 조회 직전에 예산을 다시 확인한다. 넘겼으면 조회하지 않고 `LookupsSkipped`를 늘리며, 이후 파일도 조회하지 않도록 `ListDirectory`에 알린다. 이제 예산을 넘긴 뒤 수행되는 OS 조회는 이미 진행 중이던 한 번뿐이다. `ListDirectory` 문서 주석도 이에 맞게 고쳤다.
+  - 회귀 테스트: `ProcessingBudgetReviewTests.AllocatedSizeLookupIsSkippedWhenIdentityLookupCrossesBudget`. 64MiB 압축 파일의 ID 조회가 121초를 진행시키는 상황에서 할당 크기 조회 0회, 파일 ID 조회 1회, LookupsSkipped 1, 논리 크기 보존, Timeout 1, 루트·볼륨 TimedOut을 확인한다. 가짜 파일 ID 공급자에 `AllocatedCalls` 기록을 추가했고, 3차 테스트에는 할당 크기 조회 없음 단언을 더했다.
+  - 명령(작업 루트, Release):
+    - `VolumeTraversalRun.cs`만 `git stash`로 되돌린 상태에서 `dotnet test tests/PcOptimizer.Tests -c Release --filter "FullyQualifiedName~ProcessingBudgetReviewTests"` — `실패: 1, 통과: 2`(`Assert.Empty() Failure: Collection was not empty` — 할당 크기 조회가 일어남). 복원 후 통과.
+    - `dotnet test tests/PcOptimizer.Tests -c Release --filter "FullyQualifiedName~ProcessingBudgetReviewTests|FullyQualifiedName~FileSystemScannerTests|FullyQualifiedName~IndependentReviewTests|FullyQualifiedName~FileSystemScannerTempTreeTests|FullyQualifiedName~FileScanServiceTests|FullyQualifiedName~FileScanProbeTests"` — `통과: 37, 실패: 0`.
+    - `dotnet build -c Release` — 경고 0개, 오류 0개.
+    - `dotnet test tests/PcOptimizer.Tests -c Release --no-build --filter "Category!=Smoke"` — `통과: 761, 실패: 0`. 이번 라운드는 지시에 따라 Smoke를 실행하지 않았다.
+  - 남은 제한:
+    - OS 호출 한 번(열거 묶음, 파일 ID 조회, 할당 크기 조회)은 중간에 끊을 수 없다. 예산을 넘긴 뒤의 초과는 그 진행 중인 호출 한 번으로 제한된다.
+    - 스캔 전체의 마지막 OS 조회에서 예산을 넘기면(뒤에 확인할 항목이 없으면) 데이터는 모두 관측됐지만 `TimedOut=false`로 끝난다. 이 경우는 최종 리뷰로 미뤘다.
 
 ## REV-003 — ‘종료 중’ 안내 자동 갱신
 
