@@ -1,0 +1,20 @@
+<Project>
+
+  <!--
+    @file    : Directory.Build.props
+    @author  : rudals252
+    @brief   : 솔루션 전역 공통 빌드 설정 (Nullable, 분석기, 결정적 빌드, 잠금 파일 복원)
+  -->
+
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+
+</Project>

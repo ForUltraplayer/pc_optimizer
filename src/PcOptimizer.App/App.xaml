@@ -1,0 +1,14 @@
+<!--
+  @file    : App.xaml
+  @author  : rudals252
+  @brief   : WPF 애플리케이션 진입점 리소스 정의 (시작 창 지정)
+-->
+<Application x:Class="PcOptimizer.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:PcOptimizer.App"
+             StartupUri="Views/MainWindow.xaml">
+    <Application.Resources>
+
+    </Application.Resources>
+</Application>
