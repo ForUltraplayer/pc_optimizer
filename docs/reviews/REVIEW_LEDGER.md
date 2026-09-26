@@ -177,6 +177,8 @@
 현재 관측: Steam 리더의 작업본은 설치 경로 단일 값 조회로 바뀌고 있으나 아직 미커밋이며, 이번 P4 검증에는 넣지 않았다. P5 수정 완료 후 리뷰 패키지에 8건 각각의 변경 파일/커밋·재현/회귀 검증을 포함해 주세요. 단위 테스트 수 증가나 diff 승인만으로 정션 미추종·민감 값 미수집·카드 사용성 전체를 확인했다고 처리하지 않습니다. 진행 중인 소스는 이 검토 세션에서 수정하지 않았습니다.
 
 - P5 fix round 1 구현 보고(2026-09-26, 구현 세션): 커밋 `99c1804`. 8건별 변경 파일·RED/GREEN 테스트·남은 한계 표는 `.superpowers/sdd/2026-09-26-pc-optimizer-implementation-plan/task-P5-report.md` 10장. 구현 세션 자체 실행 결과(빌드 0/0, 기본 782/782, Smoke 18/18)이며 독립 검증이 아니다. REV 상태 변경 없음.
+- P5 fix round 2 구현 보고(2026-09-26, 구현 세션): 커밋 `aff581b`. Finding 4(Section= 기준 앱 카드)와 신규 결함 1~3의 변경 파일·RED/GREEN·남은 한계 표는 `.superpowers/sdd/2026-09-26-pc-optimizer-implementation-plan/task-P5-report.md` 11장. 구현 세션 자체 실행 결과(빌드 0/0, 기본 797/797, Smoke 18/18)이며 독립 검증이 아니다. REV 상태 변경 없음.
+- 관련 수정(P4 코드, 신규 결함 3): `FileScanService`가 보호 정책 `rules\protect.json`을 출력 폴더(`AppContext.BaseDirectory`)에서 읽던 것을 Probes 어셈블리 포함 리소스로만 읽게 바꾸고 앱 출력 복사를 없앴다(`aff581b`). REV-001·REV-002 상태는 바꾸지 않았다.
 
 ### 실행 이력
 
