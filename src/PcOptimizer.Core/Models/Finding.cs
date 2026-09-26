@@ -1,7 +1,7 @@
 /**
  * @file    : Finding.cs
  * @author  : rudals252
- * @brief   : 모든 검사 결과를 표현하는 Finding 모델과 생성 시 불변식 검증
+ * @brief   : 모든 검사 결과를 표현하는 Finding 모델과 생성 시 불변식 검증. 초보자용 설명 3줄과 안전 수준을 선택적으로 담는다
  */
 
 namespace PcOptimizer.Core.Models;
@@ -17,6 +17,7 @@ namespace PcOptimizer.Core.Models;
 /// <item>CannotVerify이면 CannotVerifyReason이 필수이고, 그 외 판정이면 null이어야 한다.</item>
 /// <item>Candidate이면 Recommendation과 Evidence(공백이 아닌 문자열)가 필수다.</item>
 /// </list>
+/// 초보자용 설명 3줄(<see cref="Explanation"/>)과 안전 수준(<see cref="SafetyLevel"/>)은 선택 필드다.
 /// 위반하면 <see cref="FindingInvariantException"/>을 던진다.
 /// </remarks>
 public sealed record Finding
@@ -35,6 +36,8 @@ public sealed record Finding
     /// <param name="recommendation">권고. Candidate이면 필수.</param>
     /// <param name="impact">영향.</param>
     /// <param name="actions">사용자 동작 목록.</param>
+    /// <param name="explanation">초보자용 설명 3줄. Task 3부터 Candidate이면 필수.</param>
+    /// <param name="safety">안전 수준. Task 3부터 Candidate이면 필수.</param>
     /// <exception cref="FindingInvariantException">불변식을 어긴 경우.</exception>
     public Finding(
         string id,
@@ -47,7 +50,9 @@ public sealed record Finding
         string? detail,
         Recommendation? recommendation,
         Impact? impact,
-        IReadOnlyList<FindingAction> actions)
+        IReadOnlyList<FindingAction> actions,
+        Explanation? explanation = null,
+        SafetyLevel? safety = null)
     {
         ValidateInvariants(id, title, measured, evidence, verdict, cannotVerifyReason, recommendation, actions);
 
@@ -62,6 +67,8 @@ public sealed record Finding
         Recommendation = recommendation;
         Impact = impact;
         Actions = [.. actions];
+        Explanation = explanation;
+        Safety = safety;
     }
 
     /// <summary>규칙 ID + 장치/경로 내부 식별자.</summary>
@@ -96,6 +103,12 @@ public sealed record Finding
 
     /// <summary>사용자 동작 목록.</summary>
     public IReadOnlyList<FindingAction> Actions { get; }
+
+    /// <summary>초보자용 설명 3줄. Task 3부터 Candidate이면 필수.</summary>
+    public Explanation? Explanation { get; }
+
+    /// <summary>안전 수준. Task 3부터 Candidate이면 필수.</summary>
+    public SafetyLevel? Safety { get; }
 
     /// <summary>
     /// 생성 인자가 데이터 모델 불변식을 지키는지 검사한다.
