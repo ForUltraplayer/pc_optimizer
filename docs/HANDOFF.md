@@ -14,7 +14,7 @@
 
 - 2차 개선 스펙: `docs/superpowers/specs/2026-09-27-improvement-phase2-design.md`(사용자 승인). 계획: `docs/superpowers/plans/2026-09-27-sp4-format-and-admin.md`(Task 1~12).
 - SDD 원장(룰링·라운드 기록): `.superpowers/sdd/2026-09-27-sp4-format-and-admin/progress.md`(git-ignored). 브리프는 같은 폴더 `task-N-brief.md`, 보고서 `task-N-report.md`.
-- 진행: Task 1~9 완료(Task 9: c9ba0d7+512a82e, requireAdministrator·WTS 대화형 SID 범위 판정·승격 재실행 코드 삭제, 리뷰 통과). **Task 10 구현 완료(0c80a8b·34670c5·7e39311: SystemOnly/사양 읽기 중 정리 진입 차단, 실행기 UserScopeExcluded 거절, NormalUserRequired 제거→보호 위치 도구만, 문구 정정; 기본 1225/1225, Smoke 22/22) — 리뷰 진행 중**. Codex 독립 리뷰(237708f)로 REV-016~018 등록: 016·018은 Task 10에 편입, 017과 REV-010 잔여는 신규 Task 13. 실행 순서 10 → 13 → 11 → 12.
+- 진행: Task 1~10 완료(Task 10: 0c80a8b..f432d5a — SystemOnly/사양 읽기 중 정리 진입 차단, 실행기 UserScopeExcluded, NormalUserRequired 제거→보호 위치 도구만(시스템 폴더 API), 도구 작업 폴더 System32 고정, 노출 판정을 실행 규칙과 통일; 리뷰 통과). **Task 13 구현 완료(3d286be·2d140d7: 사양 프로브 재진입 차단·IsDraining·CacheProcessGuard AggregateException; 기본 1245/1245, Smoke 22/22) — 리뷰 진행 중**. 남은 순서 11(문서·원장·검증, 이월 minor 편입) → 12(포터블 zip·아이콘).
 - SDD 원장 사본: `docs/superpowers/sdd-progress-2026-09-27-sp4.md`(룰링·라운드·이월 minor). 원본 `.superpowers/sdd/2026-09-27-sp4-format-and-admin/progress.md`.
 - 재개 시: 원장 마지막 `Task N: complete` 줄 다음 순서(10 → 13 → 11 → 12)의 브리프로 파견. Task 10 리뷰 중이면 수정 라운드부터. 미검증 수동 항목: 일반 셸에서 UAC 프롬프트, 표준 계정+타 관리자 승격 시 SystemOnly 배너.
 - 사용자 확정: UI 배치안(scratchpad 목업, 좌측 메뉴 7개·타일 2개·설명 3줄 카드), 내 PC 사양은 fastfetch식 한 열 나열(CPU·메인보드·GPU·RAM·SSD·HDD·모니터 이름 전부), 배포는 GitHub zip 포터블(단일 파일 exe·아이콘, Task 12).
