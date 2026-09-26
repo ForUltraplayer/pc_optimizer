@@ -14,7 +14,9 @@
 
 - 2차 개선 스펙: `docs/superpowers/specs/2026-09-27-improvement-phase2-design.md`(사용자 승인). 계획: `docs/superpowers/plans/2026-09-27-sp4-format-and-admin.md`(Task 1~12).
 - SDD 원장(룰링·라운드 기록): `.superpowers/sdd/2026-09-27-sp4-format-and-admin/progress.md`(git-ignored). 브리프는 같은 폴더 `task-N-brief.md`, 보고서 `task-N-report.md`.
-- 진행: Task 1~7 완료(…, 3a60fe4; 리뷰 통과). Task 8(사양 화면·캡처) 진행 중. Task 9~12 미착수.
+- 진행: Task 1~8 완료(마지막 1d24cbf; 모두 리뷰 통과, 기본 1234/1234, Smoke 22/22 @Task 6). **Task 9(requireAdministrator 전환·승격 코드 제거·대화형 SID 범위 판정)부터 미착수**, 이어 10(보호 위치 도구만 정리), 11(문서·원장), 12(포터블 zip·아이콘).
+- SDD 원장 사본: `docs/superpowers/sdd-progress-2026-09-27-sp4.md`(룰링·라운드·이월 minor). 원본 `.superpowers/sdd/2026-09-27-sp4-format-and-admin/progress.md`.
+- 세션 중단 사유: 사용량 한도(2026-09-27). 재개 시 Task 9 브리프(`task-9-brief.md`)로 subagent 파견. 실행 중인 서브에이전트 없음.
 - 사용자 확정: UI 배치안(scratchpad 목업, 좌측 메뉴 7개·타일 2개·설명 3줄 카드), 내 PC 사양은 fastfetch식 한 열 나열(CPU·메인보드·GPU·RAM·SSD·HDD·모니터 이름 전부), 배포는 GitHub zip 포터블(단일 파일 exe·아이콘, Task 12).
 - 재개 방법: 원장의 마지막 `Task N:` 줄을 보고 그 다음 작업을 subagent-driven-development로 파견. 파견 전 `git status`로 Codex 미커밋 변경 확인(현재 Codex 유휴).
 - 검증 명령 기본 필터: `Category!=Smoke&Category!=Online&Category!=ToolSmoke`.
