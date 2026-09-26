@@ -1,7 +1,7 @@
 /**
  * @file    : FakeProbes.cs
  * @author  : rudals252
- * @brief   : 실행 조율 테스트용 가짜 프로브(성공·예외·멈춤·동기 차단·지연·취소 협조·부분·잘못된 ID)
+ * @brief   : 실행 조율 테스트용 가짜 프로브(성공·예외·멈춤·동기 차단·지연·취소 협조·부분·잘못된 ID·null 목록)
  */
 
 // 사용자 패키지
@@ -334,5 +334,37 @@ internal sealed class WrongIdProbe : FakeProbe
     {
         return Task.FromResult(new ProbeResult(
             Id + "-other", ProbeStatus.Success, [], [], OBSERVED_AT, TimeSpan.Zero, context.UserContext));
+    }
+}
+
+/// <summary>
+/// 측정값 또는 Issue 목록이 null이거나 null 항목을 담은 잘못된 결과를 반환하는 프로브입니다.
+/// </summary>
+internal sealed class NullCollectionsProbe : FakeProbe
+{
+    private readonly bool _nullMeasurements;
+    private readonly bool _nullIssues;
+    private readonly bool _nullIssueItem;
+
+    /// <summary>null 목록 프로브를 만든다.</summary>
+    public NullCollectionsProbe(string id, bool nullMeasurements, bool nullIssues, bool nullIssueItem = false)
+        : base(id, GENEROUS_TIMEOUT)
+    {
+        _nullMeasurements = nullMeasurements;
+        _nullIssues = nullIssues;
+        _nullIssueItem = nullIssueItem;
+    }
+
+    /// <inheritdoc />
+    protected override Task<ProbeResult> RunCoreAsync(ScanContext context, CancellationToken ct)
+    {
+        return Task.FromResult(new ProbeResult(
+            Id,
+            ProbeStatus.Success,
+            _nullMeasurements ? null! : [],
+            _nullIssues ? null! : _nullIssueItem ? [null!] : [],
+            OBSERVED_AT,
+            TimeSpan.Zero,
+            context.UserContext));
     }
 }

@@ -28,6 +28,7 @@ internal sealed class ProbeExecutor
     private const string CANCELLED_STILL_RUNNING_SUMMARY = "취소 후에도 아직 종료 중이에요 (still finishing after cancel)";
     private const string NULL_RESULT_SUMMARY = "프로브가 결과를 돌려주지 않았어요";
     private const string MISMATCHED_ID_SUMMARY = "프로브가 다른 ID의 결과를 돌려줬어요";
+    private const string NULL_COLLECTION_SUMMARY = "프로브 결과의 측정값 또는 Issue 목록에 null이 있어요";
 
     private readonly IClock _clock;
     private readonly IAppLogger _logger;
@@ -208,7 +209,8 @@ internal sealed class ProbeExecutor
 
     /// <summary>
     /// 프로브가 돌려준 결과를 검증하고 실행기가 잰 시작 시각·소요 시간으로 덮어쓴다.
-    /// null이거나 다른 ID의 결과는 성공으로 받지 않고 Failed/ProbeError로 바꾼다.
+    /// null 결과, null 측정값/Issue 목록(또는 null 항목), 다른 ID의 결과는 성공으로 받지 않고 Failed/ProbeError로 바꾼다.
+    /// 잘못된 결과 하나가 리포트 조립을 깨뜨려 다른 프로브 결과까지 잃지 않게 하기 위함이다.
     /// </summary>
     private ProbeResult NormalizeResult(
         IProbe probe,
@@ -222,6 +224,16 @@ internal sealed class ProbeExecutor
             _logger.Warn(LOG_CATEGORY, $"{ScanLogEvents.PROBE_FAILED} probe={probe.Id} scan={context.ScanId} error=NullResult");
             return CreateIssueResult(
                 probe.Id, context, ProbeStatus.Failed, CannotVerifyReason.ProbeError, NULL_RESULT_SUMMARY, startedAt, elapsed);
+        }
+
+        if (result.Measurements is null
+            || result.Issues is null
+            || result.Measurements.Any(measurement => measurement is null)
+            || result.Issues.Any(issue => issue is null))
+        {
+            _logger.Warn(LOG_CATEGORY, $"{ScanLogEvents.PROBE_FAILED} probe={probe.Id} scan={context.ScanId} error=NullCollection");
+            return CreateIssueResult(
+                probe.Id, context, ProbeStatus.Failed, CannotVerifyReason.ProbeError, NULL_COLLECTION_SUMMARY, startedAt, elapsed);
         }
 
         if (!string.Equals(result.ProbeId, probe.Id, StringComparison.Ordinal))
