@@ -23,6 +23,12 @@ public class ScanCoordinatorTests
     /// <summary>검사가 끝났다고 보는 상한 시간. 짧은 타임아웃(200ms)보다 충분히 길게 둔다.</summary>
     private static readonly TimeSpan SCAN_UPPER_BOUND = TimeSpan.FromSeconds(5);
 
+    /// <summary>취소 후 검사가 돌아와야 하는 상한 시간(프로브 타임아웃보다 훨씬 짧음).</summary>
+    private static readonly TimeSpan CANCEL_RETURN_BOUND = TimeSpan.FromSeconds(1);
+
+    /// <summary>취소 즉시 반환을 확인할 때 쓰는 긴 프로브 타임아웃.</summary>
+    private static readonly TimeSpan LONG_TIMEOUT = TimeSpan.FromSeconds(120);
+
     /// <summary>비동기 신호를 기다리는 상한 시간.</summary>
     private static readonly TimeSpan SIGNAL_WAIT = TimeSpan.FromSeconds(5);
 
@@ -106,9 +112,8 @@ public class ScanCoordinatorTests
 
         var issue = Assert.Single(ResultOf(result, "throwing").Issues);
         Assert.Equal(CannotVerifyReason.ProbeError, issue.Reason);
-        Assert.Contains(nameof(InvalidOperationException), issue.Summary, StringComparison.Ordinal);
-        Assert.Contains(ThrowingProbe.ERROR_MESSAGE, issue.Summary, StringComparison.Ordinal);
-        Assert.DoesNotContain(" at ", issue.Summary, StringComparison.Ordinal);
+        Assert.Equal(nameof(InvalidOperationException), issue.Summary);
+        Assert.DoesNotContain(ThrowingProbe.ERROR_MESSAGE, issue.Summary, StringComparison.Ordinal);
 
         var finding = Assert.Single(result.Report.Findings, f => f.Verdict == Verdict.CannotVerify);
         Assert.Equal(CannotVerifyReason.ProbeError, finding.CannotVerifyReason);
@@ -191,25 +196,39 @@ public class ScanCoordinatorTests
     }
 
     /// <summary>
-    /// 취소를 무시하는 프로브는 호출이 끝나지 않았으므로 취소 완료로 표시하지 않고 종료 중으로 남긴다.
+    /// 사용자 취소 시 취소를 무시하는 프로브를 기다리지 않고 곧바로 돌아온다. 그 호출은 취소 완료가 아니라
+    /// 종료 중(IsStillRunning, DrainingProbeIds)으로 표시되고, 이미 끝난 결과는 유지되며, 다음 검사에서는 다시 실행하지 않는다.
     /// </summary>
     [Fact]
-    public async Task 취소를_무시하는_프로브는_종료되기_전까지_종료_중으로_표시한다()
+    public async Task 취소시_취소를_무시하는_프로브를_기다리지_않고_종료_중으로_표시한다()
     {
-        var hanging = new HangingProbe("hanging");
-        var coordinator = CreateCoordinator([hanging]);
+        var hanging = new HangingProbe("hanging", LONG_TIMEOUT);
+        var ok = new SuccessProbe("ok");
+        var coordinator = CreateCoordinator([ok, hanging]);
         using var cts = new CancellationTokenSource();
 
         var scan = coordinator.RunScanAsync(CreateContext(), cts.Token);
         await hanging.Started.WaitAsync(SIGNAL_WAIT);
+        var stopwatch = Stopwatch.StartNew();
         await cts.CancelAsync();
         var result = await scan.WaitAsync(SCAN_UPPER_BOUND);
+        stopwatch.Stop();
 
+        Assert.True(stopwatch.Elapsed < CANCEL_RETURN_BOUND, $"취소 후 {stopwatch.Elapsed} 뒤에 돌아왔습니다.");
         var summary = SummaryOf(result, "hanging");
         Assert.Equal(ProbeStatus.Cancelled, summary.Status);
         Assert.True(summary.IsStillRunning);
+        var issue = Assert.Single(ResultOf(result, "hanging").Issues);
+        Assert.Equal(CannotVerifyReason.Cancelled, issue.Reason);
+        Assert.Contains("still finishing after cancel", issue.Summary, StringComparison.Ordinal);
         Assert.Contains("hanging", coordinator.DrainingProbeIds);
+        Assert.Equal(ProbeStatus.Success, SummaryOf(result, "ok").Status);
         Assert.Equal(ScanOutcome.Cancelled, result.Report.Outcome);
+
+        var next = await coordinator.RunScanAsync(CreateContext(), CancellationToken.None).WaitAsync(SCAN_UPPER_BOUND);
+        Assert.Equal(1, hanging.InvocationCount);
+        Assert.Equal(ProbeStatus.Skipped, SummaryOf(next, "hanging").Status);
+        Assert.Equal(ScanCoordinator.DRAINING_SKIP_SUMMARY, Assert.Single(ResultOf(next, "hanging").Issues).Summary);
     }
 
     /// <summary>
