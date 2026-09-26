@@ -14,7 +14,7 @@
 | ID | 중요도 | 상태 | 대상 | 요약 |
 |---|---|---|---|---|
 | REV-001 | P1 | 검증 완료 | P4 보호 정책 | 드라이브 루트 Known Folder 보호 및 기존 스캔 루트 제한 독립 확인 |
-| REV-002 | P2 | 부분 수정·추가 재현 실패 | P4 파일 순회 | 열거·취소 수정 확인, 파일 ID 처리 단계의 시간 예산 누락 남음 |
+| REV-002 | P2 | 수정됨·재검증 대기 | P4 파일 순회 | 열거·취소 수정 확인, 파일 ID 처리 단계의 시간 예산 누락 남음 |
 | REV-003 | P2 | 미해결 | P2 UI / P7 | 작업이 실제 종료돼도 ‘종료 중’ 안내가 다음 검사까지 남음 |
 | REV-004 | 제품 범위 | 범위 결정 필요 | 구현 계획 | 사용자가 기대한 기존 도구 통합이 계획에서 2차로 연기됨 |
 | REV-005 | P2 | 검증 완료(장치 ID 범위) | P3a 내보내기 | 장치 내부 ID 원문 노출 보완 확인 |
@@ -95,6 +95,29 @@
   - 명령: 검증용 복사본 `tests/PcOptimizer.Tests/Unit/Probes/`에 위 파일을 복사하고 `dotnet test PcOptimizer.sln --configuration Release --no-restore --filter "FullyQualifiedName~ProcessingBudgetReviewTests"` 실행.
   - 요청: 이미 열거한 논리 크기를 보존하는 것과 추가 OS 조회를 계속하는 것을 분리한다. 예산 소진 뒤 신규 ID/할당 크기 조회는 중단하고 미확인·중복 가능 등 품질 저하와 시간 초과를 표시하거나, 미처리 구간을 명시한 부분 결과로 종료한다. 기존 부분 합계 보존 테스트도 유지한다. OS 호출 한 번을 강제로 중단하라는 요구는 아니다.
   - 구현자 기록의 ‘예산을 조금 넘길 수 있음’만으로 닫지 않는다. 현재 초과 시간은 받은 항목 수와 각 OS 조회 지연에 따라 누적된다. REV-002는 `부분 수정·추가 재현 실패`로 유지한다.
+- 대응 기록 (2026-09-26, P4 리뷰 3차 수정, 구현자, 커밋 `c8d2c59`):
+  - 대상: 독립 재검증(기준 `23f92e9`)의 처리 단계 재현 `ProcessingBudgetReviewTests.IdentityProcessingBudgetOverrunIsReported`.
+  - 실제 동작(`VolumeTraversalRun.ListDirectory`/`HandleFile`):
+    - 이미 받은 항목의 논리 크기·확장자·파일 수는 메모리 계산이므로 계속 집계한다.
+    - 파일을 처리할 때마다 예산을 확인한다. 넘긴 뒤로는 새 OS 조회(64MiB 이상 파일의 파일 ID, 압축·희소 파일의 할당 크기)를 하지 않는다. 열거 단계에서 이미 예산을 넘겼으면 처리 단계의 조회도 하지 않는다.
+    - 조회를 생략한 파일은 `DuplicatesPossible=true`와 조회 생략 수(`DirectoryTotals.LookupsSkipped`, 루트 측정값 `fileScan.root[i].lookupsSkipped`)로 품질을 낮춘다.
+    - 디렉터리·루트·볼륨은 `TimedOut=true`로 둔다. Timeout 사유는 디렉터리당 한 번이며, 읽기 오류가 있으면 그 사유가 우선한다(2차 규칙 유지).
+  - 변경 파일: `src/PcOptimizer.Probes/Storage/VolumeTraversalRun.cs`(파일 헤더 설명도 실제 동작으로 정정), `DirectoryNode.cs`, `DirectoryTotals.cs`, `FileScanMeasurements.cs`, `src/PcOptimizer.Core/Rules/FileScanProbeContract.cs`; 테스트 `tests/PcOptimizer.Tests/Unit/Probes/ProcessingBudgetReviewTests.cs`.
+  - 회귀 테스트:
+    - 재현을 `ProcessingBudgetReviewTests.cs`로 정식 편입했다(원 단언 유지).
+    - 추가 `IdentityLookupsStopAfterBudgetButLogicalSizesArePreserved`: 논리 크기 3×64MiB 보존, 파일 ID 조회 1회, 조회 생략 2, 할당 크기 조회 없음, Timeout 1, Incomplete 1, 볼륨 시간 초과.
+    - 2차에서 추가한 부분 합계 테스트(61바이트, 70바이트, 루트 부분 합계, 관측 전 시간 초과, 사유 하나)는 모두 그대로 통과한다.
+  - 명령(작업 루트, Release):
+    - 테스트 파일과 `DirectoryTotals.LookupsSkipped` 필드만 추가하고 동작은 바꾸지 않은 상태에서 `dotnet test tests/PcOptimizer.Tests -c Release --filter "FullyQualifiedName~ProcessingBudgetReviewTests"` — `실패: 2, 통과: 0`(원 재현 메시지 `calls=3, elapsed=363s; root TimedOut=false`). 수정 후 통과.
+    - `dotnet test tests/PcOptimizer.Tests -c Release --no-build --filter "FullyQualifiedName~ProcessingBudgetReviewTests|FullyQualifiedName~FileSystemScannerTests|FullyQualifiedName~IndependentReviewTests|FullyQualifiedName~FileSystemScannerTempTreeTests|FullyQualifiedName~FileScanServiceTests|FullyQualifiedName~FileScanProbeTests"` — `통과: 36, 실패: 0`.
+    - `dotnet build -c Release` — 경고 0개, 오류 0개.
+    - `dotnet test tests/PcOptimizer.Tests -c Release --no-build --filter "Category!=Smoke"` — `통과: 760, 실패: 0`(P5 테스트 포함).
+    - `dotnet test tests/PcOptimizer.Tests -c Release --no-build --filter "Category=Smoke"` — `총 18, 통과 18`(실제 파일 스캔 Success, elapsedMs 22865, 루트·볼륨 timedOut=False, lookupsSkipped 0).
+  - 남은 제한:
+    - OS 호출 한 번(열거 묶음 한 번, 파일 ID 조회 한 번, 할당 크기 조회 한 번)은 중간에 끊을 수 없다. 예산 초과분은 이제 진행 중이던 OS 조회 한 번(또는 열거 호출 한 번)으로 제한되며, 받은 항목 수만큼 누적되지 않는다.
+    - 이미 받은 항목의 메모리 집계(확장자·크기 합산)는 예산 뒤에도 끝까지 수행한다. 이는 OS 호출이 아니라서 짧지만 0은 아니다.
+    - 예산 초과 뒤 받은 큰 파일들은 하드링크 중복 확인이 빠져 논리 크기 추정(중복 가능)이 된다.
+    - 실제 대량 항목 폴더에서의 시간은 측정하지 않았다(가짜 열거·가짜 조회로 검증).
 
 ## REV-003 — ‘종료 중’ 안내 자동 갱신
 
