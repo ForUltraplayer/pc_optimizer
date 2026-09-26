@@ -158,20 +158,31 @@ internal sealed class VolumeTraversalRun
         }
 
         ComputeTotals(created);
-        if (root.EnumerationFailure is { } failure && root.FileCount == 0 && created.Count == 1 && failure != ScanSkipReason.Timeout)
+        if (root.EnumerationFailure is { } failure && root.FileCount == 0 && created.Count == 1 && root.OwnSkips.Total == 1)
         {
-            // 루트 자체를 열거하지 못했다: 관측한 것이 없으므로 합계를 0바이트로 보고하지 않는다.
-            return new RootTraversal(
-                target.Id, path, volumeRoot, failure == ScanSkipReason.AccessDenied ? RootScanState.AccessDenied : RootScanState.Error, null, false);
+            // 루트 자체에서 아무 것도 관측하지 못했다: 합계를 0바이트로 보고하지 않는다(합계 없음).
+            var state = failure switch
+            {
+                ScanSkipReason.AccessDenied => RootScanState.AccessDenied,
+                ScanSkipReason.Timeout => RootScanState.TimedOut,
+                _ => RootScanState.Error,
+            };
+            return new RootTraversal(target.Id, path, volumeRoot, state, null, failure == ScanSkipReason.Timeout);
         }
 
+        // 시간 초과로 멈췄어도 관측한 부분이 있으면 부분 합계(Timeout 건너뜀 포함, IsPartial)와 TimedOut=true로 보고한다.
         return new RootTraversal(target.Id, path, volumeRoot, RootScanState.Scanned, root.Totals, timedOut);
     }
 
     /// <summary>
-    /// 디렉터리 하나를 열거해 파일을 집계하고 들어갈 하위 디렉터리를 쌓는다. 실패하면 그때까지 읽은 항목만 쓰고 사유를 기록한다.
-    /// 항목을 하나 읽고 처리할 때마다 취소와 시간 예산을 확인한다(OS 열거 호출 한 번 자체는 중단할 수 없음).
-    /// 예산을 넘기면 그때까지 관측한 항목만 집계하고 이 디렉터리를 시간 초과로 기록한다.
+    /// 디렉터리 하나를 열거해 파일을 집계하고 들어갈 하위 디렉터리를 쌓는다.
+    /// <list type="bullet">
+    /// <item>열거 중에는 항목을 받을 때마다 취소를 확인하고, 받은 항목을 목록에 넣은 뒤 시간 예산을 확인한다.
+    /// 예산을 넘기면 다음 항목을 더 요청하지 않는다(OS 열거 호출 한 번 자체는 중단할 수 없음).</item>
+    /// <item>이미 받은 항목은 예산과 관계없이 모두 처리해 합계에 넣는다(메모리에 있는 관측 결과를 버리지 않음). 처리 중에는 취소만 확인한다.</item>
+    /// <item>열거가 예외로 끝나면 그때까지 받은 항목을 처리하고 그 사유(접근 거부·사용 중)를, 예산으로 멈췄으면 시간 초과를 이 디렉터리의
+    /// 실패 사유로 한 번만 기록한다(디렉터리당 사유 하나).</item>
+    /// </list>
     /// </summary>
     /// <returns>이 디렉터리 안에서 시간 예산을 넘겼으면 true.</returns>
     private bool ListDirectory(DirectoryNode directory, Stack<DirectoryNode> stack, List<DirectoryNode> created)
@@ -181,41 +192,33 @@ internal sealed class VolumeTraversalRun
 
         var entries = new List<DirectoryEntry>();
         var timedOut = false;
+        ScanSkipReason? failure = null;
         try
         {
             foreach (var entry in _source.Enumerate(directory.Path))
             {
                 _ct.ThrowIfCancellationRequested();
+                entries.Add(entry);
                 if (IsOverBudget())
                 {
                     timedOut = true;
                     break;
                 }
-
-                entries.Add(entry);
             }
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or SecurityException)
         {
-            directory.Fail(ScanSkipReason.AccessDenied);
-            pattern?.Fail(ScanSkipReason.AccessDenied);
+            failure = ScanSkipReason.AccessDenied;
         }
         catch (IOException)
         {
             // 사용 중·열거 중 삭제(DirectoryNotFound 포함) 등 변경 중인 항목.
-            directory.Fail(ScanSkipReason.InUse);
-            pattern?.Fail(ScanSkipReason.InUse);
+            failure = ScanSkipReason.InUse;
         }
 
         foreach (var entry in entries)
         {
             _ct.ThrowIfCancellationRequested();
-            if (IsOverBudget())
-            {
-                timedOut = true;
-                break;
-            }
-
             if (entry.IsDirectory)
             {
                 HandleDirectory(directory, entry, stack, created);
@@ -228,9 +231,14 @@ internal sealed class VolumeTraversalRun
 
         if (timedOut)
         {
-            directory.Fail(ScanSkipReason.Timeout);
-            pattern?.Fail(ScanSkipReason.Timeout);
+            failure ??= ScanSkipReason.Timeout;
             TimedOut = true;
+        }
+
+        if (failure is { } reason)
+        {
+            directory.Fail(reason);
+            pattern?.Fail(reason);
         }
 
         return timedOut;

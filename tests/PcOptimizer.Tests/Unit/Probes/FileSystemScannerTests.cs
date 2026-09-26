@@ -327,7 +327,8 @@ public sealed class FileSystemScannerTests
 
     /// <summary>
     /// 볼륨 시간 예산을 넘기면 남은 폴더는 시간 초과로 세고 멈추며, 그때까지의 집계는 보존하고 같은 볼륨의 다음 루트는 시작하지 않는다.
-    /// 예산은 폴더 안 항목마다 확인하므로, 열거 도중 예산을 넘긴 폴더(d2)는 관측한 항목이 없으면 크기 없이 시간 초과로 센다.
+    /// d2는 열거를 시작할 때 예산을 넘겼지만 이미 받은 항목(f2)은 합계에 넣고, 더 요청하지 않은 채 시간 초과로 기록한다.
+    /// 시작하지 못한 d1도 시간 초과로 센다(합계 1 + 40 + 20, 시간 초과 2).
     /// </summary>
     [Fact]
     public async Task 시간_예산을_넘기면_부분_집계로_멈춘다()
@@ -348,13 +349,112 @@ public sealed class FileSystemScannerTests
         Assert.Equal(RootScanState.Scanned, root.State);
         Assert.True(root.TimedOut);
         Assert.Equal(3, source.Enumerated.Count);
-        Assert.Equal(1 + 40, root.Totals!.Bytes);
+        Assert.Equal(1 + 40 + 20, root.Totals!.Bytes);
         Assert.Equal(2, root.Totals.Skips.Timeout);
+        Assert.Equal(ScanSkipReason.Timeout, result.GetEnumerationFailure(ROOT + @"\d1"));
         Assert.Equal(ScanSkipReason.Timeout, result.GetEnumerationFailure(ROOT + @"\d2"));
         Assert.True(root.Totals.IsPartial);
         Assert.Equal(RootScanState.TimedOut, result.Roots[1].State);
         Assert.Null(result.Roots[1].Totals);
         Assert.True(Assert.Single(result.Volumes).TimedOut);
+    }
+
+    /// <summary>
+    /// 한 폴더를 열거하는 도중 N번째 항목 뒤에 예산을 넘기면, 이미 받은 N개 항목의 크기는 합계에 넣고 더 요청하지 않으며 그 폴더를 시간 초과로 기록한다.
+    /// </summary>
+    [Fact]
+    public async Task 폴더_안에서_예산을_넘기면_받은_항목은_세고_시간_초과로_기록한다()
+    {
+        var time = new ManualTimeProvider();
+        var source = new FakeDirectoryEntrySource()
+            .Dir(
+                ROOT,
+                FakeDirectoryEntrySource.File("a", 10),
+                FakeDirectoryEntrySource.File("b", 20),
+                FakeDirectoryEntrySource.File("c", 40),
+                FakeDirectoryEntrySource.File("d", 80));
+        var requested = new List<string>();
+        source.OnEntry = (_, entry) =>
+        {
+            requested.Add(entry.Name);
+            time.Advance(TimeSpan.FromSeconds(50));
+        };
+
+        var result = await Scanner(source, time: time).ScanAsync(
+            [new ScanTarget("root", ROOT)], new ResolvedProtection([]), [], TimeSpan.FromSeconds(120), CancellationToken.None);
+
+        var root = Assert.Single(result.Roots);
+        Assert.Equal(["a", "b", "c"], requested);
+        Assert.Equal(RootScanState.Scanned, root.State);
+        Assert.True(root.TimedOut);
+        Assert.Equal(10 + 20 + 40, root.Totals!.Bytes);
+        Assert.Equal(3, root.Totals.FileCount);
+        Assert.Equal(1, root.Totals.Skips.Timeout);
+        Assert.True(root.Totals.IsPartial);
+        Assert.Equal(ScanSkipReason.Timeout, result.GetEnumerationFailure(ROOT));
+        Assert.True(Assert.Single(result.Volumes).TimedOut);
+    }
+
+    /// <summary>루트 자체 열거 중 예산을 넘기면 0바이트 정상 루트가 아니라 관측한 부분 합계와 시간 초과로 보고한다(REV-002 재현 상황).</summary>
+    [Fact]
+    public async Task 루트_열거_중_예산을_넘기면_부분_합계와_시간_초과로_보고한다()
+    {
+        var time = new ManualTimeProvider();
+        var source = new FakeDirectoryEntrySource().Dir(ROOT, FakeDirectoryEntrySource.File("a.bin", 100));
+        source.OnEnumerate = _ => time.Advance(TimeSpan.FromSeconds(121));
+
+        var result = await Scanner(source, time: time).ScanAsync(
+            [new ScanTarget("root", ROOT)], new ResolvedProtection([]), [], TimeSpan.FromSeconds(120), CancellationToken.None);
+
+        var root = Assert.Single(result.Roots);
+        Assert.True(root.TimedOut);
+        Assert.Equal(RootScanState.Scanned, root.State);
+        Assert.Equal(100, root.Totals!.Bytes);
+        Assert.True(root.Totals.IsPartial);
+        Assert.Equal(1, root.Totals.Skips.Timeout);
+    }
+
+    /// <summary>루트를 하나도 관측하기 전에 예산을 넘기면 합계 없이 시간 초과 상태로 보고한다(0바이트로 보고하지 않음).</summary>
+    [Fact]
+    public async Task 관측_전에_예산을_넘긴_루트는_합계가_없다()
+    {
+        var time = new ManualTimeProvider();
+        var source = new FakeDirectoryEntrySource().Dir(ROOT, FakeDirectoryEntrySource.File("a.bin", 100));
+        source.OnProbeRoot = _ => time.Advance(TimeSpan.FromSeconds(121));
+
+        var result = await Scanner(source, time: time).ScanAsync(
+            [new ScanTarget("root", ROOT)], new ResolvedProtection([]), [], TimeSpan.FromSeconds(120), CancellationToken.None);
+
+        var root = Assert.Single(result.Roots);
+        Assert.Equal(RootScanState.TimedOut, root.State);
+        Assert.True(root.TimedOut);
+        Assert.Null(root.Totals);
+        Assert.Empty(source.Enumerated);
+    }
+
+    /// <summary>
+    /// 열거가 예외(사용 중)로 끝난 뒤 받은 항목을 처리하는 동안 예산이 지나도 실패 사유는 하나(사용 중)만 기록하고,
+    /// 받은 항목은 모두 센다(읽지 못한 항목 수가 두 번 세어지지 않음).
+    /// </summary>
+    [Fact]
+    public async Task 디렉터리당_실패_사유는_하나다()
+    {
+        var big = FileSystemScanner.HARD_LINK_CHECK_MIN_BYTES;
+        var time = new ManualTimeProvider();
+        var source = new FakeDirectoryEntrySource()
+            .Dir(ROOT, FakeDirectoryEntrySource.File("1.bin", big), FakeDirectoryEntrySource.File("2.bin", big), FakeDirectoryEntrySource.File("3.bin", big))
+            .FailAfter(ROOT, 2);
+        var identities = new FakeFileIdentityReader { OnIdentity = _ => time.Advance(TimeSpan.FromSeconds(200)) };
+
+        var result = await Scanner(source, identities, time).ScanAsync(
+            [new ScanTarget("root", ROOT)], new ResolvedProtection([]), [], TimeSpan.FromSeconds(120), CancellationToken.None);
+
+        var totals = Assert.Single(result.Roots).Totals!;
+        Assert.Equal(2 * big, totals.Bytes);
+        Assert.Equal(1, totals.Skips.InUse);
+        Assert.Equal(0, totals.Skips.Timeout);
+        Assert.Equal(1, totals.Skips.Incomplete);
+        Assert.Equal(ScanSkipReason.InUse, result.GetEnumerationFailure(ROOT));
     }
 
     /// <summary>취소하면 OperationCanceledException으로 끝난다.</summary>

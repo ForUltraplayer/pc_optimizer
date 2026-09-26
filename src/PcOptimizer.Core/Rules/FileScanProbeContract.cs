@@ -131,7 +131,7 @@ public static class FileScanProbeContract
     /// <summary>필드: 소요 시간(밀리초, 정수, 볼륨).</summary>
     public const string FIELD_ELAPSED_MS = "elapsedMs";
 
-    /// <summary>필드: 시간 예산 초과 여부(불리언, 볼륨).</summary>
+    /// <summary>필드: 시간 예산 초과 여부(불리언, 볼륨·루트). 루트는 true이면 크기가 관측한 부분 합계다.</summary>
     public const string FIELD_TIMED_OUT = "timedOut";
 
     /// <summary>필드: 이 루트가 들어 있는 다른 루트 ID(중첩 루트만, 문자열).</summary>

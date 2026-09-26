@@ -31,6 +31,12 @@ internal sealed class FakeDirectoryEntrySource : IDirectoryEntrySource
     /// <summary>열거 시작 시 호출되는 훅(동시성 테스트용, 호출 스레드를 막을 수 있음).</summary>
     public Action<string>? OnEnumerate { get; set; }
 
+    /// <summary>항목 하나를 돌려주기 직전에 호출되는 훅(디렉터리 경로, 항목). 예산이 N번째 항목 뒤에 넘어가는 경우를 만든다.</summary>
+    public Action<string, DirectoryEntry>? OnEntry { get; set; }
+
+    /// <summary>루트 존재 확인 시 호출되는 훅(루트 경로).</summary>
+    public Action<string>? OnProbeRoot { get; set; }
+
     /// <summary>
     /// 디렉터리와 그 직접 항목을 등록한다. 하위 디렉터리 항목은 따로 <see cref="Dir"/>로 등록해야 내용이 생긴다.
     /// </summary>
@@ -77,6 +83,7 @@ internal sealed class FakeDirectoryEntrySource : IDirectoryEntrySource
     /// <inheritdoc />
     public RootPresence ProbeRoot(string path)
     {
+        OnProbeRoot?.Invoke(path);
         if (_denied.Contains(path))
         {
             return RootPresence.AccessDenied;
@@ -116,6 +123,7 @@ internal sealed class FakeDirectoryEntrySource : IDirectoryEntrySource
                 throw new IOException("fake in use");
             }
 
+            OnEntry?.Invoke(directoryPath, entries[index]);
             yield return entries[index];
         }
 

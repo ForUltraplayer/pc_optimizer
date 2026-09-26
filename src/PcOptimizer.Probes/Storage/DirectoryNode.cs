@@ -65,11 +65,16 @@ internal sealed class DirectoryNode(string path, DirectoryNode? parent)
     }
 
     /// <summary>
-    /// 이 디렉터리를 열거하지 못했음을 기록한다(첫 사유만 보존).
+    /// 이 디렉터리를 끝까지 열거하지 못했음을 기록한다. 디렉터리당 사유는 하나이며 먼저 기록한 사유가 이기고, 두 번째 호출은 건너뜀 개수를 늘리지 않는다.
     /// </summary>
     public void Fail(ScanSkipReason reason)
     {
-        EnumerationFailure ??= reason;
+        if (EnumerationFailure is not null)
+        {
+            return;
+        }
+
+        EnumerationFailure = reason;
         Skip(reason);
     }
 
