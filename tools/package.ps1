@@ -13,6 +13,8 @@ $EXE_NAME = "PcOptimizer.exe"
 $README_NAME = "실행방법.txt"
 $LICENSES_DIR = "LICENSES"
 $RULES_DIR = "rules"
+# zip의 rules/에 동봉할 규칙 원문(LICENSE-winapp2.md에 적은 CC-BY-SA-4.0 배포 파일)
+$RULE_SOURCE_FILES = @("winapp2.ini", "supplement.ini", "rule-metadata.json")
 # zip 최상위 항목 상한(실행 파일·안내문·LICENSES·rules와 여유분)
 $MAX_TOP_LEVEL_ENTRIES = 6
 
@@ -40,6 +42,8 @@ Copy-Item (Join-Path $root "rules\LICENSE-winapp2.md") (Join-Path $stage "$LICEN
 Copy-Item (Join-Path $root "THIRD-PARTY-NOTICES.md") (Join-Path $stage "$LICENSES_DIR\THIRD-PARTY-NOTICES.md")
 New-Item -ItemType Directory -Path (Join-Path $stage $RULES_DIR) | Out-Null
 Copy-Item (Join-Path $root "rules\sources.json") (Join-Path $stage "$RULES_DIR\sources.json")
+# CC-BY-SA-4.0 규칙 원문을 함께 배포한다(앱은 실행 중 이 사본을 읽지 않고 실행 파일에 포함된 같은 내용을 사용)
+foreach ($ruleFile in $RULE_SOURCE_FILES) { Copy-Item (Join-Path $root "rules\$ruleFile") (Join-Path $stage "$RULES_DIR\$ruleFile") }
 
 $top = (Get-ChildItem $stage).Count
 if ($top -gt $MAX_TOP_LEVEL_ENTRIES) { throw "zip top-level entries too many: $top" }
