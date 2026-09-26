@@ -1,7 +1,7 @@
 /**
  * @file    : AppTestDoubles.cs
  * @author  : rudals252
- * @brief   : 뷰모델 테스트용 대역(즉시 실행 UI 마샬러, 고정 경로 선택기, 메모리 fixture 프로브, 첫 호출만 취소를 기다리는 프로브, 고정 권한 상태, 기록·예외 프로세스 시작기)
+ * @brief   : 뷰모델 테스트용 대역(즉시 실행 UI 마샬러, 고정 경로 선택기, 메모리 fixture 프로브, 첫 호출만 취소를 기다리는 프로브, 고정 권한 상태, 기록·예외 프로세스 시작기, 고정 앱 내 실행 판정)
  */
 
 // 기본 패키지
@@ -181,4 +181,18 @@ internal sealed class RecordingProcessStarter : IProcessStarter
             throw ThrowOnStart;
         }
     }
+}
+
+/// <summary>
+/// 모든 후보에 같은 앱 내 실행 판정을 돌려주는 대역입니다(실제 도구 위치를 확인하지 않음).
+/// </summary>
+/// <param name="value">모든 후보에 돌려줄 앱 내 실행 가능 여부.</param>
+/// <param name="cacheToolsAvailable">정리 창을 열 수 있는지(보호 위치 도구 존재) 여부.</param>
+internal sealed class FixedActionAvailability(bool value, bool cacheToolsAvailable = true) : IActionAvailability
+{
+    /// <inheritdoc />
+    public bool CacheToolsAvailable => cacheToolsAvailable;
+
+    /// <inheritdoc />
+    public bool CanExecuteInApp(Finding finding) => value;
 }

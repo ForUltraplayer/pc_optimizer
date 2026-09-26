@@ -1,7 +1,7 @@
 /**
  * @file    : MainViewModel.Overview.cs
  * @author  : rudals252
- * @brief   : 추천 조치·목적별 결과·온라인 비교 완료 상태 표시
+ * @brief   : 추천 조치·목적별 결과·바로 할 수 있는 것/직접 해야 하는 것 요약·온라인 비교 완료 판정(온라인 공급자와 온라인 규칙 결과만 사용)
  */
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -31,7 +31,6 @@ public sealed partial class MainViewModel
 
     /// <summary>최근 실제 정리 실행 결과가 있는지 여부.</summary>
     public bool HasCleanupOutcome => LastCleanupOutcome is not null;
-    private bool _lastScanIncludedOnline;
 
     /// <summary>추천 조치 화면 표시 여부.</summary>
     public bool IsOverview => !ShowAllResults;
@@ -57,27 +56,29 @@ public sealed partial class MainViewModel
     public string RecommendationsTab => DisplayText.Format(Strings.Overview_RecommendationsCount, RecommendedCards.Count);
     /// <summary>전체 결과 건수를 포함한 탭 문구.</summary>
     public string AllResultsTab => DisplayText.Format(Strings.Overview_AllCount, _allCards.Count);
-    /// <summary>드라이버 이외의 설정 개선 후보 수.</summary>
-    public string SettingsCount => LastResult is null ? Strings.Overview_NotScanned
-        : DisplayText.Format(Strings.Overview_CandidateCount, RecommendedCards.Count(c => c.Finding.Category != FindingCategory.Driver));
-    /// <summary>요청 여부와 실제 온라인 비교 완료를 구분한 드라이버 안내입니다.</summary>
-    public string DriverCount
-    {
-        get
-        {
-            if (LastResult is null) { return Strings.Overview_NotScanned; }
-            var count = RecommendedCards.Count(c => c.Finding.Category == FindingCategory.Driver);
-            if (OnlineComparisonComplete(LastResult.Report)) { return DisplayText.Format(Strings.Overview_CandidateCount, count); }
-            if (count > 0) { return DisplayText.Format(Strings.Overview_OnlinePartialCount, count); }
-            return _lastScanIncludedOnline ? Strings.Overview_OnlineUnavailable : Strings.Overview_OnlineNotChecked;
-        }
-    }
+    /// <summary>앱 안에서 바로 실행할 수 있는 후보 수.</summary>
+    public int DoNowCount => RecommendedCards.Count(card => _actionAvailability.CanExecuteInApp(card.Finding));
 
-    /// <summary>두 온라인 공급자가 모두 완료되고 판정 불가가 없어야 후보 0개로 표시합니다.</summary>
+    /// <summary>사용자가 다른 곳에서 직접 해야 하는 후보 수.</summary>
+    public int DoManuallyCount => RecommendedCards.Count - DoNowCount;
+
+    /// <summary>바로 할 수 있는 것이 하나라도 있는지(0이면 타일을 숨김).</summary>
+    public bool HasDoNow => DoNowCount > 0;
+
+    /// <summary>바로 할 수 있는 것 타일 문구.</summary>
+    public string DoNowText => DisplayText.Format(Strings.Overview_DoNowCount, DoNowCount);
+
+    /// <summary>직접 해야 하는 것 타일 문구.</summary>
+    public string DoManuallyText => DisplayText.Format(Strings.Overview_DoManuallyCount, DoManuallyCount);
+
+    /// <summary>
+    /// 두 온라인 공급자가 모두 성공하고 온라인 규칙(NVIDIA 비교)의 판정 불가가 없어야 비교 완료로 봅니다.
+    /// 로컬 드라이버 규칙(AMD/Intel 링크·OEM·설치 드라이버 등)의 확인 불가는 온라인 비교 여부와 무관하므로 섞지 않습니다(REV-014).
+    /// </summary>
     private static bool OnlineComparisonComplete(ScanReport report) =>
         new[] { NvidiaLookupProbeContract.PROBE_ID, WindowsUpdateProbeContract.PROBE_ID }
             .All(id => report.ProbeSummaries.Any(p => p.ProbeId == id && p.Status == ProbeStatus.Success && p.IssueCount == 0 && !p.IsStillRunning))
-        && !report.Findings.Any(f => f.Category == FindingCategory.Driver && f.Verdict == Verdict.CannotVerify);
+        && !report.Findings.Any(f => f.Verdict == Verdict.CannotVerify && f.Id.StartsWith(DriverUpdateRule.FINDING_ID_PREFIX, StringComparison.Ordinal));
 
     /// <summary>검사 진행 상태와 개선 후보 제목.</summary>
     public string OverviewTitle => IsScanning ? Strings.Overview_Scanning
@@ -137,7 +138,8 @@ public sealed partial class MainViewModel
     private void NotifyOverview()
     {
         foreach (var property in new[] { nameof(VisibleCards), nameof(IsResultListEmpty), nameof(RecommendationsTab),
-            nameof(AllResultsTab), nameof(SettingsCount), nameof(DriverCount), nameof(OverviewTitle),
+            nameof(AllResultsTab), nameof(DoNowCount), nameof(DoManuallyCount), nameof(HasDoNow), nameof(DoNowText),
+            nameof(DoManuallyText), nameof(OverviewTitle),
             nameof(OverviewDescription), nameof(EmptyResultsText) })
         {
             OnPropertyChanged(property);

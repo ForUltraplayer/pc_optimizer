@@ -1,7 +1,7 @@
 /**
  * @file    : MainWindowLayoutTests.cs
  * @author  : rudals252
- * @brief   : 메인 창을 화면에 띄우지 않고 고정 폭으로 배치해, 긴 경로가 든 카드 문장이 가로로 넘치지 않고 줄바꿈되는지, 판정 배지 텍스트, 관리자 권한 재검사 버튼 활성·배너 표시, 공식 링크 버튼 표시, 카드의 안전 배지·설명 3줄 렌더를 검증
+ * @brief   : 메인 창을 화면에 띄우지 않고 고정 폭으로 배치해, 긴 경로가 든 카드 문장이 가로로 넘치지 않고 줄바꿈되는지, 판정 배지 텍스트, 관리자 권한 재검사 버튼 활성·배너 표시, 공식 링크 버튼 표시, 카드의 안전 배지·설명 3줄 렌더, 요약 타일 두 개(바로 할 수 있는 것은 0이면 숨김)와 정리 창 버튼 노출 조건을 검증
  */
 
 // 기본 패키지
@@ -98,7 +98,7 @@ public sealed class MainWindowLayoutTests
     /// 긴 경로가 든 CannotVerify를 돌려주는 규칙이 있는 뷰모델로 검사를 한 번 실행한다.
     /// </summary>
     private static MainViewModel CreateScannedViewModel(bool isElevated = false, ScanLaunchMode launchMode = ScanLaunchMode.Normal,
-        bool overview = false, bool scan = true, IRule? rule = null)
+        bool overview = false, bool scan = true, IRule? rule = null, IActionAvailability? availability = null)
     {
         var elevation = new FakeElevationState(isElevated);
         var service = new ScanService(
@@ -119,7 +119,8 @@ public sealed class MainWindowLayoutTests
             NullAppLogger.Instance,
             elevation,
             new ElevationRelauncher(new RecordingProcessStarter(), elevation, () => null, NullAppLogger.Instance),
-            launchMode);
+            launchMode,
+            availability ?? new FixedActionAvailability(false));
         if (scan)
         {
             vm.StartScanCommand.ExecuteAsync(null).GetAwaiter().GetResult();
@@ -231,6 +232,37 @@ public sealed class MainWindowLayoutTests
             Assert.Equal(EXPLANATION_LINES, lines.Select(t => t.Text).Distinct().Count());
             Assert.All(lines, t => Assert.Equal(TextWrapping.Wrap, t.TextWrapping));
             Assert.All(lines, t => Assert.True(t.ActualWidth > 0 && t.ActualWidth <= CARD_LAYOUT_WIDTH, $"폭 {t.ActualWidth}"));
+            window.Close();
+        });
+    }
+
+    /// <summary>요약 타일은 두 개이며, 바로 할 수 있는 것이 0이면 그 타일을 숨기고 직접 해야 하는 것만 보인다. 정리 창 버튼은 보호 위치 도구가 있을 때만 보인다.</summary>
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public void SummaryTilesSplitDoNowAndDoManually(bool executable, bool toolsAvailable)
+    {
+        RunOnSta(() =>
+        {
+            var model = CreateScannedViewModel(overview: true, rule: new ImprovementRule(),
+                availability: new FixedActionAvailability(executable, toolsAvailable));
+            var window = new MainWindow(model);
+            var root = (FrameworkElement)window.Content;
+            root.Measure(new Size(CARD_LAYOUT_WIDTH, CARD_LAYOUT_HEIGHT));
+            root.Arrange(new Rect(0, 0, CARD_LAYOUT_WIDTH, CARD_LAYOUT_HEIGHT));
+            root.UpdateLayout();
+
+            var doNow = Assert.Single(Descendants<Border>(root), b => AutomationProperties.GetAutomationId(b) == "DoNowTile");
+            var doManually = Assert.Single(Descendants<Border>(root), b => AutomationProperties.GetAutomationId(b) == "DoManuallyTile");
+            var toolsButton = Assert.Single(Descendants<Button>(root), b => AutomationProperties.GetAutomationId(b) == "OpenCacheToolsButton");
+            Assert.Equal(executable ? Visibility.Visible : Visibility.Collapsed, doNow.Visibility);
+            Assert.Equal(Visibility.Visible, doManually.Visibility);
+            Assert.Equal(toolsAvailable ? Visibility.Visible : Visibility.Collapsed, toolsButton.Visibility);
+            var texts = FindTextBlocks(doManually).Select(t => t.Text).ToList();
+            Assert.Contains(model.DoManuallyText, texts);
+            Assert.Contains(Strings.Overview_DoManuallyHelp, texts);
+            Assert.Contains(Strings.Overview_DoNowHelp, FindTextBlocks(doNow).Select(t => t.Text));
+            Assert.All(FindTextBlocks(doManually), t => Assert.Equal(TextWrapping.Wrap, t.TextWrapping));
             window.Close();
         });
     }

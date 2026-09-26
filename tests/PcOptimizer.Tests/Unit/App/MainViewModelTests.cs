@@ -1,7 +1,7 @@
 /**
  * @file    : MainViewModelTests.cs
  * @author  : rudals252
- * @brief   : 메인 화면 모델의 상태 전이·Finding 기준 건수·분류 필터·취소 후 재검사·종료 중 표시·내보내기·관리자 권한 재검사(버튼 활성, UAC 취소 시 결과 보존, 실패 안내, 배너)를 가짜 프로브와 즉시 실행 마샬러로 검증
+ * @brief   : 메인 화면 모델의 상태 전이·Finding 기준 건수·바로 할 수 있는 것/직접 해야 하는 것 요약·정리 창 노출 조건·온라인 비교 완료 판정·분류 필터·취소 후 재검사·종료 중 표시·내보내기·관리자 권한 재검사(버튼 활성, UAC 취소 시 결과 보존, 실패 안내, 배너)를 가짜 프로브와 즉시 실행 마샬러로 검증
  */
 
 // 기본 패키지
@@ -41,7 +41,8 @@ public sealed class MainViewModelTests
         IElevationState? elevation = null,
         IProcessStarter? starter = null,
         ScanLaunchMode launchMode = ScanLaunchMode.Normal,
-        IEnumerable<IRule>? rules = null)
+        IEnumerable<IRule>? rules = null,
+        IActionAvailability? availability = null)
     {
         var elevationState = elevation ?? new FakeElevationState(isElevated: false);
         var options = new ScanOptions { CancellationGracePeriod = SHORT_GRACE };
@@ -65,7 +66,8 @@ public sealed class MainViewModelTests
             NullAppLogger.Instance,
             elevationState,
             new ElevationRelauncher(starter ?? new RecordingProcessStarter(), elevationState, () => APP_PATH, NullAppLogger.Instance),
-            launchMode);
+            launchMode,
+            availability ?? new FixedActionAvailability(false));
     }
 
     /// <summary>처음에는 대기 상태이고 시작만 가능하다.</summary>
@@ -80,7 +82,8 @@ public sealed class MainViewModelTests
         Assert.False(vm.ExportCommand.CanExecute(null));
         Assert.Empty(vm.Cards);
         Assert.True(vm.IsOverview);
-        Assert.Equal(Strings.Overview_NotScanned, vm.SettingsCount);
+        Assert.False(vm.HasDoNow);
+        Assert.Equal(DisplayText.Format(Strings.Overview_DoManuallyCount, 0), vm.DoManuallyText);
         Assert.Equal(Strings.Overview_Welcome, vm.OverviewTitle);
         Assert.Equal(Strings.LastMeasured_None, vm.LastMeasuredText);
     }
@@ -142,7 +145,7 @@ public sealed class MainViewModelTests
         Assert.Same(report, vm.LastResult);
     }
 
-    /// <summary>온라인 요청과 실제 비교를 구분하고 이전 정리 결과를 보존합니다.</summary>
+    /// <summary>온라인 요청(체크박스)만으로는 비교 완료로 보지 않고, 재검사해도 이전 정리 결과를 보존합니다.</summary>
     [Fact]
     public async Task OfflineComparisonAndLastCleanupRemainExplicitAfterRescan()
     {
@@ -150,49 +153,136 @@ public sealed class MainViewModelTests
         vm.LastCleanupOutcome = new CleanupOutcomeViewModel("npm", new(true, 0, "Completed") { BeforeBytes = 500 });
         var outcome = vm.LastCleanupOutcome;
         await vm.StartScanCommand.ExecuteAsync(null);
-        Assert.Equal(Strings.Overview_OnlineNotChecked, vm.DriverCount);
+        Assert.False(vm.HasLastOnlineCheck);
         vm.IsOnlineCheckRequested = true;
-        Assert.Equal(Strings.Overview_OnlineNotChecked, vm.DriverCount); // Toggling is not a completed comparison.
+        Assert.False(vm.HasLastOnlineCheck); // Toggling is not a completed comparison.
         await vm.StartScanCommand.ExecuteAsync(null);
-        Assert.Equal(Strings.Overview_OnlineUnavailable, vm.DriverCount);
+        Assert.False(vm.HasLastOnlineCheck); // Requested, but no online provider results.
         vm.IsOnlineCheckRequested = false;
         await vm.StartScanCommand.ExecuteAsync(null);
-        Assert.Equal(Strings.Overview_OnlineNotChecked, vm.DriverCount);
+        Assert.Null(vm.LastOnlineCheckText);
         Assert.Same(outcome, vm.LastCleanupOutcome);
     }
 
-    /// <summary>온라인 공급자의 성공·실패·부분·취소 결과로 타일을 표시합니다.</summary>
+    /// <summary>온라인 공급자의 성공·실패·부분·취소 결과 중 실제 성공만 옵션 영역의 마지막 온라인 확인 시각을 갱신합니다.</summary>
     [Theory]
     [InlineData(ProbeStatus.Success, true)]
     [InlineData(ProbeStatus.Failed, false)]
     [InlineData(ProbeStatus.Partial, false)]
     [InlineData(ProbeStatus.Cancelled, false)]
     [InlineData(ProbeStatus.Skipped, false)]
-    public async Task DriverTileRequiresActualSuccessfulOnlineResults(ProbeStatus status, bool complete)
+    public async Task LastOnlineCheckRequiresActualSuccessfulOnlineResults(ProbeStatus status, bool complete)
     {
         using var vm = CreateViewModel([
             new OnlineFixtureProbe(NvidiaLookupProbeContract.PROBE_ID, ProbeStatus.Success),
             new OnlineFixtureProbe(WindowsUpdateProbeContract.PROBE_ID, status)]);
         vm.IsOnlineCheckRequested = true;
         await vm.StartScanCommand.ExecuteAsync(null);
-        Assert.Equal(complete ? DisplayText.Format(Strings.Overview_CandidateCount, 0) : Strings.Overview_OnlineUnavailable, vm.DriverCount);
         Assert.Equal(complete, vm.HasLastOnlineCheck);
-        vm.IsOnlineCheckRequested = false;
-        await vm.StartScanCommand.ExecuteAsync(null);
-        Assert.Equal(Strings.Overview_OnlineNotChecked, vm.DriverCount);
+        Assert.Equal(complete, vm.LastOnlineCheckText is not null);
     }
 
-    /// <summary>후보가 있어도 다른 공급자 실패를 감추지 않습니다.</summary>
+    /// <summary>후보가 있어도 다른 공급자가 부분 결과이면 온라인 확인 시각을 갱신하지 않습니다.</summary>
     [Fact]
-    public async Task DriverCandidateRetainsPartialWarning()
+    public async Task PartialOnlineResultWithCandidateDoesNotRecordOnlineCheck()
     {
         using var vm = CreateViewModel([
             new OnlineFixtureProbe(NvidiaLookupProbeContract.PROBE_ID, ProbeStatus.Partial),
             new OnlineFixtureProbe(WindowsUpdateProbeContract.PROBE_ID, ProbeStatus.Success)], rules: [new DriverFixtureRule()]);
         vm.IsOnlineCheckRequested = true;
         await vm.StartScanCommand.ExecuteAsync(null);
-        Assert.Equal(DisplayText.Format(Strings.Overview_OnlinePartialCount, 1), vm.DriverCount);
+        Assert.Single(vm.RecommendedCards);
         Assert.False(vm.HasLastOnlineCheck);
+    }
+
+    /// <summary>
+    /// REV-014: 로컬 드라이버 분류의 확인 불가(AMD/Intel 링크·OEM 미확인 등)는 온라인 비교 완료 판정에 섞이지 않고,
+    /// 온라인 규칙(NVIDIA 비교)의 확인 불가만 완료를 막습니다.
+    /// </summary>
+    [Theory]
+    [InlineData("gpu-vendor-link:intel-igpu", true)]
+    [InlineData(DriverUpdateRule.FINDING_ID_PREFIX + "adapter-0", false)]
+    public async Task OnlyOnlineRuleCannotVerifyBlocksOnlineCompletion(string cannotVerifyId, bool complete)
+    {
+        using var vm = CreateViewModel([
+            new OnlineFixtureProbe(NvidiaLookupProbeContract.PROBE_ID, ProbeStatus.Success),
+            new OnlineFixtureProbe(WindowsUpdateProbeContract.PROBE_ID, ProbeStatus.Success)],
+            rules: [new DriverCannotVerifyFixtureRule(cannotVerifyId)]);
+        vm.IsOnlineCheckRequested = true;
+        await vm.StartScanCommand.ExecuteAsync(null);
+        Assert.Equal(CannotVerifyReason.Unsupported, Assert.Single(vm.LastResult!.Report.Findings).CannotVerifyReason);
+        Assert.Equal(complete, vm.HasLastOnlineCheck);
+    }
+
+    /// <summary>요약 타일은 바로 할 수 있는 후보와 직접 해야 하는 후보를 나눠 세고, 바로 할 수 있는 것이 0이면 그 타일을 숨긴다.</summary>
+    [Fact]
+    public async Task OverviewCountsDoNowAndDoManually()
+    {
+        using var vm = CreateViewModel([new FixtureMemoryProbe()], availability: new FixedActionAvailability(false));
+        await vm.StartScanCommand.ExecuteAsync(null);
+        Assert.NotEmpty(vm.RecommendedCards);
+        Assert.Equal(0, vm.DoNowCount);
+        Assert.False(vm.HasDoNow);
+        Assert.Equal(vm.RecommendedCards.Count, vm.DoManuallyCount);
+        Assert.Equal(DisplayText.Format(Strings.Overview_DoManuallyCount, vm.RecommendedCards.Count), vm.DoManuallyText);
+
+        using var vm2 = CreateViewModel([new FixtureMemoryProbe()], availability: new FixedActionAvailability(true));
+        await vm2.StartScanCommand.ExecuteAsync(null);
+        Assert.Equal(vm2.RecommendedCards.Count, vm2.DoNowCount);
+        Assert.True(vm2.HasDoNow);
+        Assert.Equal(0, vm2.DoManuallyCount);
+        Assert.Equal(DisplayText.Format(Strings.Overview_DoNowCount, vm2.RecommendedCards.Count), vm2.DoNowText);
+    }
+
+    /// <summary>요약 건수는 개선 후보만 센다(정상·참고·확인 불가·커뮤니티 후보는 제외).</summary>
+    [Fact]
+    public async Task OverviewCountsExcludeNonCandidatesAndCommunityCards()
+    {
+        using var vm = CreateViewModel([new FixtureMemoryProbe()], rules: [new OverviewFixtureRule()], availability: new FixedActionAvailability(true));
+        await vm.StartScanCommand.ExecuteAsync(null);
+        Assert.Equal(3, vm.LastResult!.Report.Findings.Count);
+        Assert.Equal(1, vm.DoNowCount);
+        Assert.Equal(0, vm.DoManuallyCount);
+    }
+
+    /// <summary>검사 결과가 반영되면 요약 타일 속성 변경을 알린다.</summary>
+    [Fact]
+    public async Task OverviewTilesRaisePropertyChangedAfterScan()
+    {
+        using var vm = CreateViewModel([new FixtureMemoryProbe()]);
+        var changed = new HashSet<string?>();
+        vm.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        await vm.StartScanCommand.ExecuteAsync(null);
+        Assert.Superset(new HashSet<string?> { nameof(vm.DoNowCount), nameof(vm.DoManuallyCount), nameof(vm.HasDoNow), nameof(vm.DoNowText), nameof(vm.DoManuallyText) }, changed);
+    }
+
+    /// <summary>보호 위치에 도구가 없으면 정리 창을 열 수 없고, 도구 위치 판정은 생성 시 한 번만 한다.</summary>
+    [Fact]
+    public async Task CacheToolsRequireToolInProtectedLocation()
+    {
+        using var without = CreateViewModel([new FixtureMemoryProbe()], availability: new FixedActionAvailability(false, cacheToolsAvailable: false));
+        await without.StartScanCommand.ExecuteAsync(null);
+        Assert.False(without.CacheToolsAvailable);
+        Assert.False(without.CanOpenCacheTools);
+
+        using var with = CreateViewModel([new FixtureMemoryProbe()], availability: new FixedActionAvailability(false, cacheToolsAvailable: true));
+        Assert.True(with.CacheToolsAvailable);
+        Assert.True(with.CanOpenCacheTools);
+
+        var calls = 0;
+        using var counted = CreateViewModel([new FixtureMemoryProbe()],
+            availability: new CacheToolActionAvailability(() => { calls++; return true; }, CacheToolActionAvailability.DEFAULT_REVIEWED_APP_IDS));
+        await counted.StartScanCommand.ExecuteAsync(null);
+        Assert.True(counted.CanOpenCacheTools);
+        Assert.True(counted.CanOpenCacheTools);
+        Assert.Equal(1, calls);
+    }
+
+    private sealed class DriverCannotVerifyFixtureRule(string id) : IRule
+    {
+        public string Id => "fixture.driver-cannot-verify";
+        public IReadOnlyList<Finding> Evaluate(ScanSnapshot snapshot) => [new Finding(id, FindingCategory.Driver,
+            "드라이버 확인 불가", [], "fixture", Verdict.CannotVerify, CannotVerifyReason.Unsupported, null, null, null, [])];
     }
 
     private sealed class DriverFixtureRule : IRule

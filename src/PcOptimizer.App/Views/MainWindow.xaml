@@ -1,7 +1,7 @@
 <!--
 @file    : MainWindow.xaml
 @author  : rudals252
-@brief   : 추천 조치와 목적별 검사 결과를 표시하는 메인 창
+@brief   : 추천 조치와 검사 결과, "바로 할 수 있는 것/직접 해야 하는 것" 요약 타일, 보호 위치 도구가 있을 때만 보이는 정리 창 버튼을 표시하는 메인 창
 -->
 <ui:FluentWindow x:Class="PcOptimizer.App.Views.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -179,31 +179,29 @@
                                    Visibility="{Binding HasDrainingNote, Converter={StaticResource BoolToVisibility}}" />
                     </StackPanel>
                 </Border>
-                <UniformGrid Columns="3" Margin="0,0,0,18">
-                    <Border Style="{StaticResource Tile}" Margin="0,0,8,0">
+                <!-- Rows=1이면 숨긴(Collapsed) 타일을 빼고 열을 나누므로, 바로 할 수 있는 것이 0이면 직접 해야 하는 것 타일이 전체 폭을 쓴다. -->
+                <UniformGrid Rows="1" Margin="0,0,0,12">
+                    <Border Style="{StaticResource Tile}" Margin="0,0,12,0" AutomationProperties.AutomationId="DoNowTile"
+                            Visibility="{Binding HasDoNow, Converter={StaticResource BoolToVisibility}}">
                         <StackPanel>
-                            <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Overview_Space}" FontSize="16" FontWeight="SemiBold" />
-                            <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Overview_SpaceHelp}" Style="{StaticResource Muted}" Margin="0,6,0,8" MinHeight="28" />
-                            <Button Content="{x:Static res:Strings.Overview_CleanupButton}" Click="OpenCacheTools" IsEnabled="{Binding CanOpenCacheTools}" HorizontalAlignment="Left" />
+                            <TextBlock TextWrapping="Wrap" Text="{Binding DoNowText}" FontSize="20" FontWeight="SemiBold" />
+                            <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Overview_DoNowHelp}" Style="{StaticResource Muted}" Margin="0,6,0,0" />
                         </StackPanel>
                     </Border>
-                    <Border Style="{StaticResource Tile}" Margin="4,0,4,0">
+                    <Border Style="{StaticResource Tile}" AutomationProperties.AutomationId="DoManuallyTile">
                         <StackPanel>
-                            <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Overview_Settings}" FontSize="16" FontWeight="SemiBold" />
-                            <TextBlock TextWrapping="Wrap" Text="{Binding SettingsCount}" FontSize="24" FontWeight="SemiBold" Margin="0,8,0,6" />
-                            <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Overview_SettingsHelp}" Style="{StaticResource Muted}" />
-                            <Button Content="{x:Static res:Strings.Overview_SettingsButton}" Command="{Binding ShowSettingsCommand}" Click="FocusResults" HorizontalAlignment="Left" Margin="0,10,0,0" />
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource Tile}" Margin="8,0,0,0">
-                        <StackPanel>
-                            <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Overview_Drivers}" FontSize="16" FontWeight="SemiBold" />
-                            <TextBlock TextWrapping="Wrap" Text="{Binding DriverCount}" FontSize="24" FontWeight="SemiBold" Margin="0,8,0,6" />
-                            <CheckBox IsChecked="{Binding IsOnlineCheckRequested}" IsEnabled="{Binding CanChangeOptions}" ToolTip="{x:Static res:Strings.Toggle_OnlineCheck}"><TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Overview_OnlineToggle}" /></CheckBox>
-                            <Button Content="{x:Static res:Strings.Overview_DriverButton}" Command="{Binding ShowDriversCommand}" Click="FocusResults" HorizontalAlignment="Left" Margin="0,10,0,0" />
+                            <TextBlock TextWrapping="Wrap" Text="{Binding DoManuallyText}" FontSize="20" FontWeight="SemiBold" />
+                            <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Overview_DoManuallyHelp}" Style="{StaticResource Muted}" Margin="0,6,0,0" />
                         </StackPanel>
                     </Border>
                 </UniformGrid>
+                <!-- 도구 캐시 정리 창은 보호 위치(Program Files)에 npm·pip·dotnet이 있는 PC에서만 보인다. -->
+                <WrapPanel Margin="0,0,0,18">
+                    <Button Content="{x:Static res:Strings.Overview_CleanupButton}" Click="OpenCacheTools" IsEnabled="{Binding CanOpenCacheTools}" Margin="0,0,12,0"
+                            AutomationProperties.AutomationId="OpenCacheToolsButton" Visibility="{Binding CacheToolsAvailable, Converter={StaticResource BoolToVisibility}}" />
+                    <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Overview_SpaceHelp}" Style="{StaticResource Muted}" VerticalAlignment="Center"
+                               Visibility="{Binding CacheToolsAvailable, Converter={StaticResource BoolToVisibility}}" />
+                </WrapPanel>
                 <Border Margin="0,0,0,16" Visibility="{Binding HasCleanupOutcome, Converter={StaticResource BoolToVisibility}}">
                     <views:CleanupOutcomeView DataContext="{Binding LastCleanupOutcome}" />
                 </Border>

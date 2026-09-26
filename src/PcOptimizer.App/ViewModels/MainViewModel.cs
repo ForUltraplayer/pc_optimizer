@@ -1,7 +1,7 @@
 /**
  * @file    : MainViewModel.cs
  * @author  : rudals252
- * @brief   : 메인 화면 모델(검사 시작/취소·상태·Finding 기준 요약·분류 목록/필터·카드·마지막 측정 시각·온라인 확인과 마지막 온라인 확인 시각·종료 중 표시·익명화 내보내기·관리자 권한 재검사 요청과 별도 검사 배너)
+ * @brief   : 메인 화면 모델(검사 시작/취소·상태·Finding 기준 요약·분류 목록/필터·카드·마지막 측정 시각·온라인 확인과 마지막 온라인 확인 시각·종료 중 표시·보호 위치 도구가 있을 때만 여는 정리 창·익명화 내보내기·관리자 권한 재검사 요청과 별도 검사 배너)
  */
 
 // 기본 패키지
@@ -37,6 +37,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly LinkPolicy _linkPolicy;
     private readonly IUiDispatcher _dispatcher;
     private readonly IAppLogger _logger;
+    private readonly IActionAvailability _actionAvailability;
 
     private List<FindingCardViewModel> _allCards = [];
     private CancellationTokenSource? _scanCancellation;
@@ -132,6 +133,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <param name="elevationState">현재 프로세스 권한 상태.</param>
     /// <param name="relauncher">관리자 권한 재검사 시작기.</param>
     /// <param name="launchMode">이 인스턴스의 시작 방식(관리자 재검사 인스턴스면 배너 표시).</param>
+    /// <param name="actionAvailability">후보의 앱 내 실행 가능 여부와 정리 창 노출 조건(보호 위치 도구 존재, 생성 시 한 번 확인).</param>
     public MainViewModel(
         ScanService scanService,
         ReportExporter exporter,
@@ -142,7 +144,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IAppLogger logger,
         IElevationState elevationState,
         ElevationRelauncher relauncher,
-        ScanLaunchMode launchMode)
+        ScanLaunchMode launchMode,
+        IActionAvailability actionAvailability)
     {
         ArgumentNullException.ThrowIfNull(scanService);
         ArgumentNullException.ThrowIfNull(exporter);
@@ -153,6 +156,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(elevationState);
         ArgumentNullException.ThrowIfNull(relauncher);
+        ArgumentNullException.ThrowIfNull(actionAvailability);
 
         _scanService = scanService;
         _scanService.DrainingChanged += OnDrainingChanged;
@@ -165,6 +169,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _elevationState = elevationState;
         _relauncher = relauncher;
         LaunchMode = launchMode;
+        _actionAvailability = actionAvailability;
+        CacheToolsAvailable = actionAvailability.CacheToolsAvailable;
 
         RebuildCategories([]);
     }
@@ -181,8 +187,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>검사 옵션(온라인 확인 등)을 바꿀 수 있는지 여부(검사 중에는 바꾸지 않음).</summary>
     public bool CanChangeOptions => !IsScanning;
 
-    /// <summary>진단 작업이 실제 종료된 뒤에만 정리 도구를 엽니다.</summary>
-    public bool CanOpenCacheTools => !IsScanning && !HasDrainingNote;
+    /// <summary>보호 위치(Program Files)에 npm·pip·dotnet 중 하나라도 있어 정리 창을 보여 줄지 여부(생성 시 한 번 확인).</summary>
+    public bool CacheToolsAvailable { get; }
+
+    /// <summary>보호 위치에 도구가 있고 진단 작업이 실제 종료된 뒤에만 정리 도구를 엽니다.</summary>
+    public bool CanOpenCacheTools => CacheToolsAvailable && !IsScanning && !HasDrainingNote;
 
     /// <summary>상태 문자열("상태: …").</summary>
     public string StateText => DisplayText.Format(Strings.State_Format, DisplayText.State(State));
@@ -263,7 +272,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             if (generation == _scanGeneration)
             {
-                ApplyResult(result, onlineRequested);
+                ApplyResult(result);
             }
         }).ConfigureAwait(false);
     }
@@ -331,10 +340,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>
     /// 검사 결과를 화면 상태에 반영한다(UI 스레드에서 호출). 온라인 비교가 실제 완료됐을 때만 마지막 확인 시각을 갱신한다.
     /// </summary>
-    private void ApplyResult(ScanResult result, bool onlineRequested)
+    private void ApplyResult(ScanResult result)
     {
         var report = result.Report;
-        _lastScanIncludedOnline = onlineRequested;
         _allCards = [.. report.Findings.Select(finding => new FindingCardViewModel(finding, _settingsPolicy, _linkPolicy))];
         OnPropertyChanged(nameof(CommunitySummary));
         if (OnlineComparisonComplete(report))

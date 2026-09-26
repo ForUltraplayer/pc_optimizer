@@ -41,14 +41,4 @@ public partial class MainWindow : FluentWindow
         if (window.ViewModel.Outcome is { } outcome) { viewModel.LastCleanupOutcome = outcome; }
         if (window.ViewModel.NeedsRescan) { await viewModel.StartScanCommand.ExecuteAsync(null); }
     }
-
-    private void FocusResults(object sender, System.Windows.RoutedEventArgs e)
-    {
-        // Click is raised before ICommand; defer until the chosen filter and layout are applied.
-        Dispatcher.BeginInvoke(new Action(() =>
-        {
-            ResultsAnchor.BringIntoView();
-            ResultsAnchor.Focus();
-        }), System.Windows.Threading.DispatcherPriority.Loaded);
-    }
 }

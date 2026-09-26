@@ -1,7 +1,7 @@
 /**
  * @file    : App.xaml.cs
  * @author  : rudals252
- * @brief   : 애플리케이션 진입점. 관리자 재검사 고정 인자·권한·SID로 시작 방식을 정하고 공용 로거·검사 서비스·내보내기·설정 URI 정책·공식 링크 정책·재검사 시작기·메인 화면 모델을 조립하며 처리되지 않은 예외를 형식 이름만 기록
+ * @brief   : 애플리케이션 진입점. 관리자 재검사 고정 인자·권한·SID로 시작 방식을 정하고 공용 로거·검사 서비스·내보내기·설정 URI 정책·공식 링크 정책·재검사 시작기·앱 내 실행 판정(보호 위치 도구 캐시 정리)·메인 화면 모델을 조립하며 처리되지 않은 예외를 형식 이름만 기록
  */
 
 // 기본 패키지
@@ -12,6 +12,7 @@ using System.Windows.Threading;
 using PcOptimizer.App.Services;
 using PcOptimizer.App.ViewModels;
 using PcOptimizer.App.Views;
+using PcOptimizer.Probes.Actions;
 using PcOptimizer.Probes.Applications;
 using PcOptimizer.Probes.Drivers;
 
@@ -71,7 +72,9 @@ public partial class App : Application
             logger,
             elevation,
             ElevationRelauncher.CreateDefault(elevation, logger),
-            launchMode);
+            launchMode,
+            // 앱 안에서 바로 실행하는 조치는 보호 위치(Program Files) 도구의 npm·pip·NuGet 캐시 정리뿐이다. 도구 위치는 존재 확인만 하며 프로세스를 실행하지 않는다.
+            new CacheToolActionAvailability(() => SystemCacheToolBackend.AnyToolInProtectedLocation(), CacheToolActionAvailability.DEFAULT_REVIEWED_APP_IDS));
 
         var window = new MainWindow(viewModel, logger);
         MainWindow = window;

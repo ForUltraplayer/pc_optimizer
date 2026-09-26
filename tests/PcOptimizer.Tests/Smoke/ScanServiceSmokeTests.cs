@@ -17,6 +17,7 @@ using PcOptimizer.Tests.Unit.App.Fakes;
 using PcOptimizer.Core.Abstractions;
 using PcOptimizer.Core.Models;
 using PcOptimizer.Core.Rules;
+using PcOptimizer.Probes.Actions;
 using Xunit.Abstractions;
 
 namespace PcOptimizer.Tests.Smoke;
@@ -42,7 +43,7 @@ public sealed class ScanServiceSmokeTests(ITestOutputHelper output)
             new FixedExportPathPicker(null), new SettingsUriPolicy(NullAppLogger.Instance, _ => { }),
             new LinkPolicy(null, NullAppLogger.Instance, _ => { }), new ImmediateUiDispatcher(), NullAppLogger.Instance,
             elevation, new ElevationRelauncher(new RecordingProcessStarter(), elevation, () => null, NullAppLogger.Instance),
-            ScanLaunchMode.Normal);
+            ScanLaunchMode.Normal, new CacheToolActionAvailability(SystemCacheToolBackend.AnyToolInProtectedLocation, CacheToolActionAvailability.DEFAULT_REVIEWED_APP_IDS));
         await vm.StartScanCommand.ExecuteAsync(null);
         var result = vm.LastResult!;
         Assert.NotNull(result);
@@ -53,7 +54,7 @@ public sealed class ScanServiceSmokeTests(ITestOutputHelper output)
         vm.ShowRecommendationsCommand.Execute(null);
         Assert.Equal(recommendations, vm.VisibleCards.Count());
         Assert.Same(result, vm.LastResult);
-        output.WriteLine($"UI recommendations={recommendations}; total={result.Report.Findings.Count}; driver={vm.DriverCount}");
+        output.WriteLine($"UI recommendations={recommendations}; total={result.Report.Findings.Count}; doNow={vm.DoNowCount}; doManually={vm.DoManuallyCount}; cacheTools={vm.CacheToolsAvailable}");
         RenderOverviewIfRequested(vm);
 
         foreach (var summary in result.Report.ProbeSummaries)
