@@ -7,7 +7,7 @@
 - 프로젝트: `src/PcOptimizer.Core`(net10.0, Windows API·파일 시스템·네트워크 I/O 의존 없음), `src/PcOptimizer.Probes`(net10.0-windows), `src/PcOptimizer.App`(WPF, net10.0-windows), `tests/PcOptimizer.Tests`(xUnit, net10.0-windows).
 - 의존 방향: App → Probes → Core, App → Core. Probes는 App을 모른다. Core는 어느 쪽도 모른다.
 - 라이브러리: CommunityToolkit.Mvvm, WPF-UI(Fluent), System.Management, xUnit. 다른 UI 스택으로 바꾸지 않는다. 복원 lock 파일(packages.lock.json) 사용.
-- App 매니페스트는 `asInvoker`. 앱은 일반 권한으로 시작한다.
+- App 매니페스트는 `requireAdministrator`(2차 스펙 §0, SP4 Task 9부터). 앱은 항상 관리자 권한으로 시작하며, 사용자 쓰기 가능 위치의 도구는 실행하지 않고 표준 계정이 다른 관리자로 승격한 경우 시스템 범위만 검사한다.
 - `IElevatedExecutor`, `IUnknownFolderAdvisor`는 Core에 타입 계약만 두고 1차에 구현·등록·호출하지 않는다. Elevated/Llm 프로젝트는 만들지 않는다.
 
 ## 조회 전용 원칙
