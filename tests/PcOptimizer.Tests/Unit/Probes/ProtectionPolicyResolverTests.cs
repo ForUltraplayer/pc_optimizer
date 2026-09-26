@@ -73,6 +73,7 @@ public sealed class ProtectionPolicyResolverTests
         Assert.Equal(
             [
                 new ProtectedRoot(@"D:\Redirected\Docs", ProtectedRootOrigin.KnownFolder, "Documents"),
+                new ProtectedRoot(PROFILE + @"\Documents", ProtectedRootOrigin.KnownFolder, "Documents"),
                 new ProtectedRoot(PROFILE + @"\Desktop", ProtectedRootOrigin.KnownFolder, "Desktop"),
                 new ProtectedRoot(@"C:\Program Files", ProtectedRootOrigin.SystemPath, "%ProgramFiles%"),
                 new ProtectedRoot(@"C:\Windows\System32", ProtectedRootOrigin.SystemPath, @"%SystemRoot%\System32"),
@@ -88,16 +89,44 @@ public sealed class ProtectionPolicyResolverTests
         Assert.Equal([DROPBOX_INFO], environment.FileReads);
     }
 
-    /// <summary>동기화 앱이 없으면(레지스트리 키·info.json 없음) 해석 실패로 세고 예외 없이 계속한다.</summary>
+    /// <summary>
+    /// 동기화 앱이 없으면(레지스트리 키·info.json 없음) 해석 실패로 세고 예외 없이 계속한다.
+    /// Known Folder 위치를 못 읽어도 해석 실패로 세되 프로필 기본 위치는 보호한다(실패 시 닫힘).
+    /// </summary>
     [Fact]
-    public void 동기화_앱이_없으면_건너뛴다()
+    public void 해석하지_못한_항목은_세고_Known_Folder_기본_위치는_보호한다()
     {
         var environment = new FakePathEnvironment { Profile = PROFILE }.WithVariable("LocalAppData", PROFILE + @"\AppData\Local");
 
         var protection = new ProtectionPolicyResolver(environment, new FakeRegistryReader()).Resolve(POLICY);
 
-        Assert.Empty(protection.Roots);
+        Assert.Equal(
+            [
+                new ProtectedRoot(PROFILE + @"\Documents", ProtectedRootOrigin.KnownFolder, "Documents"),
+                new ProtectedRoot(PROFILE + @"\Desktop", ProtectedRootOrigin.KnownFolder, "Desktop"),
+            ],
+            protection.Roots);
         Assert.Equal(POLICY.Roots.Count, protection.UnresolvedCount);
+        Assert.True(protection.IsProtected(PROFILE + @"\Documents\private.docx"));
+    }
+
+    /// <summary>리디렉션된 Known Folder는 리디렉션 위치와 남은 프로필 기본 위치를 모두 보호한다(5종 모두).</summary>
+    [Theory]
+    [InlineData(ProtectedKnownFolder.Documents, "Documents")]
+    [InlineData(ProtectedKnownFolder.Pictures, "Pictures")]
+    [InlineData(ProtectedKnownFolder.Desktop, "Desktop")]
+    [InlineData(ProtectedKnownFolder.Videos, "Videos")]
+    [InlineData(ProtectedKnownFolder.Music, "Music")]
+    public void 리디렉션된_Known_Folder는_두_위치를_모두_보호한다(ProtectedKnownFolder folder, string defaultName)
+    {
+        var environment = new FakePathEnvironment { Profile = PROFILE }.WithKnownFolder(folder, PROFILE + @"\OneDrive\" + defaultName);
+        var policy = new ProtectionPolicy(ProtectionPolicyParser.SUPPORTED_SCHEMA_VERSION, [new KnownFolderRootSpec(folder)]);
+
+        var protection = new ProtectionPolicyResolver(environment, new FakeRegistryReader()).Resolve(policy);
+
+        Assert.True(protection.IsProtected(PROFILE + @"\OneDrive\" + defaultName + @"\a.jpg"));
+        Assert.True(protection.IsProtected(PROFILE + @"\" + defaultName + @"\leftover.jpg"));
+        Assert.Equal(0, protection.UnresolvedCount);
     }
 
     /// <summary>손상된 info.json·UNC 동기화 경로·상대 경로는 보호 루트로 쓰지 않는다.</summary>

@@ -206,7 +206,7 @@ public sealed class FileScanRulesTests
     }
 
     /// <summary>
-    /// 요약 Info: 관측 루트 수·소요 시간, '확보 가능량이 아님', 사유별 건너뜀 개수, 시간 초과 볼륨, Google Drive 미감지를 알린다.
+    /// 요약 Info: 관측 루트 수·소요 시간, '확보 가능량이 아님', 사유별 건너뜀 개수, 시간 초과 볼륨, 위치를 못 찾은 보호 항목 수, Google Drive 미감지를 알린다.
     /// </summary>
     [Fact]
     public void 파일_스캔_요약은_건너뜀과_한계를_알린다()
@@ -217,6 +217,7 @@ public sealed class FileScanRulesTests
             FileScanTestData.M(FileScanProbeContract.PROTECTED_ROOT_COUNT, new IntegerValue(9)),
             FileScanTestData.M(FileScanProbeContract.ELAPSED_MS, new IntegerValue(12_345)),
             FileScanTestData.M(FileScanProbeContract.HARD_LINK_DUPLICATE_COUNT, new IntegerValue(2)),
+            FileScanTestData.M(FileScanProbeContract.PROTECTED_UNRESOLVED_COUNT, new IntegerValue(3)),
             FileScanTestData.M(FileScanProbeContract.ROOT_COUNT, new IntegerValue(2)),
             FileScanTestData.M(FileScanProbeContract.Name(FileScanProbeContract.ROOT_PREFIX, 0, FileScanProbeContract.FIELD_STATE), new TextValue(FileScanProbeContract.ROOT_STATE_SCANNED)),
             FileScanTestData.M(FileScanProbeContract.Name(FileScanProbeContract.ROOT_PREFIX, 0, FileScanProbeContract.FIELD_SKIP_ACCESS_DENIED), new IntegerValue(4)),
@@ -242,6 +243,8 @@ public sealed class FileScanRulesTests
         Assert.Contains(@"C:\", finding.Detail, StringComparison.Ordinal);
         Assert.Contains("Google Drive", finding.Detail, StringComparison.Ordinal);
         Assert.Contains("하드링크 2", finding.Detail, StringComparison.Ordinal);
+        Assert.Contains("3개는 이 PC에서 위치를 찾지 못했어요", finding.Detail, StringComparison.Ordinal);
+        Assert.Contains("기본 위치를 보호", finding.Detail, StringComparison.Ordinal);
     }
 
     /// <summary>보호 정책이 무효이면 요약 규칙은 파일 검사를 하지 않았다는 CannotVerify(ProbeError)와 리소스 상세를 낸다.</summary>

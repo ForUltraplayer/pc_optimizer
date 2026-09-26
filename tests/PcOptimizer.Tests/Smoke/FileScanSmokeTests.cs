@@ -124,7 +124,7 @@ public sealed class FileScanSmokeTests(ITestOutputHelper output) : IDisposable
             output.WriteLine($"issue {issue.Reason}: {issue.Summary}");
         }
 
-        foreach (var measurement in result.Measurements.Where(m => !m.Name.EndsWith(".path", StringComparison.Ordinal) && m.Name != FileScanProbeContract.PROTECTED_ROOT_PATHS))
+        foreach (var measurement in result.Measurements.Where(m => !m.Name.EndsWith(".path", StringComparison.Ordinal)))
         {
             var value = measurement.Value switch
             {

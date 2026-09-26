@@ -16,6 +16,7 @@ namespace PcOptimizer.Probes.Storage;
 
 /// <summary>
 /// 파일 스캔 측정값 생성 도우미입니다. 관측하지 못한 크기는 측정값을 만들지 않으며(0바이트로 바꾸지 않음), 경로는 path 필드에만 둡니다.
+/// 보호 루트는 개인 경로일 수 있어 경로 대신 출처 이름만 기록합니다.
 /// 크기 품질: 부분 집계는 Partial, 하드링크 중복 가능은 Estimated, 그 밖은 Observed.
 /// </summary>
 internal static class FileScanMeasurements
@@ -24,6 +25,7 @@ internal static class FileScanMeasurements
     private const string SOURCE_POLICY = @"rules\protect.json";
     private const string SOURCE_SELECTOR = "UnclassifiedFolderSelector";
     private const string ISO_8601_FORMAT = "o";
+    private const char ENVIRONMENT_MARK = '%';
 
     /// <summary>
     /// 정책 무효 결과의 측정값을 만든다.
@@ -51,7 +53,8 @@ internal static class FileScanMeasurements
 
         Add(FileScanProbeContract.POLICY_STATE, new TextValue(FileScanProbeContract.POLICY_VALID), source: SOURCE_POLICY);
         Add(FileScanProbeContract.PROTECTED_ROOT_COUNT, new IntegerValue(protection.Roots.Count), source: SOURCE_POLICY);
-        Add(FileScanProbeContract.PROTECTED_ROOT_PATHS, new TextListValue([.. protection.Roots.Select(root => root.Path)]), source: SOURCE_POLICY);
+        Add(FileScanProbeContract.PROTECTED_ROOT_LABELS, new TextListValue([.. protection.Roots.Select(ProtectionLabel).Distinct(StringComparer.Ordinal)]), source: SOURCE_POLICY);
+        Add(FileScanProbeContract.PROTECTED_UNRESOLVED_COUNT, new IntegerValue(protection.UnresolvedCount), source: SOURCE_POLICY);
         Add(FileScanProbeContract.SYNC_ROOT_COUNT, new IntegerValue(protection.Roots.Count(root => root.Origin == ProtectedRootOrigin.CloudSync)), source: SOURCE_POLICY);
         Add(FileScanProbeContract.ELAPSED_MS, new IntegerValue((long)result.Elapsed.TotalMilliseconds), FileScanProbeContract.UNIT_MILLISECONDS);
         Add(FileScanProbeContract.HARD_LINK_DUPLICATE_COUNT, new IntegerValue(traversal.HardLinkDuplicateCount));
@@ -62,6 +65,19 @@ internal static class FileScanMeasurements
         AddTemps(result.Locations, list, observedAt);
         AddUnclassified(selection, list, observedAt);
         return list;
+    }
+
+    /// <summary>
+    /// 보호 루트의 출처 이름을 만든다(경로가 아님). 시스템 경로는 템플릿의 마지막 이름에서 % 표시를 뺀 값(예: WinSxS, ProgramFiles(x86)).
+    /// </summary>
+    private static string ProtectionLabel(ProtectedRoot root)
+    {
+        return root.Origin switch
+        {
+            ProtectedRootOrigin.KnownFolder => FileScanProbeContract.PROTECTED_LABEL_KNOWN_FOLDER + root.Label,
+            ProtectedRootOrigin.CloudSync => FileScanProbeContract.PROTECTED_LABEL_CLOUD + root.Label,
+            _ => FileScanProbeContract.PROTECTED_LABEL_SYSTEM + PathScope.GetLeafName(root.Label).Trim(ENVIRONMENT_MARK),
+        };
     }
 
     /// <summary>

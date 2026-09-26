@@ -29,8 +29,23 @@ public static class FileScanProbeContract
     /// <summary>해석된 보호 루트 수(정수).</summary>
     public const string PROTECTED_ROOT_COUNT = "fileScan.protected.count";
 
-    /// <summary>해석된 보호 루트 경로(문자열 목록, 측정값 전용).</summary>
-    public const string PROTECTED_ROOT_PATHS = "fileScan.protected.paths";
+    /// <summary>
+    /// 보호 루트의 출처 이름(문자열 목록, 중복 제거, 예: "KnownFolder:Documents", "Cloud:OneDrive", "System:WinSxS").
+    /// 리디렉션된 폴더·다른 드라이브의 동기화 루트가 개인 경로일 수 있으므로 보호 루트의 경로 자체는 측정값에 넣지 않습니다.
+    /// </summary>
+    public const string PROTECTED_ROOT_LABELS = "fileScan.protected.labels";
+
+    /// <summary>위치를 찾지 못한 보호 정책 항목 수(정수). Known Folder는 이때도 프로필 기본 위치를 보호합니다.</summary>
+    public const string PROTECTED_UNRESOLVED_COUNT = "fileScan.protected.unresolvedCount";
+
+    /// <summary>보호 루트 출처 이름 접두사: Known Folder.</summary>
+    public const string PROTECTED_LABEL_KNOWN_FOLDER = "KnownFolder:";
+
+    /// <summary>보호 루트 출처 이름 접두사: 시스템 경로.</summary>
+    public const string PROTECTED_LABEL_SYSTEM = "System:";
+
+    /// <summary>보호 루트 출처 이름 접두사: 클라우드 동기화.</summary>
+    public const string PROTECTED_LABEL_CLOUD = "Cloud:";
 
     /// <summary>감지된 동기화 루트 수(정수).</summary>
     public const string SYNC_ROOT_COUNT = "fileScan.protected.syncRootCount";
