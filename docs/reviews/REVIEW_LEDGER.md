@@ -231,6 +231,8 @@
 
 ## 2026-09-27 인계 후 대응 기록 (Codex 구현·자체 검증)
 
+아래 대응의 구현 커밋은 `89e2cbb`이다. 변경 파일 전체는 `git show --stat 89e2cbb`, 검증 및 남은 출시 조건은 `2026-09-27-validation.md`에서 확인한다. 이 커밋으로 다시 만든 최종 배포 EXE도 창 생성 및 정상 종료 코드 0을 확인했다.
+
 - **REV-006**: `ConfigFileText`가 본문 요청 전에 상위 경로·파일의 reparse/placeholder/접근 실패를 검사한다. `FileSystemDirectoryEntrySource.ProbeRoot`는 파일 링크도 파일 유형보다 먼저 확인한다. `SystemPathEnvironment.ReadSmallTextFile`도 실제 모든 조상/파일을 확인하고 바이트 상한 안에서 읽는다. 가짜 공급자의 미등록 경로는 실제 읽기 공급자가 판정한다. 실제 공급자는 Missing을 읽지 않는다. Steam 설정의 Program Files 예외는 유지한다. 원장 재현을 정식 `ConfigReadBoundaryReviewTests`로 편입했다. 정상 파일/중간 링크/파일 링크/크기 초과 실제 fixture도 통과했다. 동시 악의적 경로 교체를 원자적으로 봉쇄하는 OS 핸들 기반 보안 경계까지 구현한 것은 아니다.
 - **REV-007**: Missing만 부재로 보고 나머지 읽기 실패를 Unreadable로 유지한다. `SteamLibraryReader`도 실패를 무시하지 않는다. `AppCacheProbe`는 Unreadable 설정을 설치 탐지 근거로 쓰지 않으면서 최종 설정 사유 카드에는 남긴다. 기본 npm 캐시가 없는 가짜 PC 회귀 통과.
 - **REV-002**: `VolumeTraversalRun.Run`이 루트 완료 뒤 경과 시간을 확인한다. 마지막 ID/할당 크기 조회에서 초과하면 루트·볼륨 TimedOut은 true지만 실제 누락이 없으면 Timeout skip/LookupsSkipped는 0으로 보존한다. 회귀 2개 통과. 요약 문구도 시간 예산 초과를 무조건 부분 관측이라고 하지 않도록 수정했다.
