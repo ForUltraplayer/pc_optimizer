@@ -95,12 +95,13 @@ public sealed class ScanService
     /// 기본 구성으로 서비스를 만듭니다. 프로브: 메모리·전원·디스플레이·시스템 정보·그래픽 설정(HAGS)·게임 모드·보안 상태·설치 GPU·볼륨·물리 디스크·
     /// TRIM 정책·시작 프로그램·파일 스캔·앱 캐시 (TRIM 정책만 관리자 권한 필요, 일반 권한에서는 ElevationRequired로 건너뜀). 네트워크 프로브는 없습니다.
     /// 사용자 범위 프로브는 게임 모드·시작 프로그램·파일 스캔·앱 캐시이며 나머지는 시스템 범위입니다.
-    /// 파일 스캔과 앱 캐시는 공유 서비스(<see cref="FileScanService"/>) 하나를 함께 씁니다. 앱 캐시 규칙은 앱 폴더의 포함 파일만 읽고 SHA-256을 확인합니다(승격 여부와 무관).
+    /// 파일 스캔과 앱 캐시는 공유 서비스(<see cref="FileScanService"/>) 하나를 함께 씁니다. 앱 캐시 규칙은 Probes 어셈블리 포함 리소스만 읽고 SHA-256 일관성을 확인합니다(승격 여부와 무관, 파일 시스템의 규칙 파일은 읽지 않음).
     /// </summary>
     /// <param name="logger">공용 로거.</param>
     /// <param name="limitToSystemScope">시스템 범위 프로브만 실행할지 여부(다른 계정으로 승격된 재검사).</param>
+    /// <param name="rules">앱 캐시 규칙 로더(없으면 어셈블리 포함 리소스만 읽는 로더).</param>
     /// <returns>검사 서비스.</returns>
-    public static ScanService CreateDefault(IAppLogger logger, bool limitToSystemScope = false)
+    public static ScanService CreateDefault(IAppLogger logger, bool limitToSystemScope = false, RuleCatalogLoader? rules = null)
     {
         var fileScan = FileScanService.CreateDefault();
         var appVersion = typeof(ScanService).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
@@ -121,7 +122,7 @@ public sealed class ScanService
                 new TrimPolicyProbe(),
                 new StartupItemsProbe(),
                 new FileScanProbe(fileScan, SystemClock.Instance),
-                AppCacheProbe.CreateDefault(fileScan),
+                AppCacheProbe.CreateDefault(fileScan, rules ?? RuleCatalogLoader.CreateEmbedded()),
             ],
             [
                 new MemorySpeedRule(),

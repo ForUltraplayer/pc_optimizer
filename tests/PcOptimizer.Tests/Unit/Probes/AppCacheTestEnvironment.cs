@@ -75,22 +75,37 @@ internal sealed class AppCacheTestEnvironment
         .WithVariable("SystemDrive", "C:")
         .WithVariable("ProgramFiles", @"C:\Program Files")
         .WithVariable("ProgramFiles(x86)", @"C:\Program Files (x86)")
+        .WithVariable("PUBLIC", @"C:\Users\Public")
         .WithVariable(NuGetConfigReader.ENVIRONMENT_VARIABLE, DOCUMENTS + @"\nuget")
         .WithKnownFolder(ProtectedKnownFolder.Documents, DOCUMENTS)
         .WithFile(PROFILE + @"\.npmrc", AppConfigReaderTests.Fixture("npmrc-override.npmrc"))
         .WithFile(STEAM_ROOT + @"\steamapps\libraryfolders.vdf", AppConfigReaderTests.Fixture("libraryfolders.vdf"));
 
+    /// <summary>
+    /// 가짜 PC를 만든다.
+    /// </summary>
+    /// <param name="defaultCaches">npm·pip·NuGet 기본 캐시 폴더를 만들지 여부(false면 설정으로 옮긴 캐시만 있는 PC).</param>
+    public AppCacheTestEnvironment(bool defaultCaches = true)
+    {
+        Source = Tree(defaultCaches);
+    }
+
     /// <summary>가짜 파일 시스템.</summary>
-    public FakeDirectoryEntrySource Source { get; } = Tree();
+    public FakeDirectoryEntrySource Source { get; }
 
     /// <summary>가짜 레지스트리(Python·NVIDIA·Steam 설치).</summary>
     public FakeRegistryReader Registry { get; } = new FakeRegistryReader()
         .WithSubKeys(RegistryRoot.CurrentUser, RegistryView.Default, @"Software\Python", new RegistrySubKeyReading(RegistryReadStatus.Found, [], null))
         .WithSubKeys(RegistryRoot.LocalMachine, RegistryView.Registry64, @"Software\NVIDIA Corporation", new RegistrySubKeyReading(RegistryReadStatus.Found, [], null))
         .WithSubKeys(RegistryRoot.CurrentUser, RegistryView.Default, @"Software\Valve\Steam", new RegistrySubKeyReading(RegistryReadStatus.Found, [], null))
-        .WithKeyValues(RegistryRoot.CurrentUser, RegistryView.Default, SteamLibraryReader.USER_KEY,
-            new RegistryValueEntry("AutoLoginUser", "String", "fakeuser", null),
-            new RegistryValueEntry(SteamLibraryReader.USER_VALUE, "String", "c:/program files (x86)/steam", null));
+        .WithKeyValues(RegistryRoot.CurrentUser, RegistryView.Default, SteamLibraryReader.USER_KEY, new RegistryValueEntry("AutoLoginUser", "String", "fakeuser", null))
+        .WithString(RegistryRoot.CurrentUser, RegistryView.Default, SteamLibraryReader.USER_KEY, SteamLibraryReader.USER_VALUE, "c:/program files (x86)/steam")
+        .WithString(RegistryRoot.LocalMachine, RegistryView.Registry64, OtherUserLocationGuard.PROFILE_LIST_KEY, OtherUserLocationGuard.PROFILES_DIRECTORY_VALUE, @"%SystemDrive%\Users")
+        .WithSubKeys(RegistryRoot.LocalMachine, RegistryView.Registry64, OtherUserLocationGuard.PROFILE_LIST_KEY,
+            new RegistrySubKeyReading(RegistryReadStatus.Found, ["S-1-5-18", CURRENT_SID, OTHER_SID], null))
+        .WithString(RegistryRoot.LocalMachine, RegistryView.Registry64, OtherUserLocationGuard.PROFILE_LIST_KEY + @"\S-1-5-18", OtherUserLocationGuard.PROFILE_IMAGE_PATH_VALUE, @"%SystemRoot%\system32\config\systemprofile")
+        .WithString(RegistryRoot.LocalMachine, RegistryView.Registry64, OtherUserLocationGuard.PROFILE_LIST_KEY + @"\" + CURRENT_SID, OtherUserLocationGuard.PROFILE_IMAGE_PATH_VALUE, PROFILE)
+        .WithString(RegistryRoot.LocalMachine, RegistryView.Registry64, OtherUserLocationGuard.PROFILE_LIST_KEY + @"\" + OTHER_SID, OtherUserLocationGuard.PROFILE_IMAGE_PATH_VALUE, @"C:\Users\other");
 
     /// <summary>규칙 파일(커뮤니티는 구성 fixture, 보충·메타데이터는 실제 포함 파일).</summary>
     public Dictionary<string, byte[]> RuleFiles { get; } = RuleCatalogLoaderTests.Files(
@@ -141,28 +156,20 @@ internal sealed class AppCacheTestEnvironment
     /// <summary>
     /// 가짜 트리.
     /// </summary>
-    private static FakeDirectoryEntrySource Tree()
+    private static FakeDirectoryEntrySource Tree(bool defaultCaches)
     {
         static DirectoryEntry D(string name) => FakeDirectoryEntrySource.Folder(name);
         static DirectoryEntry F(string name, long bytes) => FakeDirectoryEntrySource.File(name, bytes);
 
-        return new FakeDirectoryEntrySource()
-            .Dir(PROFILE, D("AppData"), D("Documents"), D(".nuget"), F(".npmrc", 300))
+        var source = new FakeDirectoryEntrySource()
+            .Dir(PROFILE, D("AppData"), D("Documents"), F(".npmrc", 300))
             .Dir(DOCUMENTS, F("private.docx", 999))
-            .Dir(PROFILE + @"\.nuget", D("packages"))
-            .Dir(PROFILE + @"\.nuget\packages", D("newtonsoft.json"))
-            .Dir(PROFILE + @"\.nuget\packages\newtonsoft.json", F("newtonsoft.json.13.0.3.nupkg", 400))
             .Dir(PROFILE + @"\AppData", D("Local"), D("Roaming"))
             .Dir(ROAMING, D("Adobe"))
             .Dir(ROAMING + @"\Adobe", D("Common"))
             .Dir(ROAMING + @"\Adobe\Common", D("Media Cache Files"))
             .Dir(ROAMING + @"\Adobe\Common\Media Cache Files", F("clip.cfa", 500))
-            .Dir(LOCAL, D("npm-cache"), D("pip"), D("NVIDIA"), D("Discord"), D("slack"), D("Vendor"), D("Temp"))
-            .Dir(LOCAL + @"\npm-cache", D("_cacache"))
-            .Dir(LOCAL + @"\npm-cache\_cacache", F("a", 100), F("b", 200))
-            .Dir(LOCAL + @"\pip", D("Cache"))
-            .Dir(LOCAL + @"\pip\Cache", D("http"))
-            .Dir(LOCAL + @"\pip\Cache\http", F("w.whl", 300))
+            .Dir(LOCAL, D("NVIDIA"), D("Discord"), D("slack"), D("Vendor"), D("Temp"))
             .Dir(LOCAL + @"\NVIDIA", D("DXCache"), D("GLCache"))
             .Dir(LOCAL + @"\NVIDIA\DXCache", F("s1", 50))
             .Dir(LOCAL + @"\NVIDIA\GLCache", F("s2", 70))
@@ -175,13 +182,19 @@ internal sealed class AppCacheTestEnvironment
             .Dir(LOCAL + @"\Vendor\Sub", F("c.log", 11))
             .Dir(LOCAL + @"\Temp", F("t.tmp", 1))
             .Dir(@"C:\ProgramData")
-            .Dir(@"C:\Users", D("tester"), D("other"))
+            .Dir(@"C:\", FakeDirectoryEntrySource.Folder("Documents and Settings", FileAttributes.ReparsePoint), D("Users"), D("$Recycle.Bin"))
+            .Dir(@"C:\Documents and Settings\Default\Junctioned", F("through-junction.dat", 4444))
+            .Dir(@"C:\Users", D("tester"), D("other"), D("Public"))
+            .Dir(@"C:\Users\Public", D("Vendor"))
+            .Dir(@"C:\Users\Public\Vendor", F("shared.tmp", 60))
             .Dir(@"C:\Users\other", D(".vendor_usage"))
             .Dir(@"C:\Users\other\.vendor_usage", F("usage.dat", 5000))
             .Dir(@"C:\$Recycle.Bin", D(CURRENT_SID), D(OTHER_SID))
             .Dir(@"C:\$Recycle.Bin\" + CURRENT_SID, F("$RABC.txt", 100))
             .Dir(@"C:\$Recycle.Bin\" + OTHER_SID, F("$RDEF.txt", 7777))
-            .Dir(@"D:\", D("DevCache"), D("SteamLibrary"))
+            .Dir(@"D:\", D("DevCache"), D("SteamLibrary"), D("NuGetPkgs"), D("PipCache"))
+            .Dir(@"D:\NuGetPkgs", F("moved.nupkg", 600))
+            .Dir(@"D:\PipCache", F("moved.whl", 700))
             .Dir(@"D:\DevCache", D("npm"))
             .Dir(NPM_OVERRIDE, F("big.tgz", 1000))
             .Dir(STEAM_LIBRARY, D("steamapps"))
@@ -190,5 +203,21 @@ internal sealed class AppCacheTestEnvironment
             .Dir(STEAM_LIBRARY + @"\steamapps\shadercache\123", F("cache.bin", 2000))
             .Dir(STEAM_LIBRARY + @"\steamapps\common", D("Game"))
             .Dir(STEAM_LIBRARY + @"\steamapps\common\Game", F("game.pak", GAME_BYTES));
+        if (defaultCaches)
+        {
+            source
+                .Dir(PROFILE, D("AppData"), D("Documents"), D(".nuget"), F(".npmrc", 300))
+                .Dir(PROFILE + @"\.nuget", D("packages"))
+                .Dir(PROFILE + @"\.nuget\packages", D("newtonsoft.json"))
+                .Dir(PROFILE + @"\.nuget\packages\newtonsoft.json", F("newtonsoft.json.13.0.3.nupkg", 400))
+                .Dir(LOCAL, D("npm-cache"), D("pip"), D("NVIDIA"), D("Discord"), D("slack"), D("Vendor"), D("Temp"))
+                .Dir(LOCAL + @"\npm-cache", D("_cacache"))
+                .Dir(LOCAL + @"\npm-cache\_cacache", F("a", 100), F("b", 200))
+                .Dir(LOCAL + @"\pip", D("Cache"))
+                .Dir(LOCAL + @"\pip\Cache", D("http"))
+                .Dir(LOCAL + @"\pip\Cache\http", F("w.whl", 300));
+        }
+
+        return source;
     }
 }

@@ -186,7 +186,7 @@ public static class AppCacheProbeContract
     /// <summary>필드: RegKey 개수(정수, 지원하지 않는 효과).</summary>
     public const string FIELD_REG_KEY_COUNT = "regKeyCount";
 
-    /// <summary>필드: Squirrel 앱 폴더 이름(문자열).</summary>
+    /// <summary>필드: 앱 이름(문자열). 규칙은 카드 묶음 기준 앱 이름(검토 규칙의 appLabel 또는 섹션 이름), Squirrel은 앱 폴더 이름, 앱 설정은 리더 이름.</summary>
     public const string FIELD_APP = "app";
 
     /// <summary>필드: Squirrel 버전 폴더 이름(문자열 목록).</summary>

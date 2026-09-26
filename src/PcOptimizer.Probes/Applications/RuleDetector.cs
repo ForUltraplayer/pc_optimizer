@@ -72,11 +72,14 @@ public sealed class RuleDetector
     /// <param name="rules">규칙(미지원 규칙은 건너뜀).</param>
     /// <param name="isProtected">보호 루트 확인 함수.</param>
     /// <param name="ct">취소 토큰.</param>
+    /// <param name="reparse">중간 폴더 reparse 검사기(없으면 이 호출용으로 만듦). 중간 정션을 거치는 경로는 확인 불가로 둔다.</param>
     /// <returns>규칙 ID별 탐지 결과(지원 규칙만).</returns>
-    public IReadOnlyDictionary<string, DetectionState> Detect(Guid scanId, IReadOnlyList<CleaningRule> rules, Func<string, bool> isProtected, CancellationToken ct)
+    public IReadOnlyDictionary<string, DetectionState> Detect(
+        Guid scanId, IReadOnlyList<CleaningRule> rules, Func<string, bool> isProtected, CancellationToken ct, ReparseAncestorCheck? reparse = null)
     {
         ArgumentNullException.ThrowIfNull(rules);
         ArgumentNullException.ThrowIfNull(isProtected);
+        reparse ??= new ReparseAncestorCheck(_source);
         lock (_cacheLock)
         {
             if (_cached is not null && _cachedScanId == scanId)
@@ -89,7 +92,7 @@ public sealed class RuleDetector
         foreach (var rule in rules.Where(rule => rule.IsSupported))
         {
             ct.ThrowIfCancellationRequested();
-            result[rule.Id] = DetectRule(rule, isProtected, ct);
+            result[rule.Id] = DetectRule(rule, isProtected, ct, reparse);
         }
 
         lock (_cacheLock)
@@ -104,7 +107,7 @@ public sealed class RuleDetector
     /// <summary>
     /// 규칙 하나: 조건 중 하나라도 맞으면 탐지됨, 아니면 확인 못한 조건이 있으면 확인 불가.
     /// </summary>
-    private DetectionState DetectRule(CleaningRule rule, Func<string, bool> isProtected, CancellationToken ct)
+    private DetectionState DetectRule(CleaningRule rule, Func<string, bool> isProtected, CancellationToken ct, ReparseAncestorCheck reparse)
     {
         var unknown = false;
         foreach (var key in rule.DetectKeys)
@@ -121,7 +124,7 @@ public sealed class RuleDetector
 
         foreach (var template in rule.DetectFiles)
         {
-            switch (FileExists(template, isProtected, ct))
+            switch (FileExists(template, isProtected, ct, reparse))
             {
                 case DetectionState.Detected:
                     return DetectionState.Detected;
@@ -172,7 +175,7 @@ public sealed class RuleDetector
     /// <summary>
     /// 파일·폴더 존재 확인. 변수를 펼친 위치 중 하나라도 있으면 탐지됨.
     /// </summary>
-    private DetectionState FileExists(string template, Func<string, bool> isProtected, CancellationToken ct)
+    private DetectionState FileExists(string template, Func<string, bool> isProtected, CancellationToken ct, ReparseAncestorCheck reparse)
     {
         var resolution = _resolver.Resolve(template);
         if (!resolution.IsResolved)
@@ -183,8 +186,8 @@ public sealed class RuleDetector
         var unknown = false;
         foreach (var path in resolution.Paths)
         {
-            var expansion = _expander.Expand(path, directoriesOnly: false, isProtected, ct);
-            unknown |= expansion.Exceeded || expansion.Incomplete || expansion.ProtectedSkipped;
+            var expansion = _expander.Expand(path, directoriesOnly: false, isProtected, ct, reparse);
+            unknown |= expansion.Exceeded || expansion.Incomplete || expansion.ProtectedSkipped || expansion.ReparseSkipped;
             foreach (var match in expansion.Matches)
             {
                 switch (_source.ProbeRoot(match))

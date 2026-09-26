@@ -12,6 +12,7 @@ using System.Windows.Threading;
 using PcOptimizer.App.Services;
 using PcOptimizer.App.ViewModels;
 using PcOptimizer.App.Views;
+using PcOptimizer.Probes.Applications;
 
 namespace PcOptimizer.App;
 
@@ -44,10 +45,11 @@ public partial class App : Application
         // SID·인자 원문은 기록하지 않는다(시작 방식만).
         logger.Info(LOG_CATEGORY, $"AppStarted elevated={elevation.IsElevated} mode={launchMode}");
 
-        // 규칙·보호 정책은 실행 모드와 관계없이 앱 폴더의 포함 파일(rules\)만 읽는다. 앱 캐시 규칙은 rules\sources.json의 SHA-256이 모두
-        // 맞을 때만 쓰고(RuleCatalogLoader.CreateBundled), 다운로드·사용자 규칙 경로는 없다. 관리자 권한으로 실행 중인 검사(재검사·직접 승격)에서는
-        // 사용자 쓰기 가능한 앱 설정 경로(npm·pip·NuGet·Steam)를 적용하지 않고 기본 위치만 본다(AppCacheProbe, ScanContext.IsElevated 기준).
-        var scanService = ScanService.CreateDefault(logger, limitToSystemScope: launchMode == ScanLaunchMode.ElevatedDifferentUser);
+        // 앱 캐시 규칙은 실행 모드와 관계없이 Probes 어셈블리에 포함된 리소스만 읽는다(RuleCatalogLoader.CreateEmbedded, 출력 폴더에는 규칙 파일이
+        // 없고 파일 시스템에서 읽지도 않음). 포함 sources.json과 SHA-256이 맞을 때만 쓰며 다운로드·사용자 규칙 경로는 없다. 관리자 권한으로 실행 중인
+        // 검사(재검사·직접 승격)에서는 사용자 쓰기 가능한 앱 설정 경로(npm·pip·NuGet·Steam)를 적용하지 않고 기본 위치만 본다(AppCacheProbe, ScanContext.IsElevated 기준).
+        var bundledRules = RuleCatalogLoader.CreateEmbedded();
+        var scanService = ScanService.CreateDefault(logger, limitToSystemScope: launchMode == ScanLaunchMode.ElevatedDifferentUser, rules: bundledRules);
 
         var viewModel = new MainViewModel(
             scanService,

@@ -26,6 +26,7 @@ public sealed class AppCacheMeasurer
     public static readonly TimeSpan APP_CACHE_TARGET_BUDGET = TimeSpan.FromSeconds(5);
 
     private readonly TargetedEnumerator _enumerator;
+    private readonly IDirectoryEntrySource _source;
     private readonly TimeProvider _time;
 
     /// <summary>
@@ -38,6 +39,7 @@ public sealed class AppCacheMeasurer
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(time);
         _enumerator = new TargetedEnumerator(source, time);
+        _source = source;
         _time = time;
     }
 
@@ -49,13 +51,16 @@ public sealed class AppCacheMeasurer
     /// <param name="isProtected">보호 루트 확인 함수.</param>
     /// <param name="overallBudget">대상 열거 전체 예산.</param>
     /// <param name="ct">취소 토큰.</param>
+    /// <param name="reparse">중간 폴더 reparse 검사기(없으면 이 호출용으로 만듦).</param>
     /// <returns>대상별 결과(계획 순서).</returns>
     public IReadOnlyList<TargetMeasurement> Measure(
-        ObservationPlan plan, DirectoryScanResult shared, Func<string, bool> isProtected, TimeSpan overallBudget, CancellationToken ct)
+        ObservationPlan plan, DirectoryScanResult shared, Func<string, bool> isProtected, TimeSpan overallBudget, CancellationToken ct,
+        ReparseAncestorCheck? reparse = null)
     {
         ArgumentNullException.ThrowIfNull(plan);
         ArgumentNullException.ThrowIfNull(shared);
         ArgumentNullException.ThrowIfNull(isProtected);
+        reparse ??= new ReparseAncestorCheck(_source);
 
         var start = _time.GetTimestamp();
         bool OverallExpired() => _time.GetElapsedTime(start) > overallBudget;
@@ -76,7 +81,7 @@ public sealed class AppCacheMeasurer
             }
             else
             {
-                result = _enumerator.Measure(target, isProtected, counted, APP_CACHE_TARGET_BUDGET, OverallExpired, ct);
+                result = _enumerator.Measure(target, isProtected, counted, APP_CACHE_TARGET_BUDGET, OverallExpired, ct, reparse);
             }
 
             results.Add(result);

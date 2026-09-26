@@ -18,6 +18,7 @@ namespace PcOptimizer.Probes.Applications;
 /// </summary>
 /// <remarks>
 /// <list type="bullet">
+/// <item>대상 폴더의 중간 폴더(볼륨 루트와 대상 사이) 중 reparse point가 있으면 들어가지 않고 reparse로 셉니다.</item>
 /// <item>폴더마다 보호 루트를 다시 확인하고, 보호·placeholder·reparse 폴더에는 들어가지 않고 셉니다.</item>
 /// <item>패턴에 맞고 제외되지 않은 파일만 셉니다. placeholder·reparse 파일은 건드리지 않고 셉니다.</item>
 /// <item>앞선 대상이 이미 센 파일(전체 경로, 대소문자 무시)은 다시 세지 않고, 앞선 전체 대상의 폴더(하위 제외)에는 들어가지 않습니다.</item>
@@ -35,9 +36,11 @@ internal sealed class TargetedEnumerator(IDirectoryEntrySource source, TimeProvi
     /// <param name="budget">이 대상의 시간 예산.</param>
     /// <param name="overallExpired">전체 예산을 넘겼는지 확인하는 함수.</param>
     /// <param name="ct">취소 토큰.</param>
+    /// <param name="reparse">중간 폴더 reparse 검사기.</param>
     /// <returns>관측 결과.</returns>
     public TargetMeasurement Measure(
-        ObservationTarget target, Func<string, bool> isProtected, HashSet<string> counted, TimeSpan budget, Func<bool> overallExpired, CancellationToken ct)
+        ObservationTarget target, Func<string, bool> isProtected, HashSet<string> counted, TimeSpan budget, Func<bool> overallExpired, CancellationToken ct,
+        ReparseAncestorCheck reparse)
     {
         var start = time.GetTimestamp();
         bool IsOverBudget() => time.GetElapsedTime(start) > budget || overallExpired();
@@ -45,6 +48,12 @@ internal sealed class TargetedEnumerator(IDirectoryEntrySource source, TimeProvi
         if (isProtected(target.Directory))
         {
             return Result(target, TargetState.Protected, 0, 0, default);
+        }
+
+        // 중간 폴더가 정션·심볼릭 링크면 OS가 그 링크를 따라가므로 대상에 들어가지 않고 reparse로 센다.
+        if (reparse.HasReparseAncestor(target.Directory))
+        {
+            return Result(target, TargetState.ReparsePoint, 0, 0, default(SkipCounts).Increment(ScanSkipReason.Reparse));
         }
 
         switch (source.ProbeRoot(target.Directory))

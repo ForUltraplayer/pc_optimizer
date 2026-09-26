@@ -132,6 +132,7 @@ internal static class AppCacheMeasurements
 
         Add(AppCacheProbeContract.FIELD_ID, new TextValue(rule.Rule.Id));
         Add(AppCacheProbeContract.FIELD_NAME, new TextValue(rule.Rule.Name));
+        Add(AppCacheProbeContract.FIELD_APP, new TextValue(rule.Metadata?.AppLabel ?? rule.Rule.Name));
         Add(AppCacheProbeContract.FIELD_ORIGIN, new TextValue(rule.Rule.Origin == RuleOrigin.Supplement ? AppCacheProbeContract.ORIGIN_SUPPLEMENT : AppCacheProbeContract.ORIGIN_COMMUNITY));
         Add(AppCacheProbeContract.FIELD_STATE, new TextValue(rule.State));
         if (rule.Bytes is { } bytes)

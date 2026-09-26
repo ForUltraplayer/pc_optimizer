@@ -37,11 +37,7 @@
   <ItemGroup>
     <!-- 포함 보호 정책(스펙 §5.2): 출력 폴더의 rules\protect.json으로 복사한다. 없거나 손상되면 파일 순회를 하지 않는다 -->
     <None Include="..\..\rules\protect.json" Link="rules\protect.json" CopyToOutputDirectory="PreserveNewest" />
-    <!-- 포함 앱 캐시 규칙(스펙 §5.1): 고정 스냅샷·보충 규칙·검토 메타데이터·출처/해시 목록·라이선스 고지. 앱은 sources.json의 SHA-256이 맞을 때만 규칙을 쓴다 -->
-    <None Include="..\..\rules\winapp2.ini" Link="rules\winapp2.ini" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="..\..\rules\supplement.ini" Link="rules\supplement.ini" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="..\..\rules\rule-metadata.json" Link="rules\rule-metadata.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="..\..\rules\sources.json" Link="rules\sources.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- 앱 캐시 규칙은 Probes 어셈블리에 리소스로 들어가며 출력 폴더로 복사하지 않는다. 배포물의 저작자 표시·라이선스 고지만 복사한다 -->
     <None Include="..\..\rules\LICENSE-winapp2.md" Link="rules\LICENSE-winapp2.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

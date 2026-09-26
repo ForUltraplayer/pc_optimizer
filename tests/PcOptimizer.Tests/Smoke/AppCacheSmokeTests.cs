@@ -28,7 +28,7 @@ public sealed class AppCacheSmokeTests(ITestOutputHelper output)
     public async Task 실제_앱_캐시_프로브를_실행한다()
     {
         var parseWatch = Stopwatch.StartNew();
-        var catalog = RuleCatalogLoader.CreateBundled().Load();
+        var catalog = RuleCatalogLoader.CreateEmbedded().Load();
         parseWatch.Stop();
         output.WriteLine($"catalog state={catalog.State} load+parse={parseWatch.ElapsedMilliseconds}ms (parse {catalog.ParseElapsed.TotalMilliseconds:0}ms)");
 

@@ -17,7 +17,7 @@ namespace PcOptimizer.Probes.Applications.ConfigReaders;
 /// Steam 라이브러리 리더입니다(스펙 §5.1 "Steam 라이브러리 경로 전체가 아니라 그 아래 확인된 steamapps/shadercache만 캐시 후보로 다룬다").
 /// </summary>
 /// <remarks>
-/// 레지스트리 키에서는 설치 경로 값 하나만 꺼내고 다른 값(자동 로그인 계정 등)은 보관하지 않습니다.
+/// 레지스트리에서는 설치 경로 값 하나만 요청하고(키의 다른 값·자동 로그인 계정 등은 읽지 않음) 보관하지도 않습니다.
 /// libraryfolders.vdf가 없으면 설치 폴더만 라이브러리로 보고, 형식이 깨졌으면 해석 불가로 둡니다(기본 위치 규칙은 따로 적용).
 /// </remarks>
 public sealed class SteamLibraryReader : IAppConfigReader
@@ -111,13 +111,11 @@ public sealed class SteamLibraryReader : IAppConfigReader
     }
 
     /// <summary>
-    /// 키에서 설치 경로 값 하나만 꺼낸다(다른 값은 버림).
+    /// 설치 경로 값 하나만 읽는다(키의 다른 값은 요청하지 않음).
     /// </summary>
     private string? ReadInstallPath(RegistryRoot root, RegistryView view, string subKey, string valueName)
     {
-        var reading = _registry.ReadKeyValues(root, view, subKey);
-        return reading.Status != RegistryReadStatus.Found
-            ? null
-            : reading.Values.FirstOrDefault(value => string.Equals(value.Name, valueName, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(value.Text))?.Text;
+        var reading = _registry.ReadStringValue(root, view, subKey, valueName);
+        return reading.Status == RegistryReadStatus.Found && !string.IsNullOrWhiteSpace(reading.Text) ? reading.Text : null;
     }
 }

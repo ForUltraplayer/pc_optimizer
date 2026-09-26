@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "notes": "PC Optimizer가 검토한 보충 규칙(supplement.ini)의 영향 설명·지원 앱 버전·참조. 커뮤니티(winapp2) 규칙은 검토하지 않았으므로 여기에 없고 화면에는 '영향 미확인'으로 표시한다. 영향 문장은 비울 수 있는 용량이나 지워도 되는지를 보장하지 않는다. 참조 URL은 2026-09-26 작성 시점의 공개 문서 위치이며 이 작업 중 다시 내려받아 대조하지 않았다.",
+  "notes": "PC Optimizer가 검토한 보충 규칙(supplement.ini)의 영향 설명·지원 앱 버전·참조. 커뮤니티(winapp2) 규칙은 검토하지 않았으므로 여기에 없고 화면에는 '영향 미확인'으로 표시한다. 영향 문장은 비울 수 있는 용량이나 지워도 되는지를 보장하지 않는다. 참조 URL은 2026-09-26 작성 시점의 공개 문서 위치이며 이 작업 중 다시 내려받아 대조하지 않았다. listing 항목은 supplement.ini의 FileKey가 아니라 코드가 폴더 이름만 나열하는 정의다(다른 정리 도구가 삭제 규칙으로 읽지 않도록).",
   "rules": [
     {
       "ruleId": "supplement:Adobe Media Cache Files",
@@ -15,7 +15,8 @@
         "Adobe Premiere Pro 환경설정 > 미디어 캐시(기본 위치: Roaming\\Adobe\\Common)"
       ],
       "observation": "size",
-      "configReader": "adobe"
+      "configReader": "adobe",
+      "appLabel": "Adobe 미디어 캐시"
     },
     {
       "ruleId": "supplement:npm cache",
@@ -30,7 +31,8 @@
         "https://docs.npmjs.com/cli/using-npm/config#cache"
       ],
       "observation": "size",
-      "configReader": "npm"
+      "configReader": "npm",
+      "appLabel": "npm"
     },
     {
       "ruleId": "supplement:pip cache",
@@ -45,7 +47,8 @@
         "https://pip.pypa.io/en/stable/topics/configuration/"
       ],
       "observation": "size",
-      "configReader": "pip"
+      "configReader": "pip",
+      "appLabel": "pip"
     },
     {
       "ruleId": "supplement:NuGet global packages",
@@ -59,7 +62,8 @@
         "https://learn.microsoft.com/nuget/consume-packages/managing-the-global-packages-and-cache-folders"
       ],
       "observation": "size",
-      "configReader": "nuget"
+      "configReader": "nuget",
+      "appLabel": "NuGet"
     },
     {
       "ruleId": "supplement:Steam shader cache",
@@ -74,7 +78,8 @@
         "winapp2 스냅샷 v260915 [Steam Games *] FileKey7 (steamapps\\shadercache)"
       ],
       "observation": "size",
-      "configReader": "steam"
+      "configReader": "steam",
+      "appLabel": "Steam 셰이더 캐시"
     },
     {
       "ruleId": "supplement:NVIDIA and Direct3D shader caches",
@@ -88,21 +93,30 @@
         "winapp2 스냅샷 v260915 [NVIDIA Shader Cache *] FileKey3 (%LocalAppData%\\NVIDIA\\*Cache)",
         "winapp2 스냅샷 v260915 [Microsoft DirectX Shader Cache *] FileKey1 (%LocalAppData%\\D3DSCache)"
       ],
-      "observation": "size"
+      "observation": "size",
+      "appLabel": "NVIDIA·Direct3D 셰이더 캐시"
     },
     {
-      "ruleId": "supplement:Squirrel app version folders",
+      "ruleId": "listing:Squirrel app version folders",
+      "appLabel": "Squirrel 설치 앱",
       "impact": {
-        "benefit": "Squirrel로 설치·업데이트되는 앱(Discord·Slack·GitHub Desktop)의 app-* 버전 폴더 이름만 보여 줘요. 크기와 사용 여부는 판단하지 않아요",
+        "benefit": "Squirrel로 설치·업데이트되는 앱의 app-* 버전 폴더 이름만 보여 줘요. 크기와 사용 여부는 판단하지 않아요",
         "sideEffect": "지금 실행되는 버전 폴더를 지우면 앱이 실행되지 않을 수 있어요. 이름·날짜만으로 어느 폴더가 쓰이는지 알 수 없어요",
         "regeneration": "앱이 업데이트될 때 새 버전 폴더가 생겨요"
       },
-      "appVersionNotes": "앱 폴더 바로 아래에 Update.exe가 있는 Squirrel.Windows 설치 구조만 인정해요(Discord는 이 PC에서 확인). Microsoft Store·MSIX·MSI 설치본은 이 구조가 아니어서 나오지 않아요",
+      "appVersionNotes": "이 PC에서 구조(앱 폴더 바로 아래 Update.exe와 app-<버전> 폴더)를 확인한 Discord만 포함해요. Slack·GitHub Desktop 등은 구조를 확인하지 못해 넣지 않았어요. 삭제 규칙 형식(FileKey)으로 적지 않고 코드가 이름만 나열해요",
       "sources": [
         "https://github.com/Squirrel/Squirrel.Windows/blob/develop/docs/using/install-process.md",
         "이 PC 관측(2026-09-26): %LocalAppData%\\Discord\\Update.exe, app-1.0.9259"
       ],
-      "observation": "folderNamesOnly"
+      "observation": "folderNamesOnly",
+      "listing": {
+        "parents": [
+          "%LocalAppData%\\Discord"
+        ],
+        "pattern": "app-*",
+        "marker": "Update.exe"
+      }
     }
   ]
 }

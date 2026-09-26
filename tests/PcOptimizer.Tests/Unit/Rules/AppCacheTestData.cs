@@ -31,7 +31,8 @@ internal sealed record FakeAppRule(
     long SkipAccessDenied = 0,
     long SkipTimeout = 0,
     bool HasWarning = false,
-    string[]? Paths = null);
+    string[]? Paths = null,
+    string? App = null);
 
 /// <summary>
 /// 앱 캐시 규칙 테스트 데이터 도우미입니다. 값은 모두 가짜입니다.
@@ -98,6 +99,8 @@ internal static class AppCacheTestData
             string Name(string field) => AppCacheProbeContract.Name(AppCacheProbeContract.RULE_PREFIX, index, field);
             list.Add(M(Name(AppCacheProbeContract.FIELD_ID), new TextValue(rule.Id)));
             list.Add(M(Name(AppCacheProbeContract.FIELD_NAME), new TextValue(rule.Name)));
+            list.Add(M(Name(AppCacheProbeContract.FIELD_APP), new TextValue(rule.App ?? rule.Name)));
+            list.Add(M(Name(AppCacheProbeContract.FIELD_TARGET_COUNT), new IntegerValue((rule.Paths ?? ["x"]).Length)));
             list.Add(M(Name(AppCacheProbeContract.FIELD_ORIGIN), new TextValue(rule.Origin)));
             list.Add(M(Name(AppCacheProbeContract.FIELD_STATE), new TextValue(rule.State)));
             if (rule.Bytes is { } bytes)

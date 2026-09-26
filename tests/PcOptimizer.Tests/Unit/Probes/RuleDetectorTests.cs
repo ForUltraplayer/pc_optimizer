@@ -39,6 +39,9 @@ public sealed class RuleDetectorTests
         public RegistryKeyReading ReadKeyValues(RegistryRoot root, RegistryView view, string subKey) => inner.ReadKeyValues(root, view, subKey);
 
         /// <inheritdoc />
+        public RegistryStringReading ReadStringValue(RegistryRoot root, RegistryView view, string subKey, string valueName) => inner.ReadStringValue(root, view, subKey, valueName);
+
+        /// <inheritdoc />
         public RegistrySubKeyReading ReadSubKeyNames(RegistryRoot root, RegistryView view, string subKey)
         {
             SubKeyReads++;
@@ -140,6 +143,25 @@ public sealed class RuleDetectorTests
         Assert.Equal(DetectionState.Unknown, result[wildcard.Id]);
         Assert.Equal(DetectionState.Detected, result[exact.Id]);
         Assert.DoesNotContain(DOCUMENTS, source.Enumerated);
+    }
+
+    /// <summary>DetectFile 경로의 중간 폴더가 정션(Documents and Settings)이면 따라가지 않고 확인 불가로 둔다(링크 너머의 파일로 탐지하지 않음).</summary>
+    [Fact]
+    public void 중간_정션을_거치는_DetectFile은_따라가지_않는다()
+    {
+        var literal = Rule("DetectFile=%SystemDrive%\\Documents and Settings\\Default\\App", "Literal");
+        var wildcard = Rule("DetectFile=%SystemDrive%\\Documents and Settings\\Def*\\App", "Wildcard");
+        var source = new FakeDirectoryEntrySource()
+            .Dir(@"C:\", FakeDirectoryEntrySource.Folder("Documents and Settings", System.IO.FileAttributes.ReparsePoint))
+            .Dir(@"C:\Documents and Settings", FakeDirectoryEntrySource.Folder("Default"))
+            .Dir(@"C:\Documents and Settings\Default\App");
+        var detector = new RuleDetector(new FakeRegistryReader(), source, new Winapp2PathResolver(new FakePathEnvironment { Profile = PROFILE }.WithVariable("SystemDrive", "C:")));
+
+        var result = detector.Detect(Guid.NewGuid(), [literal, wildcard], _ => false, CancellationToken.None);
+
+        Assert.Equal(DetectionState.Unknown, result[literal.Id]);
+        Assert.Equal(DetectionState.Unknown, result[wildcard.Id]);
+        Assert.DoesNotContain(@"C:\Documents and Settings", source.Enumerated);
     }
 
     /// <summary>탐지 근거가 없는 규칙은 파서가 미지원으로 두며 탐지 결과에 나오지 않는다(모든 사용자에게 적용하지 않음).</summary>
