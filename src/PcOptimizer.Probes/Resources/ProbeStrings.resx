@@ -52,6 +52,13 @@
   <data name="System_ValuesMissing" xml:space="preserve"><value>제조사·모델 값이 비어 있어요</value></data>
   <data name="System_BiosVersionMissing" xml:space="preserve"><value>BIOS 버전 값이 비어 있어요</value></data>
 
+  <!-- 시스템 상세 프로브 -->
+  <data name="SystemDetails_OsMissing" xml:space="preserve"><value>운영체제 정보를 읽지 못했어요</value></data>
+  <data name="SystemDetails_CpuMissing" xml:space="preserve"><value>CPU 정보를 읽지 못했어요</value></data>
+  <data name="SystemDetails_InstallDateInvalid" xml:space="preserve"><value>설치일 값을 해석하지 못했어요</value></data>
+  <data name="SystemDetails_BiosDateInvalid" xml:space="preserve"><value>BIOS 배포일 값을 해석하지 못했어요</value></data>
+  <data name="SystemDetails_BoardMissing" xml:space="preserve"><value>메인보드 정보 값이 비어 있어요</value></data>
+
   <!-- 레지스트리 조회 -->
   <data name="Registry_AccessDenied" xml:space="preserve"><value>레지스트리 값 {0}을(를) 읽을 권한이 없어요</value><comment>{0}=값 이름</comment></data>
   <data name="Registry_Error" xml:space="preserve"><value>레지스트리 값 {0}을(를) 읽는 중 오류가 발생했어요 ({1})</value><comment>{0}=값 이름, {1}=예외 형식 이름</comment></data>

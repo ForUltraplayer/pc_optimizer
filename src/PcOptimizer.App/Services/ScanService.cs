@@ -100,7 +100,7 @@ public sealed class ScanService
     public IReadOnlyCollection<string> DrainingProbeIds => _coordinator.DrainingProbeIds;
 
     /// <summary>
-    /// 기본 구성으로 서비스를 만듭니다. 프로브: 메모리·전원·디스플레이·시스템 정보·그래픽 설정(HAGS)·게임 모드·보안 상태·설치 GPU·NVIDIA 온라인 조회·
+    /// 기본 구성으로 서비스를 만듭니다. 프로브: 메모리·전원·디스플레이·시스템 정보·시스템 상세(OS·CPU·BIOS 배포일·메인보드·네트워크 어댑터)·그래픽 설정(HAGS)·게임 모드·보안 상태·설치 GPU·NVIDIA 온라인 조회·
     /// Windows Update 드라이버 검색·볼륨·물리 디스크·TRIM 정책·시작 프로그램·파일 스캔·앱 캐시 (TRIM 정책만 관리자 권한 필요, 일반 권한에서는 ElevationRequired로 건너뜀).
     /// 네트워크 프로브는 NVIDIA 온라인 조회와 Windows Update 드라이버 검색 둘이며 온라인 확인을 요청한 검사에서만 실행됩니다.
     /// 드라이버 링크 규칙(NVIDIA 비교·AMD/Intel·제조사 지원)은 포함 리소스의 공식 링크 표만 씁니다.
@@ -126,6 +126,7 @@ public sealed class ScanService
                 new PowerProbe(),
                 new DisplayProbe(),
                 new SystemInfoProbe(),
+                new SystemDetailsProbe(),
                 new GraphicsSettingsProbe(),
                 new GameModeSettingsProbe(),
                 new SecurityStatusProbe(),
