@@ -247,6 +247,37 @@ public sealed class PcSpecTests
         Assert.Equal($"Realtek Wi-Fi · {Fmt(Strings.Spec_Driver, Strings.Spec_ValueUnknown)}", network.Items[1].Value);
     }
 
+    /// <summary>WMI가 "알 수 없음"으로 보고한 0(메모리 용량·속도, 디스크 크기, 모니터 가로 해상도)은 "0"으로 표시하지 않고 확인 불가(null)로 둔다.</summary>
+    [Fact]
+    public void LiteralZeroMeasurementsRenderAsUnknownNotZero()
+    {
+        string Module(string field) => MemoryProbeContract.ModuleMeasurementName(0, field);
+        var results = new Dictionary<string, ProbeResult>
+        {
+            [MemoryProbeContract.PROBE_ID] = Result(MemoryProbeContract.PROBE_ID,
+                (MemoryProbeContract.MODULE_COUNT, new IntegerValue(1)),
+                (Module(MemoryProbeContract.FIELD_CAPACITY), new IntegerValue(0)),
+                (Module(MemoryProbeContract.FIELD_CONFIGURED_CLOCK_SPEED), new IntegerValue(0)),
+                (Module(MemoryProbeContract.FIELD_SPEED), new IntegerValue(0))),
+            [PhysicalDiskProbeContract.PROBE_ID] = Result(PhysicalDiskProbeContract.PROBE_ID,
+                (PhysicalDiskProbeContract.DISK_COUNT, new IntegerValue(1)),
+                (PhysicalDiskProbeContract.DiskMeasurementName(0, PhysicalDiskProbeContract.FIELD_SIZE), new IntegerValue(0))),
+            [DisplayProbeContract.PROBE_ID] = Result(DisplayProbeContract.PROBE_ID,
+                (DisplayProbeContract.TARGET_COUNT, new IntegerValue(1)),
+                (DisplayProbeContract.TargetMeasurementName(0, DisplayProbeContract.FIELD_WIDTH), new IntegerValue(0)),
+                (DisplayProbeContract.TargetMeasurementName(0, DisplayProbeContract.FIELD_HEIGHT), new IntegerValue(1080))),
+        };
+
+        var snapshot = PcSpecService.BuildSnapshot(results, AT);
+
+        Assert.All(snapshot.Sections[SECTION_MEMORY].Items, i => Assert.Null(i.Value));
+        Assert.Equal(2, snapshot.Sections[SECTION_MEMORY].Items.Count);
+        Assert.Null(Assert.Single(snapshot.Sections[SECTION_STORAGE].Items, i => i.Label == Strings.Spec_Disk).Value);
+        Assert.Null(Assert.Single(snapshot.Sections[SECTION_DISPLAY].Items).Value);
+        Assert.Contains(Strings.Spec_Section_Memory, snapshot.UnavailableSections);
+        Assert.Contains(Strings.Spec_Section_Display, snapshot.UnavailableSections);
+    }
+
     /// <summary>실패한 프로브 결과는 측정값이 있어도 섹션 전체를 확인 불가로 둔다.</summary>
     [Fact]
     public void FailedProbeMarksSectionUnavailable()
