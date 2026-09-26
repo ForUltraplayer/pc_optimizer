@@ -1,6 +1,6 @@
 # 공유 리뷰 원장
 
-사용자 요청에 따라 Codex의 검토 결과를 구현자·리뷰어가 파일로 확인하고 대응하기 위한 원장이다. 마지막 기록일: 2026-09-27(REV-008~014 수정 근거 추가). 사용자의 ‘이어서 작업 진행’ 지시 이후 Codex가 구현도 인계받았다. 이후 자기 수정 검증과 별도 독립 리뷰를 구분한다.
+사용자 요청에 따라 Codex의 검토 결과를 구현자·리뷰어가 파일로 확인하고 대응하기 위한 원장이다. 마지막 기록일: 2026-09-27(REV-008~014 수정 근거 추가, SP4 Task 5의 REV-014·015 대응 기록). 사용자의 ‘이어서 작업 진행’ 지시 이후 Codex가 구현도 인계받았다. 이후 자기 수정 검증과 별도 독립 리뷰를 구분한다.
 
 ## 읽기와 대응
 
@@ -26,8 +26,8 @@
 | REV-011 | P2 | 검증 완료 | UI 커밋 | 헤더 6파일·공개 멤버 한글 주석·테스트 summary 독립 확인 |
 | REV-012 | P3 | 검증 완료 | P7 정리 실행기 | 인자 2개 제거로 스펙 문구와 일치, 고정 인자 테스트 일치, NuGet --list 파싱 ko/ja/en 무관 확인 |
 | REV-013 | P2 | 검증 완료 | UI 정리 결과 | Started 플래그로 미실행 코드 분리·Outcome 미생성·메인 화면 미잔존 독립 확인 |
-| REV-014 | P2 | 부분 수정·재현 미완 | UI 개요 | '온라인 확인 불가' 상태는 생겼으나 Driver 분류의 모든 CannotVerify(AMD/Intel 링크·OEM 미확인 등 로컬 사유)를 미완료로 계산 — 흔한 PC에서 항상 미완료 표시 |
-| REV-015 | 제품 범위 | 설계 반영(2차 스펙) | 개요 화면 | 일반인 대상인데 '공간 확보' 묶음의 자동 조치가 개발 도구 캐시뿐 — 기대 오해 방지 재설계 제안 |
+| REV-014 | P2 | 수정됨·재검증 대기 | UI 개요 | SP4 Task 5: 드라이버 타일 제거, 온라인 완료 판정에서 로컬 Driver CannotVerify 제외(온라인 공급자·NVIDIA 비교 규칙만), 온라인 상태는 옵션 영역 `LastOnlineCheckText`만 |
+| REV-015 | 제품 범위 | 수정됨·재검증 대기 | 개요 화면 | SP4 Task 5: 제안 1·2항(요약 타일 '바로 할 수 있는 것/직접 해야 하는 것', 0이면 숨김, 정리 창은 보호 위치 도구 있을 때만) 구현. 3·4항은 후속 단계 |
 
 ## REV-001 — 보호 경로와 스캔 경로의 검증 정책을 분리
 
@@ -271,6 +271,7 @@
 - 기대: 드라이버·온라인 Finding의 실제 상태(완료/NotRequested/NetworkFailed/Cancelled) 또는 ScanOutcome.Completed로 라벨 도출, 별도 "온라인 확인 불가" 상태.
 - 대응 기록 (2026-09-27, Codex 구현자, `4c1e93d`): NVIDIA·WUA 프로브가 모두 Success(이슈/종료 중 없음)이고 Driver CannotVerify가 없을 때만 비교 완료로 표시한다. 실패·부분·취소·누락은 온라인 확인 불가, 후보가 있으면 후보 수와 일부 확인 불가를 함께 표시한다. 마지막 온라인 확인 시각도 실제 비교 완료 때만 갱신한다. `MainViewModelTests`에서 성공0/실패/부분/취소/Skipped/체크박스만 변경/로컬 재검사/부분 후보를 검증했다. 온라인 공급자 코드는 변경하지 않았다.
 - 검증 근거: [REV-008~014 수정·검증 기록](2026-09-27-rev008-014-fixes.md). 기본 1169/1169, Smoke 22/22, ToolSmoke 1/1. 구현자 자체 검증이며 독립 재검증을 대체하지 않는다.
+- 대응 기록 (2026-09-27, SP4 Task 5 구현자 Claude 세션, 부모 `031e9da`의 커밋 "SP4: 요약 타일을 바로 할 수 있는 것/직접 해야 하는 것으로 교체, 도구 정리 노출 조건"): 드라이버 타일 제거(SP4 Task 5). `MainViewModel.Overview.cs`의 `DriverCount`·`SettingsCount`와 `_lastScanIncludedOnline`을 삭제해 타일 문구 경로를 없앴고, 온라인 상태는 옵션 영역 `LastOnlineCheckText`만 사용한다. 로컬 CannotVerify가 온라인 완료 판정에 섞이는 코드 경로 삭제: `OnlineComparisonComplete`(마지막 온라인 확인 시각 갱신에 계속 쓰임)의 조건 `Category == Driver && CannotVerify`를 `DriverUpdateRule.FINDING_ID_PREFIX`(NVIDIA 온라인 비교) CannotVerify로 좁혔다 — NVIDIA·WUA 두 프로브 Success(이슈 0, 종료 중 아님) 조건은 유지. 회귀: `MainViewModelTests.OnlyOnlineRuleCannotVerifyBlocksOnlineCompletion`(로컬 Driver CannotVerify `gpu-vendor-link:*` + 두 프로브 성공 → 확인 시각 표시, `driver-update:*` CannotVerify → 미표시), `LastOnlineCheckRequiresActualSuccessfulOnlineResults`(성공/실패/부분/취소/Skipped), `PartialOnlineResultWithCandidateDoesNotRecordOnlineCheck`, `OfflineComparisonAndLastCleanupRemainExplicitAfterRescan`(체크박스만 변경은 비교 완료 아님). 검증: `dotnet build PcOptimizer.sln --configuration Release` 경고 0/오류 0, `dotnet test ... --no-build --filter "Category!=Smoke&Category!=Online&Category!=ToolSmoke"` 1205/1205. 남은 제한: 실제 Intel iGPU/AMD PC에서 온라인 확인은 실행하지 않았다(가짜 프로브·규칙 fixture). 구현자 자체 검증이며 독립 재검증을 대체하지 않는다.
 
 ## REV-015 — '공간 확보' 기대 오해 방지 (제안, 사용자 결정 대기)
 
@@ -282,6 +283,7 @@
   4. 크기 숫자 옆에 행동 가능성 라벨을 고정한다: "앱에서 정리 가능" / "Windows 설정에서 정리" / "확인만 가능". 세 번째는 요약 합계에서 제외한다.
 - 완료 근거: 개발 도구 없는 가짜 환경에서 개요에 자동 정리 묶음이 없고 Windows 정리 연결이 보이는 테스트; 도구 있는 환경에서 기존 카드 유지; "확보 가능" 표현 부재 회귀 유지.
 - 대응 기록 (2026-09-27, Claude 세션): 사용자 승인 2차 개선 설계 `docs/superpowers/specs/2026-09-27-improvement-phase2-design.md` §3에 흡수(요약 타일을 '바로 할 수 있는 것/직접 해야 하는 것'으로, 개발 도구 카드는 보호 위치 설치 시만). 구현은 SP4 단계. 코드 변경 없음.
+- 대응 기록 (2026-09-27, SP4 Task 5 구현자 Claude 세션, 부모 `031e9da`의 커밋 "SP4: 요약 타일을 바로 할 수 있는 것/직접 해야 하는 것으로 교체, 도구 정리 노출 조건"): 요약 타일 교체·도구 카드/정리 창 노출 조건 구현. 메인 화면 타일 3개(공간 확보·설정 개선·드라이버 확인)를 "바로 할 수 있는 것 n건 / 앱에서 확인 후 바로 실행합니다"(0이면 숨김)와 "직접 해야 하는 것 n건 / Windows 설정이나 공식 페이지에서 직접 합니다" 두 타일로 바꿨다. 건수는 커뮤니티를 제외한 Candidate(`RecommendedCards`)만 세며, 앱 내 실행 판정 `IActionAvailability`/`CacheToolActionAvailability`는 `appCache.app:` + 검토 규칙 appLabel(`npm`·`pip`·`NuGet`, 대소문자 무시) Candidate이고 보호 위치 도구가 있을 때만 true. 정리 창 버튼은 생성 시 한 번 확인한 `CacheToolsAvailable`(= `SystemCacheToolBackend.AnyToolInProtectedLocation()`: `%ProgramFiles%\nodejs\node.exe`+`npm-cli.js`, `%ProgramFiles%\dotnet\dotnet.exe`의 `IsPlainPath` 존재 확인만, 프로세스 실행·PATH 탐색 없음)가 true일 때만 보이고 `CanOpenCacheTools`도 이 값으로 막는다. 회귀: `ActionAvailabilityTests`, `MainViewModelTests.OverviewCountsDoNowAndDoManually`·`OverviewCountsExcludeNonCandidatesAndCommunityCards`·`OverviewTilesRaisePropertyChangedAfterScan`·`CacheToolsRequireToolInProtectedLocation`, `MainWindowLayoutTests.SummaryTilesSplitDoNowAndDoManually`. 검증: Release 빌드 경고 0/오류 0, 기본 1205/1205. 남은 제한: 제안 3항(Windows 내장 정리 연결을 주 버튼으로)·4항(크기 옆 행동 가능성 라벨)은 이번 범위 밖. 현재 `AppCacheRule`은 Candidate를 만들지 않으므로 실제 PC에서 "바로 할 수 있는 것"은 항상 0(타일 숨김)이며, 정리 창 버튼이 타일 밖 별도 줄에 남는다. pip는 기존 탐색에 Program Files 표준 경로가 없어 보호 위치 판정에 기여하지 않는다. 구현자 자체 검증이며 독립 재검증을 대체하지 않는다.
 
 ## 2026-09-27 독립 재검증 (Claude 세션, 커밋 `4c1e93d`, 원장 `6bbd4a8`)
 

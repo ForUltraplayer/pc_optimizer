@@ -226,16 +226,13 @@
   <data name="Overview_Found" xml:space="preserve"><value>검토해 볼 개선 후보가 {0}개 있습니다</value></data>
   <data name="Overview_NoCandidates" xml:space="preserve"><value>이번 검사에서 추천할 변경을 찾지 못했습니다</value></data>
   <data name="Overview_ResultHelp" xml:space="preserve"><value>확인 불가 {0}개 · 정상 확인 {1}개 · 참고 정보 {2}개는 ‘전체 결과’에서 볼 수 있습니다. 확인된 범위의 결과입니다.</value></data>
-  <data name="Overview_OnlineToggle" xml:space="preserve"><value>다음 검사에 온라인 비교 포함</value></data>
   <data name="Overview_Space" xml:space="preserve"><value>공간 확보</value></data>
   <data name="Overview_SpaceHelp" xml:space="preserve"><value>npm·pip·NuGet 캐시와 Windows 임시 파일. 정리할 대상과 크기부터 확인하세요.</value></data>
   <data name="Overview_CleanupButton" xml:space="preserve"><value>정리할 캐시 확인 →</value></data>
-  <data name="Overview_Settings" xml:space="preserve"><value>설정 개선</value></data>
-  <data name="Overview_SettingsHelp" xml:space="preserve"><value>주사율·전원 등 조건에 맞는 설정을 아래에서 확인하세요.</value></data>
-  <data name="Overview_Drivers" xml:space="preserve"><value>드라이버 확인</value></data>
-  <data name="Overview_DriversHelp" xml:space="preserve"><value>최신 비교는 검사 옵션에서 온라인 확인을 켜고 다시 검사하세요.</value></data>
-  <data name="Overview_NotScanned" xml:space="preserve"><value>검사 전</value></data>
-  <data name="Overview_CandidateCount" xml:space="preserve"><value>후보 {0}개</value></data>
+  <data name="Overview_DoNowCount" xml:space="preserve"><value>바로 할 수 있는 것 {0}건</value><comment>{0}=앱 안에서 바로 실행할 수 있는 개선 후보 수</comment></data>
+  <data name="Overview_DoNowHelp" xml:space="preserve"><value>앱에서 확인 후 바로 실행합니다</value></data>
+  <data name="Overview_DoManuallyCount" xml:space="preserve"><value>직접 해야 하는 것 {0}건</value><comment>{0}=Windows 설정이나 공식 페이지에서 직접 해야 하는 개선 후보 수</comment></data>
+  <data name="Overview_DoManuallyHelp" xml:space="preserve"><value>Windows 설정이나 공식 페이지에서 직접 합니다</value></data>
   <data name="Overview_Recommendations" xml:space="preserve"><value>추천 조치</value></data>
   <data name="Overview_RecommendationsCount" xml:space="preserve"><value>추천 조치 ({0})</value></data>
   <data name="Overview_All" xml:space="preserve"><value>전체 결과 보기</value></data>
@@ -257,9 +254,6 @@
   <data name="Cleanup_StepSelect" xml:space="preserve"><value>1. 정리할 도구 선택</value></data>
   <data name="Cleanup_StepPreview" xml:space="preserve"><value>2. 대상과 영향을 확인한 뒤 정리</value></data>
   <data name="Cleanup_WindowsTitle" xml:space="preserve"><value>Windows 임시 파일도 확인하려면</value></data>
-  <data name="Overview_SettingsButton" xml:space="preserve"><value>설정 후보 보기 →</value></data>
-  <data name="Overview_DriverButton" xml:space="preserve"><value>드라이버 결과 보기 →</value></data>
-  <data name="Overview_OnlineNotChecked" xml:space="preserve"><value>온라인 비교 전</value></data>
   <data name="Overview_SettingsFocusHelp" xml:space="preserve"><value>설정 개선 후보만 보고 있습니다. ‘추천 조치’를 누르면 모든 개선 후보로 돌아갑니다.</value></data>
   <data name="Overview_EmptySettings" xml:space="preserve"><value>표시할 설정 개선 후보가 없습니다. ‘추천 조치’에서 다른 후보를 보거나 ‘전체 결과’에서 확인 불가 항목을 검토하세요.</value></data>
   <data name="Cleanup_Before" xml:space="preserve"><value>실행 직전</value></data>
@@ -278,7 +272,5 @@
   <data name="Cleanup_QueryFailed" xml:space="preserve"><value>캐시 정보를 확인하지 못했습니다. 정리는 실행하지 않았습니다.</value></data>
   <data name="Cleanup_SettingsFailed" xml:space="preserve"><value>Windows 설정을 열지 못했습니다. 설정 앱에서 저장소를 열어 주세요.</value></data>
   <data name="Cleanup_ProcessStillRunning" xml:space="preserve"><value>이전 도구가 아직 종료되지 않아 새 실행을 막았습니다. 종료 후 다시 확인해 주세요.</value></data>
-  <data name="Overview_OnlineUnavailable" xml:space="preserve"><value>온라인 확인 불가</value></data>
-  <data name="Overview_OnlinePartialCount" xml:space="preserve"><value>후보 {0}개 · 일부 확인 불가</value></data>
   <data name="Cleanup_Busy" xml:space="preserve"><value>다른 도구가 사용 중입니다. 끝난 뒤 다시 확인해 주세요.</value></data>
 </root>
