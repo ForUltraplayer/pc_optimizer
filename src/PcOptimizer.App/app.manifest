@@ -2,7 +2,7 @@
 <!--
   @file    : app.manifest
   @author  : rudals252
-  @brief   : 앱 실행 권한(asInvoker)과 지원 OS, DPI 인식 방식을 선언하는 애플리케이션 매니페스트
+  @brief   : 항상 관리자 권한(requireAdministrator, 시작 시 UAC 한 번)으로 실행하도록 권한을 선언하고 지원 OS, DPI 인식 방식을 선언하는 애플리케이션 매니페스트
 -->
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
   <assemblyIdentity version="1.0.0.0" name="PcOptimizer.App.app"/>
@@ -10,7 +10,7 @@
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
     <security>
       <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
-        <requestedExecutionLevel level="asInvoker" uiAccess="false"/>
+        <requestedExecutionLevel level="requireAdministrator" uiAccess="false"/>
       </requestedPrivileges>
     </security>
   </trustInfo>

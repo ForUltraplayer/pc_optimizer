@@ -1,11 +1,10 @@
 /**
  * @file    : AppTestDoubles.cs
  * @author  : rudals252
- * @brief   : 뷰모델 테스트용 대역(즉시 실행 UI 마샬러, 고정 경로 선택기, 메모리·시스템 상세 fixture 프로브, 풀어 줄 때까지 기다리는 시스템 상세 프로브, 첫 호출만 취소를 기다리는 프로브, 고정 권한 상태, 기록·예외 프로세스 시작기, 고정 앱 내 실행 판정, 기록 클립보드, 일반 검사 컨텍스트, 사양 뷰모델 생성기)
+ * @brief   : 뷰모델 테스트용 대역(즉시 실행 UI 마샬러, 고정 경로 선택기, 메모리·시스템 상세 fixture 프로브, 풀어 줄 때까지 기다리는 시스템 상세 프로브, 첫 호출만 취소를 기다리는 프로브, 고정 권한 상태, 고정 앱 내 실행 판정, 기록 클립보드, 일반 검사 컨텍스트, 사양 뷰모델 생성기)
  */
 
 // 기본 패키지
-using System.Diagnostics;
 using System.Windows;
 
 // 사용자 패키지
@@ -162,28 +161,6 @@ internal sealed class FakeElevationState(bool isElevated, string? currentUserSid
 
     /// <inheritdoc />
     public string? CurrentUserSid { get; } = currentUserSid;
-}
-
-/// <summary>
-/// 시작 요청을 기록하고, 지정하면 예외를 던지는 프로세스 시작기입니다(실제 프로세스·UAC 없음).
-/// </summary>
-internal sealed class RecordingProcessStarter : IProcessStarter
-{
-    /// <summary>받은 시작 정보.</summary>
-    public List<ProcessStartInfo> Started { get; } = [];
-
-    /// <summary>Start에서 던질 예외(없으면 null).</summary>
-    public Exception? ThrowOnStart { get; init; }
-
-    /// <inheritdoc />
-    public void Start(ProcessStartInfo startInfo)
-    {
-        Started.Add(startInfo);
-        if (ThrowOnStart is not null)
-        {
-            throw ThrowOnStart;
-        }
-    }
 }
 
 /// <summary>

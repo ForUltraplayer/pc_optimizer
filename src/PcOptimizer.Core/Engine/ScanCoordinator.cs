@@ -188,7 +188,7 @@ public sealed class ScanCoordinator
     {
         if (probe.Scope == ProbeScope.User && context.LimitToSystemScope)
         {
-            // 다른 계정으로 승격된 재검사: 그 계정의 HKCU·프로필을 원래 사용자 결과로 보이지 않도록 호출하지 않는다.
+            // 다른 관리자 계정으로 실행됨: 그 계정의 HKCU·프로필을 원래 사용자 결과로 보이지 않도록 호출하지 않는다.
             return ProbeExecutor.CreateIssueResult(
                 probe.Id, context, ProbeStatus.Skipped, CannotVerifyReason.Unsupported, CoreStrings.ProbeIssue_UserScopeExcluded, _clock.UtcNow, TimeSpan.Zero);
         }

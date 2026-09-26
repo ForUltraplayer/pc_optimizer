@@ -1,7 +1,7 @@
 /**
  * @file    : App.xaml.cs
  * @author  : rudals252
- * @brief   : 애플리케이션 진입점. 관리자 재검사 고정 인자·권한·SID로 시작 방식을 정하고 공용 로거·검사 서비스·내보내기·설정 URI 정책·공식 링크 정책·재검사 시작기·앱 내 실행 판정(보호 위치 도구 캐시 정리)·내 PC 사양 화면 모델(검사와 프로브 공유)·메인 화면 모델을 조립하며 처리되지 않은 예외를 형식 이름만 기록
+ * @brief   : 애플리케이션 진입점(항상 관리자 권한). 프로세스 토큰 SID와 대화형 로그온 사용자 SID를 비교해 사용자 범위(전체/시스템만)를 정하고 공용 로거·검사 서비스·내보내기·설정 URI 정책·공식 링크 정책·앱 내 실행 판정(보호 위치 도구 캐시 정리)·내 PC 사양 화면 모델(검사와 프로브 공유)·메인 화면 모델을 조립하며 처리되지 않은 예외를 형식 이름만 기록
  */
 
 // 기본 패키지
@@ -16,12 +16,13 @@ using PcOptimizer.Core.Abstractions;
 using PcOptimizer.Probes.Actions;
 using PcOptimizer.Probes.Applications;
 using PcOptimizer.Probes.Drivers;
+using PcOptimizer.Probes.Platform;
 
 namespace PcOptimizer.App;
 
 /// <summary>
-/// 애플리케이션 진입점 클래스입니다. 구성 요소를 조립해 메인 창을 띄웁니다(일반 권한 시작, 조회 전용).
-/// 관리자 권한 재검사로 시작된 인스턴스는 고정 인자만 해석하고, 원래 사용자와 SID가 다르면 시스템 범위만 검사합니다.
+/// 애플리케이션 진입점 클래스입니다. 구성 요소를 조립해 메인 창을 띄웁니다(매니페스트 requireAdministrator로 항상 관리자 권한, 단일 프로세스).
+/// 표준 계정이 다른 관리자 계정의 자격 증명으로 승격해 실행했으면(토큰 SID ≠ 대화형 사용자 SID, 또는 확인 불가) 시스템 범위만 검사합니다.
 /// </summary>
 public partial class App : Application
 {
@@ -43,14 +44,15 @@ public partial class App : Application
         AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
         var elevation = WindowsElevationState.Capture();
-        var launchMode = ScanLaunchModeResolver.Resolve(ElevatedRescanArguments.Parse(e.Args), elevation.IsElevated, elevation.CurrentUserSid);
+        var interactiveSid = InteractiveSessionUser.TryGetSid(out var sid) ? sid : null;
+        var userScope = UserScopeResolver.Resolve(elevation.CurrentUserSid, interactiveSid);
 
-        // SID·인자 원문은 기록하지 않는다(시작 방식만).
-        logger.Info(LOG_CATEGORY, $"AppStarted elevated={elevation.IsElevated} mode={launchMode}");
+        // SID·계정명은 기록하지 않는다(권한과 범위만).
+        logger.Info(LOG_CATEGORY, $"AppStarted elevated={elevation.IsElevated} scope={userScope}");
 
         // 앱 캐시 규칙은 실행 모드와 관계없이 Probes 어셈블리에 포함된 리소스만 읽는다(RuleCatalogLoader.CreateEmbedded, 출력 폴더에는 규칙 파일이
         // 없고 파일 시스템에서 읽지도 않음). 포함 sources.json과 SHA-256이 맞을 때만 쓰며 다운로드·사용자 규칙 경로는 없다. 관리자 권한으로 실행 중인
-        // 검사(재검사·직접 승격)에서는 사용자 쓰기 가능한 앱 설정 경로(npm·pip·NuGet·Steam)를 적용하지 않고 기본 위치만 본다(AppCacheProbe, ScanContext.IsElevated 기준).
+        // 검사(매니페스트상 항상)에서는 사용자 쓰기 가능한 앱 설정 경로(npm·pip·NuGet·Steam)를 적용하지 않고 기본 위치만 본다(AppCacheProbe, ScanContext.IsElevated 기준).
         var bundledRules = RuleCatalogLoader.CreateEmbedded();
 
         // 공식 링크 표(vendor-links.json)도 Probes 어셈블리 포함 리소스만 읽는다. 규칙(링크 생성)과 링크 열기 정책이 같은 표를 쓴다.
@@ -61,7 +63,7 @@ public partial class App : Application
         }
 
         var scanService = ScanService.CreateDefault(
-            logger, limitToSystemScope: launchMode == ScanLaunchMode.ElevatedDifferentUser, rules: bundledRules, vendorLinks: vendorLinks.Catalog);
+            logger, limitToSystemScope: userScope == UserScopeMode.SystemOnly, rules: bundledRules, vendorLinks: vendorLinks.Catalog);
 
         // 내 PC 사양은 검사와 같은 프로브 인스턴스를 규칙 없이 직접 실행한다(검사 중에는 새로 고침을 막음). 이미지 저장 대상은 창이 만들어진 뒤 정해진다.
         var dispatcher = new WpfUiDispatcher(Dispatcher);
@@ -87,8 +89,7 @@ public partial class App : Application
             dispatcher,
             logger,
             elevation,
-            ElevationRelauncher.CreateDefault(elevation, logger),
-            launchMode,
+            userScope,
             // 앱 안에서 바로 실행하는 조치는 보호 위치(Program Files) 도구의 npm·pip·NuGet 캐시 정리뿐이다. 도구 위치는 존재 확인만 하며 프로세스를 실행하지 않는다.
             new CacheToolActionAvailability(() => SystemCacheToolBackend.AnyToolInProtectedLocation(), CacheToolActionAvailability.DEFAULT_REVIEWED_APP_IDS),
             spec);
@@ -96,12 +97,6 @@ public partial class App : Application
         window = new MainWindow(viewModel, logger);
         MainWindow = window;
         window.Show();
-
-        if (launchMode != ScanLaunchMode.Normal)
-        {
-            // 사용자가 원래 창에서 재검사를 요청해 UAC를 승인했으므로 새 검사 ID로 바로 검사한다(원래 창 결과와 합치지 않음).
-            viewModel.StartScanCommand.Execute(null);
-        }
     }
 
     /// <summary>

@@ -1,7 +1,7 @@
 /**
  * @file    : MainViewModel.cs
  * @author  : rudals252
- * @brief   : 메인 화면 모델(검사 시작/취소·상태·Finding 기준 요약·분류 목록/필터·카드·마지막 측정 시각·온라인 확인과 마지막 온라인 확인 시각·종료 중 표시·보호 위치 도구가 있을 때만 여는 정리 창·익명화 내보내기·관리자 권한 재검사 요청과 별도 검사 배너·결과와 내 PC 사양 본문 전환, 검사 중 사양 새로 고침 막기)
+ * @brief   : 메인 화면 모델(검사 시작/취소·상태·Finding 기준 요약·분류 목록/필터·카드·마지막 측정 시각·온라인 확인과 마지막 온라인 확인 시각·종료 중 표시·보호 위치 도구가 있을 때만 여는 정리 창·익명화 내보내기·다른 관리자 계정으로 실행될 때 시스템 범위 안내 배너·결과와 내 PC 사양 본문 전환, 검사 중 사양 새로 고침 막기)
  */
 
 // 기본 패키지
@@ -39,6 +39,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly IUiDispatcher _dispatcher;
     private readonly IAppLogger _logger;
     private readonly IActionAvailability _actionAvailability;
+    private readonly IElevationState _elevationState;
 
     private List<FindingCardViewModel> _allCards = [];
     private CancellationTokenSource? _scanCancellation;
@@ -137,8 +138,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <param name="dispatcher">UI 스레드 마샬러.</param>
     /// <param name="logger">공용 로거.</param>
     /// <param name="elevationState">현재 프로세스 권한 상태.</param>
-    /// <param name="relauncher">관리자 권한 재검사 시작기.</param>
-    /// <param name="launchMode">이 인스턴스의 시작 방식(관리자 재검사 인스턴스면 배너 표시).</param>
+    /// <param name="userScope">사용자 범위(대화형 사용자와 다른 관리자 계정으로 실행 중이면 시스템만, 배너 표시).</param>
     /// <param name="actionAvailability">후보의 앱 내 실행 가능 여부와 정리 창 노출 조건(보호 위치 도구 존재, 생성 시 한 번 확인).</param>
     /// <param name="spec">내 PC 사양 화면 모델(검사와 프로브를 공유하므로 검사 중에는 새로 고침을 막음).</param>
     public MainViewModel(
@@ -150,8 +150,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IUiDispatcher dispatcher,
         IAppLogger logger,
         IElevationState elevationState,
-        ElevationRelauncher relauncher,
-        ScanLaunchMode launchMode,
+        UserScopeMode userScope,
         IActionAvailability actionAvailability,
         PcSpecViewModel spec)
     {
@@ -163,7 +162,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ArgumentNullException.ThrowIfNull(dispatcher);
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(elevationState);
-        ArgumentNullException.ThrowIfNull(relauncher);
         ArgumentNullException.ThrowIfNull(actionAvailability);
         ArgumentNullException.ThrowIfNull(spec);
 
@@ -176,8 +174,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _dispatcher = dispatcher;
         _logger = logger;
         _elevationState = elevationState;
-        _relauncher = relauncher;
-        LaunchMode = launchMode;
+        UserScope = userScope;
         _actionAvailability = actionAvailability;
         CacheToolsAvailable = actionAvailability.CacheToolsAvailable;
         Spec = spec;
@@ -194,6 +191,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>내 PC 사양 화면 모델.</summary>
     public PcSpecViewModel Spec { get; }
+
+    /// <summary>현재 프로세스가 관리자 권한인지 여부(매니페스트가 requireAdministrator라 정상 실행이면 true).</summary>
+    public bool IsElevated => _elevationState.IsElevated;
+
+    /// <summary>이 인스턴스의 사용자 범위.</summary>
+    public UserScopeMode UserScope { get; }
+
+    /// <summary>시스템 범위만 검사하는지(다른 관리자 계정으로 실행됨).</summary>
+    public bool IsSystemOnly => UserScope == UserScopeMode.SystemOnly;
+
+    /// <summary>범위 안내 배너(전체 범위면 null).</summary>
+    public string? ScopeBannerText => IsSystemOnly ? Strings.Banner_SystemOnly : null;
+
+    /// <summary>배너 표시 여부.</summary>
+    public bool HasScopeBanner => ScopeBannerText is not null;
 
     /// <summary>검사 결과 영역을 보여 주는지 여부(사양 화면과 번갈아 표시).</summary>
     public bool IsResultsVisible => !IsSpecVisible;

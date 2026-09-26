@@ -1,7 +1,7 @@
 /**
  * @file    : ScanServiceTests.cs
  * @author  : rudals252
- * @brief   : 검사 서비스의 컨텍스트 구성(권한·온라인 요청·검사 단위 익명 ID)과 조율기 실행·분류 노출, 기본 구성 프로브의 범위 명시, 관리자 재검사 SID 비교에 따른 사용자 범위 제한을 가짜 프로브로 검증
+ * @brief   : 검사 서비스의 컨텍스트 구성(권한·온라인 요청·검사 단위 익명 ID)과 조율기 실행·분류 노출, 기본 구성 프로브의 범위 명시, 프로세스 토큰 SID와 대화형 사용자 SID 비교에 따른 사용자 범위 제한을 가짜 프로브로 검증
  */
 
 // 사용자 패키지
@@ -193,12 +193,11 @@ public sealed class ScanServiceTests
     }
 
     /// <summary>
-    /// 관리자 재검사 인자의 원래 SID와 현재 SID로 시작 방식을 정하고, 그에 맞는 범위 제한으로 서비스를 만든다.
+    /// 대화형 로그온 사용자(원래 계정) SID와 프로세스 토큰 SID로 사용자 범위를 정하고, 그에 맞는 범위 제한으로 서비스를 만든다.
     /// </summary>
-    private static (ScanService Service, ScanLaunchMode Mode) CreateElevatedService(string currentSid, IEnumerable<IProbe> probes)
+    private static (ScanService Service, UserScopeMode Mode) CreateElevatedService(string currentSid, IEnumerable<IProbe> probes)
     {
-        var arguments = new ElevatedRescanArguments(ORIGIN_SID, Guid.NewGuid());
-        var mode = ScanLaunchModeResolver.Resolve(arguments, isElevated: true, currentSid);
+        var mode = UserScopeResolver.Resolve(currentSid, ORIGIN_SID);
         var service = new ScanService(
             probes,
             [],
@@ -207,7 +206,7 @@ public sealed class ScanServiceTests
             new FakeClock(),
             NullAppLogger.Instance,
             () => true,
-            limitToSystemScope: mode == ScanLaunchMode.ElevatedDifferentUser);
+            limitToSystemScope: mode == UserScopeMode.SystemOnly);
         return (service, mode);
     }
 
@@ -221,7 +220,7 @@ public sealed class ScanServiceTests
 
         var result = await service.RunScanAsync(false, CancellationToken.None);
 
-        Assert.Equal(ScanLaunchMode.ElevatedSameUser, mode);
+        Assert.Equal(UserScopeMode.Full, mode);
         Assert.False(service.LimitsToSystemScope);
         Assert.Equal(1, system.InvocationCount);
         Assert.Equal(1, user.InvocationCount);
@@ -232,7 +231,7 @@ public sealed class ScanServiceTests
 
     /// <summary>
     /// 다른 SID(다른 관리자 계정)로 승격되면 시스템 범위 프로브만 실행하고, 사용자 범위 프로브는 호출하지 않은 채
-    /// Skipped(Unsupported)와 "원래 창에서 확인" 안내 상세로 남긴다(관리자 계정의 HKCU를 원래 사용자 결과로 보이지 않음).
+    /// Skipped(Unsupported)와 "원래 계정으로 로그인해 실행" 안내 상세로 남긴다(관리자 계정의 HKCU를 원래 사용자 결과로 보이지 않음).
     /// </summary>
     [Fact]
     public async Task 다른_SID면_시스템_범위만_실행한다()
@@ -243,7 +242,7 @@ public sealed class ScanServiceTests
 
         var result = await service.RunScanAsync(false, CancellationToken.None);
 
-        Assert.Equal(ScanLaunchMode.ElevatedDifferentUser, mode);
+        Assert.Equal(UserScopeMode.SystemOnly, mode);
         Assert.True(service.LimitsToSystemScope);
         Assert.Equal(1, system.InvocationCount);
         Assert.Equal(0, user.InvocationCount);
@@ -253,27 +252,7 @@ public sealed class ScanServiceTests
         Assert.Equal(Verdict.CannotVerify, skipped.Verdict);
         Assert.Equal(CannotVerifyReason.Unsupported, skipped.CannotVerifyReason);
         Assert.Equal(CoreStrings.ProbeIssue_UserScopeExcluded, skipped.Detail);
-        Assert.Contains("원래 창에서 확인", skipped.Detail, StringComparison.Ordinal);
+        Assert.Contains("원래 계정으로 로그인해 실행", skipped.Detail, StringComparison.Ordinal);
         Assert.Empty(skipped.Measured);
-    }
-
-    /// <summary>현재 SID를 알 수 없으면 원래 사용자라고 확인할 수 없으므로 시스템 범위만 검사한다.</summary>
-    [Fact]
-    public void SID를_모르면_시스템_범위로_제한한다()
-    {
-        Assert.Equal(
-            ScanLaunchMode.ElevatedDifferentUser,
-            ScanLaunchModeResolver.Resolve(new ElevatedRescanArguments(ORIGIN_SID, Guid.NewGuid()), isElevated: true, currentUserSid: null));
-    }
-
-    /// <summary>재검사 인자가 없거나 실제로 승격되지 않았으면 일반 시작이다(인자만으로 재검사 모드가 되지 않음).</summary>
-    [Fact]
-    public void 인자가_없거나_승격되지_않으면_일반_시작이다()
-    {
-        var arguments = new ElevatedRescanArguments(ORIGIN_SID, Guid.NewGuid());
-
-        Assert.Equal(ScanLaunchMode.Normal, ScanLaunchModeResolver.Resolve(null, isElevated: true, ORIGIN_SID));
-        Assert.Equal(ScanLaunchMode.Normal, ScanLaunchModeResolver.Resolve(arguments, isElevated: false, ORIGIN_SID));
-        Assert.Equal(ScanLaunchMode.Normal, ScanLaunchModeResolver.Resolve(arguments, isElevated: false, OTHER_ADMIN_SID));
     }
 }

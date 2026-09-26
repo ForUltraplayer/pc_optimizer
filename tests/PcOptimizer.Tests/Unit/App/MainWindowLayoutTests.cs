@@ -1,7 +1,7 @@
 /**
  * @file    : MainWindowLayoutTests.cs
  * @author  : rudals252
- * @brief   : 메인 창을 화면에 띄우지 않고 고정 폭으로 배치해, 긴 경로가 든 카드 문장이 가로로 넘치지 않고 줄바꿈되는지, 판정 배지 텍스트, 관리자 권한 재검사 버튼 활성·배너 표시, 공식 링크 버튼 표시, 카드의 안전 배지·설명 3줄 렌더, 요약 타일 두 개(바로 할 수 있는 것은 0이면 숨김)와 정리 창 버튼 노출 조건, 내 PC 사양 화면(한 열 나열·화면 줄 == 텍스트 줄·720px 폭·익명화 표기·PNG 저장·본문 전환)을 검증
+ * @brief   : 메인 창을 화면에 띄우지 않고 고정 폭으로 배치해, 긴 경로가 든 카드 문장이 가로로 넘치지 않고 줄바꿈되는지, 판정 배지 텍스트, 관리자 권한 재검사 버튼 없음과 다른 관리자 계정 실행 시 시스템 범위 안내 배너 표시, 공식 링크 버튼 표시, 카드의 안전 배지·설명 3줄 렌더, 요약 타일 두 개(바로 할 수 있는 것은 0이면 숨김)와 정리 창 버튼 노출 조건, 내 PC 사양 화면(한 열 나열·화면 줄 == 텍스트 줄·720px 폭·익명화 표기·PNG 저장·본문 전환)을 검증
  */
 
 // 기본 패키지
@@ -99,7 +99,7 @@ public sealed class MainWindowLayoutTests
     /// <summary>
     /// 긴 경로가 든 CannotVerify를 돌려주는 규칙이 있는 뷰모델로 검사를 한 번 실행한다.
     /// </summary>
-    private static MainViewModel CreateScannedViewModel(bool isElevated = false, ScanLaunchMode launchMode = ScanLaunchMode.Normal,
+    private static MainViewModel CreateScannedViewModel(bool isElevated = false, UserScopeMode userScope = UserScopeMode.Full,
         bool overview = false, bool scan = true, IRule? rule = null, IActionAvailability? availability = null)
     {
         var elevation = new FakeElevationState(isElevated);
@@ -120,8 +120,7 @@ public sealed class MainWindowLayoutTests
             new ImmediateUiDispatcher(),
             NullAppLogger.Instance,
             elevation,
-            new ElevationRelauncher(new RecordingProcessStarter(), elevation, () => null, NullAppLogger.Instance),
-            launchMode,
+            userScope,
             availability ?? new FixedActionAvailability(false),
             SpecTestFactory.Create());
         if (scan)
@@ -477,47 +476,45 @@ public sealed class MainWindowLayoutTests
     }
 
     /// <summary>
-    /// 창을 배치하고 관리자 권한 재검사 버튼과 배너를 찾는다.
+    /// 창을 배치하고 사용자 범위 안내 배너를 찾는다.
     /// </summary>
-    private static (Button Button, TextBlock Banner) LayoutElevationControls(MainWindow window)
+    private static (FrameworkElement Root, TextBlock Banner) LayoutScopeBanner(MainWindow window)
     {
         ((Expander)window.FindName("OptionsExpander")).IsExpanded = true;
         var root = (FrameworkElement)window.Content;
         root.Measure(new Size(LAYOUT_WIDTH, LAYOUT_HEIGHT));
         root.Arrange(new Rect(0, 0, LAYOUT_WIDTH, LAYOUT_HEIGHT));
         root.UpdateLayout();
-        var button = Assert.Single(Descendants<Button>(root), b => AutomationProperties.GetAutomationId(b) == "ElevatedRescanButton");
-        var banner = Assert.Single(Descendants<TextBlock>(root), t => AutomationProperties.GetAutomationId(t) == "ElevatedBanner");
-        return (button, banner);
+        var banner = Assert.Single(Descendants<TextBlock>(root), t => AutomationProperties.GetAutomationId(t) == "ScopeBanner");
+        return (root, banner);
     }
 
-    /// <summary>일반 권한 창에서는 관리자 권한 재검사 버튼이 켜져 있고 배너는 보이지 않는다.</summary>
+    /// <summary>항상 관리자 권한으로 실행하므로 관리자 권한 재검사 버튼은 없고, 전체 범위에서는 범위 배너가 보이지 않는다.</summary>
     [Fact]
-    public void 일반_권한에서는_재검사_버튼이_켜진다()
+    public void 전체_범위에서는_재검사_버튼과_범위_배너가_없다()
     {
         RunOnSta(() =>
         {
-            var window = new MainWindow(CreateScannedViewModel(isElevated: false));
-            var (button, banner) = LayoutElevationControls(window);
+            var window = new MainWindow(CreateScannedViewModel(isElevated: true));
+            var (root, banner) = LayoutScopeBanner(window);
 
-            Assert.True(button.IsEnabled);
-            Assert.Equal(Strings.Button_ElevatedRescan, button.Content);
+            Assert.DoesNotContain(Descendants<Button>(root), b => AutomationProperties.GetAutomationId(b) == "ElevatedRescanButton");
+            Assert.DoesNotContain(Descendants<TextBlock>(root), t => AutomationProperties.GetAutomationId(t) == "ElevatedBanner");
             Assert.Equal(Visibility.Collapsed, ((FrameworkElement)banner.Parent).Visibility);
             window.Close();
         });
     }
 
-    /// <summary>관리자 권한 창에서는 재검사 버튼이 꺼지고, 다른 계정으로 승격된 인스턴스는 원래 창 안내 배너를 보인다.</summary>
+    /// <summary>다른 관리자 계정으로 실행되면(시스템 범위만) 원래 계정으로 로그인해 실행하라는 배너가 보인다.</summary>
     [Fact]
-    public void 관리자_권한에서는_버튼이_꺼지고_배너가_보인다()
+    public void 시스템_범위만이면_범위_배너가_보인다()
     {
         RunOnSta(() =>
         {
-            var window = new MainWindow(CreateScannedViewModel(isElevated: true, ScanLaunchMode.ElevatedDifferentUser));
-            var (button, banner) = LayoutElevationControls(window);
+            var window = new MainWindow(CreateScannedViewModel(isElevated: true, UserScopeMode.SystemOnly));
+            var (_, banner) = LayoutScopeBanner(window);
 
-            Assert.False(button.IsEnabled);
-            Assert.Equal(Strings.Banner_ElevatedDifferentUser, banner.Text);
+            Assert.Equal(Strings.Banner_SystemOnly, banner.Text);
             Assert.Equal(Visibility.Visible, ((FrameworkElement)banner.Parent).Visibility);
             window.Close();
         });

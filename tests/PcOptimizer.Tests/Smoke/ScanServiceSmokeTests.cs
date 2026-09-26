@@ -42,8 +42,7 @@ public sealed class ScanServiceSmokeTests(ITestOutputHelper output)
         using var vm = new MainViewModel(service, new ReportExporter(PersonalDataScrubber.FromEnvironment()),
             new FixedExportPathPicker(null), new SettingsUriPolicy(NullAppLogger.Instance, _ => { }),
             new LinkPolicy(null, NullAppLogger.Instance, _ => { }), new ImmediateUiDispatcher(), NullAppLogger.Instance,
-            elevation, new ElevationRelauncher(new RecordingProcessStarter(), elevation, () => null, NullAppLogger.Instance),
-            ScanLaunchMode.Normal, new CacheToolActionAvailability(SystemCacheToolBackend.AnyToolInProtectedLocation, CacheToolActionAvailability.DEFAULT_REVIEWED_APP_IDS),
+            elevation, UserScopeMode.Full, new CacheToolActionAvailability(SystemCacheToolBackend.AnyToolInProtectedLocation, CacheToolActionAvailability.DEFAULT_REVIEWED_APP_IDS),
             SpecTestFactory.Create());
         await vm.StartScanCommand.ExecuteAsync(null);
         var result = vm.LastResult!;

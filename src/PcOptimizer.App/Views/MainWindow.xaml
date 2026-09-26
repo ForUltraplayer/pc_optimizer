@@ -1,7 +1,7 @@
 <!--
 @file    : MainWindow.xaml
 @author  : rudals252
-@brief   : 추천 조치와 검사 결과, "바로 할 수 있는 것/직접 해야 하는 것" 요약 타일, 보호 위치 도구가 있을 때만 보이는 정리 창 버튼을 표시하고, 머리글의 "내 PC 사양" 버튼으로 본문을 사양 화면과 번갈아 보여 주는 메인 창
+@brief   : 추천 조치와 검사 결과, "바로 할 수 있는 것/직접 해야 하는 것" 요약 타일, 보호 위치 도구가 있을 때만 보이는 정리 창 버튼, 다른 관리자 계정으로 실행 중일 때의 시스템 범위 안내 배너를 표시하고, 머리글의 "내 PC 사양" 버튼으로 본문을 사양 화면과 번갈아 보여 주는 메인 창
 -->
 <ui:FluentWindow x:Class="PcOptimizer.App.Views.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -211,8 +211,8 @@
                 <Border Margin="0,0,0,16" Visibility="{Binding HasCleanupOutcome, Converter={StaticResource BoolToVisibility}}">
                     <views:CleanupOutcomeView DataContext="{Binding LastCleanupOutcome}" />
                 </Border>
-                <Border Padding="12" Background="#FFF2D7" CornerRadius="8" Margin="0,0,0,12" Visibility="{Binding HasElevatedBanner, Converter={StaticResource BoolToVisibility}}">
-                    <TextBlock TextWrapping="Wrap" Text="{Binding ElevatedBannerText}" Foreground="#644300" AutomationProperties.AutomationId="ElevatedBanner" />
+                <Border Padding="12" Background="#FFF2D7" CornerRadius="8" Margin="0,0,0,12" Visibility="{Binding HasScopeBanner, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock TextWrapping="Wrap" Text="{Binding ScopeBannerText}" Foreground="#644300" AutomationProperties.AutomationId="ScopeBanner" />
                 </Border>
 
                 <TextBlock TextWrapping="Wrap" Text="{Binding StatusMessage}" Margin="0,0,0,8" AutomationProperties.AutomationId="StatusMessage" Visibility="{Binding HasStatusMessage, Converter={StaticResource BoolToVisibility}}" />
@@ -252,8 +252,6 @@
                     <StackPanel Margin="0,12,0,0">
                         <CheckBox Content="{x:Static res:Strings.Toggle_OnlineCheck}" IsChecked="{Binding IsOnlineCheckRequested}" IsEnabled="{Binding CanChangeOptions}" AutomationProperties.AutomationId="OnlineCheckToggle" />
                         <WrapPanel Margin="0,10,0,8">
-                            <Button Content="{x:Static res:Strings.Button_ElevatedRescan}" Command="{Binding RequestElevatedRescanCommand}" Margin="0,0,8,8"
-                                    ToolTip="{Binding ElevatedRescanTooltip}" ToolTipService.ShowOnDisabled="True" AutomationProperties.AutomationId="ElevatedRescanButton" />
                             <Button Content="{x:Static res:Strings.Button_Export}" Command="{Binding ExportCommand}" Margin="0,0,8,8" AutomationProperties.AutomationId="ExportButton" />
                         </WrapPanel>
                         <TextBlock TextWrapping="Wrap" Text="{Binding SummaryText}" Style="{StaticResource Muted}" AutomationProperties.AutomationId="SummaryText" />
