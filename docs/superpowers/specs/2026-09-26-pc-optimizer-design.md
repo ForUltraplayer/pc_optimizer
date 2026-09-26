@@ -90,7 +90,7 @@ Finding
 | 저장소 | 볼륨 여유, 디스크 종류·상태, TRIM, `Windows.old`, 표준 임시 위치(`%TEMP%`, Windows Temp, 배달 최적화, 썸네일, 업데이트 캐시) 크기 | `MSFT_Volume`/`MSFT_PhysicalDisk` WMI, TRIM 상태 API, 디렉터리 크기 스캔 | 측정 + 여유 부족 시 Candidate. TRIM은 관리자 필요 시 ElevationRequired |
 | 앱 캐시 | winapp2 + supplement 규칙으로 설치 앱 탐지(`Detect*`) 후 `FileKey` 경로 크기 측정 | 규칙 파서 + 크기 스캔. 앱 설정에서 경로 재정의 읽기: Adobe(Media Cache 위치), npm(`cache` 설정), pip(`cache-dir`), Steam(`libraryfolders.vdf`) | 측정만. 규칙별 영향 문구(재생성 비용·재로그인·재다운로드) 표시 |
 | 시작 프로그램 | 항목별 사용/비활성, 부팅 영향 | `Run` 키 + `StartupApproved` + 작업 관리자 영향 지표 | 개수로 판단하지 않음. 사용 중이고 영향 높음만 Info로 노출 |
-| 미분류 대용량 폴더 | 사용자 프로필·ProgramData 아래 규칙에 안 걸린 상위 N개 | 크기 스캔 + 규칙 매칭 제외 | CannotVerify(NoRule). 크기·확장자 분포·최근 수정만 표시. 2차 LLM 슬롯 |
+| 미분류 대용량 폴더 | 사용자 프로필·ProgramData 아래 규칙에 안 걸린 상위 20개(상수, 1GB 이상만) | 크기 스캔 + 규칙 매칭 제외 | CannotVerify(NoRule). 크기·확장자 분포·최근 수정만 표시. 2차 LLM 슬롯 |
 
 supplement.ini 1차 항목: Adobe Media Cache Files, npm cache, pip cache, NuGet `~/.nuget/packages`(winapp2는 `%LocalAppData%\NuGet\*Cache`만 다룸), Steam 셰이더 캐시, NVIDIA DXCache/GLCache, Squirrel 계열 앱 구버전(`app-*` 잔여) 탐지.
 
