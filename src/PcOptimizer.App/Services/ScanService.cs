@@ -25,7 +25,7 @@ namespace PcOptimizer.App.Services;
 /// 검사 한 번을 실행하는 App 서비스입니다. 수집·판정은 <see cref="ScanCoordinator"/>에 맡기고,
 /// 여기서는 컨텍스트 구성과 등록 목록 관리만 합니다. 관리자 권한 동작은 하지 않으며, 네트워크 프로브(NVIDIA·Windows Update)는
 /// 사용자가 온라인 확인을 켠 검사에서만 실행 조율기가 호출합니다(그 밖에는 NotRequested로 건너뜀).
-/// 다른 계정으로 승격된 재검사 인스턴스는 <c>limitToSystemScope</c>로 만들어 사용자별 프로브를 건너뜁니다.
+/// 대화형 사용자와 다른 관리자 계정으로 실행된 인스턴스는 <c>limitToSystemScope</c>로 만들어 사용자별 프로브를 건너뜁니다.
 /// </summary>
 public sealed class ScanService
 {
@@ -60,8 +60,8 @@ public sealed class ScanService
     /// <param name="logger">공용 로거.</param>
     /// <param name="isElevated">현재 프로세스가 관리자 권한인지 판정하는 함수.</param>
     /// <param name="limitToSystemScope">
-    /// 시스템 범위 프로브만 실행할지 여부(기본 false). 원래 사용자와 다른 계정으로 승격된 재검사에서 true이며,
-    /// 사용자별 프로브는 호출하지 않고 원래 창에서 확인하라는 안내와 함께 건너뜁니다.
+    /// 시스템 범위 프로브만 실행할지 여부(기본 false). 대화형 로그온 사용자와 다른 관리자 계정으로 실행 중이면(또는 확인 불가) true이며,
+    /// 사용자별 프로브는 호출하지 않고 원래 계정으로 로그인해 실행하라는 안내와 함께 건너뜁니다.
     /// </param>
     public ScanService(
         IEnumerable<IProbe> probes,
@@ -93,7 +93,7 @@ public sealed class ScanService
     /// <summary>등록한 프로브의 분류(등록 순서, 중복 없음).</summary>
     public IReadOnlyList<FindingCategory> Categories { get; }
 
-    /// <summary>시스템 범위 프로브만 실행하는지 여부(다른 계정으로 승격된 재검사).</summary>
+    /// <summary>시스템 범위 프로브만 실행하는지 여부(다른 관리자 계정으로 실행됨).</summary>
     public bool LimitsToSystemScope => _limitToSystemScope;
 
     /// <summary>타임아웃·취소 뒤 아직 끝나지 않은(종료 중인) 프로브 ID.</summary>
@@ -108,7 +108,7 @@ public sealed class ScanService
     /// 파일 스캔과 앱 캐시는 공유 서비스(<see cref="FileScanService"/>) 하나를 함께 씁니다. 앱 캐시 규칙은 Probes 어셈블리 포함 리소스만 읽고 SHA-256 일관성을 확인합니다(승격 여부와 무관, 파일 시스템의 규칙 파일은 읽지 않음).
     /// </summary>
     /// <param name="logger">공용 로거.</param>
-    /// <param name="limitToSystemScope">시스템 범위 프로브만 실행할지 여부(다른 계정으로 승격된 재검사).</param>
+    /// <param name="limitToSystemScope">시스템 범위 프로브만 실행할지 여부(다른 관리자 계정으로 실행됨).</param>
     /// <param name="rules">앱 캐시 규칙 로더(없으면 어셈블리 포함 리소스만 읽는 로더).</param>
     /// <param name="vendorLinks">공식 링크 표(없으면 포함 리소스에서 읽고, 그것도 실패하면 링크 없이 확인 불가로 표시).</param>
     /// <returns>검사 서비스.</returns>

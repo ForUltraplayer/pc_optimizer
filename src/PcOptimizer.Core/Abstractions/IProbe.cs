@@ -33,7 +33,7 @@ public interface IProbe
     bool RequiresNetwork { get; }
 
     /// <summary>
-    /// 읽는 상태의 범위. 다른 사용자 계정으로 승격된 재검사에서는 <see cref="ProbeScope.User"/> 프로브를 실행하지 않습니다.
+    /// 읽는 상태의 범위. 다른 관리자 계정으로 실행된 경우(시스템 범위만)에는 <see cref="ProbeScope.User"/> 프로브를 실행하지 않습니다.
     /// 기본값을 두지 않아 모든 프로브가 범위를 명시해야 합니다.
     /// </summary>
     ProbeScope Scope { get; }

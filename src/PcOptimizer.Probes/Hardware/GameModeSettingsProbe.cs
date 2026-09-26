@@ -16,7 +16,7 @@ namespace PcOptimizer.Probes.Hardware;
 /// 게임 모드 설정값을 수집하는 프로브입니다. 판정은 하지 않으며 측정 이름은 <see cref="GraphicsSettingsProbeContract"/>를 따릅니다.
 /// </summary>
 /// <remarks>
-/// 실행 사용자의 HKCU를 읽으므로 사용자 범위입니다. 다른 계정으로 승격된 재검사에서는 실행하지 않습니다.
+/// 실행 사용자의 HKCU를 읽으므로 사용자 범위입니다. 다른 관리자 계정으로 실행된 경우(시스템 범위만)에는 실행하지 않습니다.
 /// 키·값이 없으면 존재 여부 false를 기록하고 성공으로 봅니다. 읽기 실패는 측정값 없이 Issue와 함께 Failed입니다. 레지스트리에 쓰지 않습니다.
 /// </remarks>
 public sealed class GameModeSettingsProbe : IProbe
