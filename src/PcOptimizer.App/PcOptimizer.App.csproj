@@ -8,6 +8,27 @@
     <UseWPF>true</UseWPF>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <NeutralLanguage>ko-KR</NeutralLanguage>
+    <!-- 실행 파일 이름은 PcOptimizer.exe. 네임스페이스·리소스 이름(PcOptimizer.App.*)은 그대로 유지한다 -->
+    <AssemblyName>PcOptimizer</AssemblyName>
+    <RootNamespace>PcOptimizer.App</RootNamespace>
+    <Version>0.2.0</Version>
+    <!-- 자체 제작 아이콘(tools/make-icon.ps1 산출물). 디자이너 아이콘으로 바꿀 때는 이 파일만 교체한다 -->
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <!--
+    포터블 배포(tools/package.ps1): 런타임을 포함한 단일 실행 파일 하나로 publish한다.
+    WPF는 trimming을 지원하지 않으므로 PublishTrimmed는 두지 않는다. 한국어 외 위성 리소스와 pdb는 넣지 않는다.
+  -->
+  <PropertyGroup>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <SatelliteResourceLanguages>ko</SatelliteResourceLanguages>
+    <DebugType>none</DebugType>
+    <PublishReadyToRun>false</PublishReadyToRun>
   </PropertyGroup>
 
   <ItemGroup>
@@ -37,8 +58,8 @@
   <ItemGroup>
     <!-- 앱 캐시 규칙과 보호 정책(protect.json)은 Probes 어셈블리에 리소스로 들어가며 출력 폴더로 복사하지 않는다. 배포물의 저작자 표시·라이선스 고지만 복사한다 -->
     <None Include="..\..\rules\LICENSE-winapp2.md" Link="rules\LICENSE-winapp2.md" CopyToOutputDirectory="PreserveNewest" />
-    <!-- 배포용 원본·버전 메타데이터. 실행 시에는 이 사본을 읽지 않고 포함 리소스만 사용한다. -->
-    <None Include="..\..\rules\*.ini;..\..\rules\*.json" Link="rules\%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
+    <!-- 배포용 출처·버전 메타데이터(sources.json)만 publish 폴더에 둔다. 실행 시에는 이 사본을 읽지 않고 포함 리소스만 사용한다. -->
+    <None Include="..\..\rules\sources.json" Link="rules\sources.json" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

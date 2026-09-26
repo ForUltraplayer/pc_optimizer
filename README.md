@@ -4,7 +4,7 @@
 
 ## 실행
 
-최신 UI 평가판은 `artifacts/win-x64-ui/PcOptimizer.App.exe`를 실행합니다. 기존 `artifacts/win-x64`는 사용 중인 이전 UI 빌드입니다. 배포 폴더 전체가 필요하며 .NET 런타임이 포함됩니다.
+GitHub Release의 `PcOptimizer-v<버전>-win-x64.zip`을 받아 압축을 풀고 **`PcOptimizer.exe`** 하나만 실행합니다(설치 없음, .NET 런타임 포함 단일 실행 파일). 관리자 권한 확인창에서 "예"를 누릅니다. 삭제는 폴더를 지우면 되고, 설정·로그는 `%LocalAppData%\PcOptimizer`에 있습니다. zip 최상위에는 `PcOptimizer.exe`, `실행방법.txt`, `LICENSES/`(라이선스 고지), `rules/`(규칙 출처 `sources.json`, 실행 시 읽지 않음)만 있습니다.
 
 1. **검사 시작**: 하드웨어·설정·저장소·앱 캐시를 조회합니다. 확인 불가 이유와 관측 범위를 함께 표시합니다.
 2. **온라인 업데이트 확인**: 선택한 검사에서만 NVIDIA·Windows Update를 조회합니다. 설치는 하지 않습니다.
@@ -28,7 +28,6 @@ Squirrel 버전 폴더, NuGet 전역 패키지, 드라이버 설치, 보안 설�
 ```powershell
 dotnet build -c Release
 dotnet test tests/PcOptimizer.Tests -c Release --no-build --filter "Category!=Smoke&Category!=Online&Category!=ToolSmoke"
-dotnet publish src/PcOptimizer.App/PcOptimizer.App.csproj -c Release -r win-x64 --self-contained true -o artifacts/win-x64-ui
 ```
 
 - `Category=Smoke`: 실제 PC 조회 및 소유한 임시 캐시/링크 fixture 검사. WMI·링크 생성 권한과 npm/dotnet 설치가 필요합니다.
@@ -36,6 +35,16 @@ dotnet publish src/PcOptimizer.App/PcOptimizer.App.csproj -c Release -r win-x64 
 - `Category=ToolSmoke`: `PCOPTIMIZER_TEST_PYTHON`에 Python 실행 파일을 명시한 pip fixture 정리 검증. 제품의 기본 검사에는 사용하지 않습니다.
 - `PCOPTIMIZER_UI_ARTIFACTS`: 선택적으로 렌더링 테스트 PNG 저장 폴더를 지정합니다.
 
+## 배포
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/package.ps1
+```
+
+`dist/PcOptimizer-v<Version>-win-x64.zip`이 만들어지면 GitHub Release에 첨부합니다. 사용자는 zip을 풀고 `PcOptimizer.exe`를 실행합니다. 버전은 `src/PcOptimizer.App/PcOptimizer.App.csproj`의 `<Version>`에서 읽습니다. App 프로젝트는 단일 파일·self-contained(win-x64) publish 속성을 갖고 있으며, 중간 publish 폴더는 `dist/publish`입니다(`dist/`는 git에 넣지 않음).
+
+아이콘은 `src/PcOptimizer.App/Assets/app.ico`입니다. 외부 자산 없이 `powershell -NoProfile -ExecutionPolicy Bypass -File tools/make-icon.ps1 -Output src/PcOptimizer.App/Assets/app.ico`로 다시 만들 수 있고(같은 결과), 디자이너 아이콘으로 바꿀 때는 이 파일만 교체합니다. 서드파티 고지는 `THIRD-PARTY-NOTICES.md`입니다.
+
 [공유 리뷰 원장](docs/reviews/REVIEW_LEDGER.md), [현재 검증·제한](docs/reviews/2026-09-27-validation.md), [자동 조치 계약과 공식 명령 근거](docs/superpowers/specs/2026-09-27-first-release-actions.md)를 읽고 이어서 작업하세요.
 
-아직 평가 빌드입니다. 실제 일반 권한 UI/UAC 흐름, 모니터 DPI 전환, 별도 .NET 미설치 PC와 모든 도구 버전 조합의 검증은 남아 있습니다. rules의 읽을 수 있는 사본은 출처 확인용이며 앱은 어셈블리에 포함된 정책만 사용합니다. Winapp2의 저작자 표시·CC BY-SA 조건은 배포물 `rules/LICENSE-winapp2.md`를 따릅니다.
+아직 평가 빌드입니다. 실제 일반 권한 UI/UAC 흐름, 모니터 DPI 전환, 별도 .NET 미설치 PC와 모든 도구 버전 조합의 검증은 남아 있습니다. rules의 읽을 수 있는 사본은 출처 확인용이며 앱은 어셈블리에 포함된 정책만 사용합니다. Winapp2의 저작자 표시·CC BY-SA 조건은 `rules/LICENSE-winapp2.md`(배포 zip의 `LICENSES/winapp2-CC-BY-SA-4.0.md`)를 따릅니다.
