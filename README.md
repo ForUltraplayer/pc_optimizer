@@ -4,7 +4,7 @@
 
 ## 실행
 
-GitHub Release의 `PcOptimizer-v<버전>-win-x64.zip`을 받아 압축을 풀고 **`PcOptimizer.exe`** 하나만 실행합니다(설치 없음, .NET 런타임 포함 단일 실행 파일). 관리자 권한 확인창에서 "예"를 누릅니다. 삭제는 폴더를 지우면 되고, 설정·로그는 `%LocalAppData%\PcOptimizer`에 있습니다. zip 최상위에는 `PcOptimizer.exe`, `실행방법.txt`, `LICENSES/`(라이선스 고지), `rules/`(규칙 출처 `sources.json`, 실행 시 읽지 않음)만 있습니다.
+GitHub Release의 `PcOptimizer-v<버전>-win-x64.zip`을 받아 압축을 풀고 **`PcOptimizer.exe`** 하나만 실행합니다(설치 없음, .NET 런타임 포함 단일 실행 파일). 관리자 권한 확인창에서 "예"를 누릅니다. 삭제는 폴더를 지우면 되고, 설정·로그는 `%LocalAppData%\PcOptimizer`에 있습니다. zip 최상위에는 `PcOptimizer.exe`, `실행방법.txt`, `LICENSES/`(라이선스 고지), `rules/`(규칙 원문 `winapp2.ini`·`supplement.ini`·`rule-metadata.json`과 출처 `sources.json`, 실행 시 읽지 않음)만 있습니다.
 
 1. **검사 시작**: 하드웨어·설정·저장소·앱 캐시를 조회합니다. 확인 불가 이유와 관측 범위를 함께 표시합니다.
 2. **온라인 업데이트 확인**: 선택한 검사에서만 NVIDIA·Windows Update를 조회합니다. 설치는 하지 않습니다.

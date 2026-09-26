@@ -7,4 +7,4 @@
 5. 문의할 때는 앱의 "내 PC 사양 → 이미지 저장"으로 만든 파일을 첨부해 주세요.
 
 LICENSES 폴더: 사용한 오픈소스·규칙(winapp2)의 라이선스 고지
-rules 폴더: 포함 규칙의 출처 정보(sources.json, 앱은 실행 중 읽지 않음)
+rules 폴더: 포함 규칙 원문(winapp2.ini 등, CC-BY-SA-4.0)과 출처 정보(sources.json). 앱은 실행 중 읽지 않음
