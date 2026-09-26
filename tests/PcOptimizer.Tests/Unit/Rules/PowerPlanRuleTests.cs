@@ -78,10 +78,18 @@ public sealed class PowerPlanRuleTests
         Assert.DoesNotContain(CoreStrings.Power_Chassis_Desktop, finding.Evidence, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// 노트북·배터리 동작·고성능 계획 조건부 후보 스냅샷을 만든다. <see cref="CandidateSnapshot"/>과 아래 테스트가 이 메서드 하나를 공유한다.
+    /// </summary>
+    private static ScanSnapshot CandidateSnapshotFor(string schemeGuid, string chassis)
+    {
+        return RuleTestData.PowerSnapshot(schemeGuid, PLAN_NAME, [chassis], AC_OFFLINE, BATTERY_HIGH);
+    }
+
     /// <summary>Candidate를 내는 스냅샷(노트북·배터리 동작·고성능 계획)을 만든다.</summary>
     public static ScanSnapshot CandidateSnapshot()
     {
-        return RuleTestData.PowerSnapshot(PowerProbeContract.HIGH_PERFORMANCE_SCHEME_GUID, PLAN_NAME, [LAPTOP], AC_OFFLINE, BATTERY_HIGH);
+        return CandidateSnapshotFor(PowerProbeContract.HIGH_PERFORMANCE_SCHEME_GUID, LAPTOP);
     }
 
     /// <summary>노트북 섀시 + 배터리 있음 + 배터리로 동작 + 고성능/최고 성능 계획이면 조건부 Candidate.</summary>
@@ -90,7 +98,7 @@ public sealed class PowerPlanRuleTests
     [InlineData(PowerProbeContract.ULTIMATE_PERFORMANCE_SCHEME_GUID, NOTEBOOK)]
     public void 노트북이_배터리로_고성능이면_조건부_후보다(string schemeGuid, string chassis)
     {
-        var snapshot = RuleTestData.PowerSnapshot(schemeGuid, PLAN_NAME, [chassis], AC_OFFLINE, BATTERY_HIGH);
+        var snapshot = CandidateSnapshotFor(schemeGuid, chassis);
 
         var findings = RULE.Evaluate(snapshot);
 

@@ -71,7 +71,7 @@ public sealed class StorageSpaceRuleTests
     [Fact]
     public void 후보는_휴리스틱임을_밝힌다()
     {
-        var finding = Assert.Single(Evaluate(null, new FakeVolume("C", 100 * GIB, 5 * GIB)));
+        var finding = Assert.Single(RULE.Evaluate(CandidateSnapshot()));
 
         Assert.Equal(Verdict.Candidate, finding.Verdict);
         Assert.Equal(FindingCategory.Storage, finding.Category);
