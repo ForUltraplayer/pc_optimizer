@@ -49,7 +49,7 @@
 - 재현: [IndependentReviewTests.cs](repro/IndependentReviewTests.cs)의 `CancellationInsideOnlyDirectoryIsObserved`, `BudgetExceededInsideOnlyDirectoryIsReported`. 임시 복사본에서 두 테스트 모두 실패.
 - 완료 근거: 두 재현 테스트 통과, 큰 단일 폴더와 열거 중 부분 결과 처리를 검증.
 - 대응 기록 (2026-09-26, P4 리뷰 1차 수정, 구현자):
-  - 변경: `src/PcOptimizer.Probes/Storage/VolumeTraversalRun.cs` `ListDirectory` — 항목 열거 루프와 처리 루프에서 항목마다 `ThrowIfCancellationRequested`와 볼륨 예산을 확인. 예산 초과 시 그때까지 관측한 항목만 집계하고 해당 디렉터리를 `Timeout`으로 기록, 실행기·루트의 `TimedOut=true`. 커밋 `5399f00`.
+  - 변경: `src/PcOptimizer.Probes/Storage/VolumeTraversalRun.cs` `ListDirectory` — 항목 열거 루프와 처리 루프에서 항목마다 `ThrowIfCancellationRequested`와 볼륨 예산을 확인. (1차, 커밋 `5399f00`) 항목 열거·처리 루프에 취소와 예산 확인을 넣었다. **정정**: 1차 기록의 '그때까지 관측한 항목만 집계'는 사실과 달랐다. 1차 코드는 처리 루프 시작 시 예산을 다시 확인해 이미 받은 항목을 버렸다(해당 폴더 0바이트). 1차 테스트의 61→41바이트 기대값 변경이 이를 가렸다.
   - 회귀 테스트: `IndependentReviewTests.CancellationInsideOnlyDirectoryIsObserved`, `BudgetExceededInsideOnlyDirectoryIsReported` 통과. 기존 `FileSystemScannerTests.시간_예산을_넘기면_부분_집계로_멈춘다`는 열거 도중 예산을 넘긴 폴더(d2)가 이제 관측 항목 없이 Timeout으로 남도록 기대값을 갱신(합계 41, Timeout 2, d2 열거 실패 사유 Timeout).
   - 명령(작업 루트, Release):
     - `dotnet test tests/PcOptimizer.Tests -c Release --filter "FullyQualifiedName~IndependentReviewTests"` — 수정 전 `실패: 3, 통과: 0`(Expected True / Actual False, OperationCanceledException 기대 불일치), 수정 후 전부 통과.
@@ -58,6 +58,31 @@
     - `dotnet test tests/PcOptimizer.Tests -c Release --no-build --filter "Category!=Smoke"` — `통과: 655, 실패: 0`.
     - `dotnet test tests/PcOptimizer.Tests -c Release --no-build --filter "Category=Smoke"` — `총 16, 통과 16`(관리자 셸, 실제 파일 스캔 Success, timedOut=False).
   - 남은 제한: 확인은 협력적이다. OS 열거 호출 한 번(FindNextFile 묶음)이나 파일 ID·할당 크기 조회 한 번은 중간에 끊을 수 없으므로 그 호출이 끝난 뒤 다음 항목에서 멈춘다. 큰 단일 폴더의 실제 대량 항목(수십만 개) 성능 측정은 하지 않았다(가짜 열거로만 검증).
+- 대응 기록 (2026-09-26, P4 리뷰 2차 수정, 구현자, 커밋 `4c901e4`):
+  - 실제 동작:
+    - 열거 중에는 항목을 받을 때마다 취소를 확인한다. 받은 항목을 목록에 넣은 뒤 예산을 확인하고, 넘기면 다음 항목을 요청하지 않는다.
+    - 이미 받은 항목은 예산과 관계없이 모두 처리해 합계에 넣는다. 처리 루프는 취소만 확인한다.
+    - 그 디렉터리는 `Timeout`으로 기록하고, 실행기·루트·볼륨은 `TimedOut=true`로 둔다.
+    - 루트가 아무것도 관측하기 전에 예산을 넘기면 `RootScanState.TimedOut`으로 합계 없이 보고한다(0바이트 정상 루트로 보고하지 않음). 관측분이 있으면 부분 합계(`IsPartial`, Timeout 건너뜀 포함)와 `TimedOut=true`로 보고하고, 루트별 `fileScan.root[i].timedOut` 측정값을 추가했다.
+    - 디렉터리당 실패 사유는 하나다. 열거 예외(접근 거부·사용 중)가 있으면 그 사유가 우선하고, `DirectoryNode.Fail`의 두 번째 호출은 건너뜀 개수를 늘리지 않는다.
+  - 변경 파일: `src/PcOptimizer.Probes/Storage/VolumeTraversalRun.cs`, `DirectoryNode.cs`, `FileScanMeasurements.cs`, `src/PcOptimizer.Core/Rules/FileScanProbeContract.cs`; 테스트 `FileSystemScannerTests.cs`, 가짜 `FakeDirectoryEntrySource.cs`(OnEntry·OnProbeRoot), `FakeFileIdentityReader.cs`(OnIdentity).
+  - 회귀 테스트:
+    - `폴더_안에서_예산을_넘기면_받은_항목은_세고_시간_초과로_기록한다`: 세 번째 항목 뒤 예산 초과. 받은 3개(70바이트) 집계, 네 번째 항목 요청 없음, Timeout 1, TimedOut.
+    - `루트_열거_중_예산을_넘기면_부분_합계와_시간_초과로_보고한다`: 100바이트 부분 합계, TimedOut.
+    - `관측_전에_예산을_넘긴_루트는_합계가_없다`: TimedOut 상태, 합계 null, 열거 없음.
+    - `디렉터리당_실패_사유는_하나다`: 열거 예외 뒤 처리 중 예산 경과. InUse 1, Timeout 0, Incomplete 1, 받은 2개 집계.
+    - 기존 `시간_예산을_넘기면_부분_집계로_멈춘다`의 기대값을 61바이트로 복원했다(d2가 받은 f2 포함, d2·d1 Timeout 2). 재현 테스트 2건(`IndependentReviewTests`)도 계속 통과한다.
+  - 명령(작업 루트, Release):
+    - 소스 두 파일만 되돌린 상태(`git stash push -- src/.../VolumeTraversalRun.cs src/.../DirectoryNode.cs`)에서 `dotnet test tests/PcOptimizer.Tests -c Release --filter "FullyQualifiedName~FileSystemScannerTests"`를 실행하면 `실패: 5, 통과: 13`이다(Expected 100/Actual 0, Expected 70/Actual 0, Expected TimedOut/Actual Scanned, Expected 61/Actual 41, Expected 134217728/Actual 67108864). 수정 코드를 복원한 뒤 통과했다.
+    - `dotnet test tests/PcOptimizer.Tests -c Release --filter "FullyQualifiedName~FileSystemScannerTests|FullyQualifiedName~IndependentReviewTests|FullyQualifiedName~FileSystemScannerTempTreeTests|FullyQualifiedName~FileScanServiceTests|FullyQualifiedName~FileScanProbeTests"` — `통과: 34, 실패: 0`.
+    - `dotnet build -c Release` — 경고 0개, 오류 0개.
+    - `dotnet test tests/PcOptimizer.Tests -c Release --no-build --filter "Category!=Smoke"` — `통과: 659, 실패: 0`.
+    - `dotnet test tests/PcOptimizer.Tests -c Release --no-build --filter "Category=Smoke"` — `총 16, 통과 16`(실제 파일 스캔 Success, elapsedMs 17811, 볼륨·루트 timedOut=False).
+  - 남은 제한:
+    - 확인은 협력적이다. OS 열거 호출 한 번이나 파일 ID·할당 크기 조회 한 번은 끊지 못한다.
+    - 예산을 넘긴 순간 받은 항목까지는 처리하므로, 그 처리 시간(크게는 64MiB 이상 파일의 ID 조회)만큼 예산을 조금 넘길 수 있다.
+    - 예산을 넘긴 시점에 폴더가 사실 끝까지 열거됐을 수도 있지만, 더 요청하지 않으므로 보수적으로 시간 초과로 기록한다.
+    - 실제 대량 항목 폴더의 성능은 측정하지 않았다(가짜 열거로만 검증).
 
 ## REV-003 — ‘종료 중’ 안내 자동 갱신
 
