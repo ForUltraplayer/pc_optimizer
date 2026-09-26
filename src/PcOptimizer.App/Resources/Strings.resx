@@ -154,6 +154,12 @@
   <data name="Card_ImpactHeader" xml:space="preserve"><value>영향</value></data>
   <data name="Card_BenefitFormat" xml:space="preserve"><value>기대 효과: {0}</value><comment>{0}=기대 효과</comment></data>
   <data name="Card_SideEffectFormat" xml:space="preserve"><value>주의: {0}</value><comment>{0}=부작용</comment></data>
+  <data name="Card_ExplainWhatHeader" xml:space="preserve"><value>이게 뭔가요</value><comment>카드 설명 3줄의 첫 줄 이름표</comment></data>
+  <data name="Card_ExplainEffectHeader" xml:space="preserve"><value>효과</value><comment>카드 설명 3줄의 둘째 줄 이름표</comment></data>
+  <data name="Card_ExplainCautionHeader" xml:space="preserve"><value>주의</value><comment>카드 설명 3줄의 셋째 줄 이름표</comment></data>
+  <data name="Safety_Safe" xml:space="preserve"><value>안전</value><comment>안전 배지 텍스트(색과 함께 항상 표시)</comment></data>
+  <data name="Safety_Caution" xml:space="preserve"><value>주의</value><comment>안전 배지 텍스트(색과 함께 항상 표시)</comment></data>
+  <data name="Safety_Irreversible" xml:space="preserve"><value>되돌릴 수 없음</value><comment>안전 배지 텍스트(색과 함께 항상 표시)</comment></data>
   <data name="Card_KeptNote" xml:space="preserve"><value>이번 검사에서 권고를 접었어요. 설정은 바뀌지 않았고 다음 검사에서 다시 보여요</value></data>
   <data name="Card_ManualPathHint" xml:space="preserve"><value>설정 앱에서 바로 열 수 있는 화면이 없어요. 권장 내용을 참고해 직접 확인하세요</value></data>
   <data name="Card_MeasurementFormat" xml:space="preserve"><value>{0}: {1}</value><comment>{0}=측정 이름, {1}=값(단위 포함)</comment></data>
