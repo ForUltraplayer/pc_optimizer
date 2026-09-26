@@ -47,6 +47,9 @@ internal sealed class DirectoryNode(string path, DirectoryNode? parent)
     /// <summary>파일 ID로 확인하지 않은 파일이 있는지 여부.</summary>
     public bool DuplicatesPossible { get; set; }
 
+    /// <summary>시간 예산을 넘긴 뒤 OS 조회(파일 ID·할당 크기)를 생략하고 논리 크기만 센 파일 수.</summary>
+    public long LookupsSkipped { get; set; }
+
     /// <summary>이 디렉터리에서 직접 건너뛴 항목(자신을 열거하지 못한 경우 포함).</summary>
     public SkipCounts OwnSkips { get; set; }
 
@@ -84,7 +87,7 @@ internal sealed class DirectoryNode(string path, DirectoryNode? parent)
     public DirectoryTotals OwnTotals()
     {
         return new DirectoryTotals(
-            Bytes, FileCount, 0, CompressedOrSparseCount, CompressedOrSparseLogical, CompressedOrSparseAllocated, OwnSkips, DuplicatesPossible);
+            Bytes, FileCount, 0, CompressedOrSparseCount, CompressedOrSparseLogical, CompressedOrSparseAllocated, OwnSkips, DuplicatesPossible, LookupsSkipped);
     }
 
     /// <summary>
