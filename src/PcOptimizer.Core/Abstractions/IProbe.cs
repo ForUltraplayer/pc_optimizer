@@ -32,6 +32,12 @@ public interface IProbe
     /// <summary>네트워크가 필요한지 여부. 온라인 확인을 요청하지 않은 검사에서는 호출하지 않고 NotRequested로 건너뜁니다.</summary>
     bool RequiresNetwork { get; }
 
+    /// <summary>
+    /// 읽는 상태의 범위. 다른 사용자 계정으로 승격된 재검사에서는 <see cref="ProbeScope.User"/> 프로브를 실행하지 않습니다.
+    /// 기본값을 두지 않아 모든 프로브가 범위를 명시해야 합니다.
+    /// </summary>
+    ProbeScope Scope { get; }
+
     /// <summary>기본 타임아웃. 설정의 프로브별 재정의가 있으면 그 값을 씁니다.</summary>
     TimeSpan DefaultTimeout { get; }
 

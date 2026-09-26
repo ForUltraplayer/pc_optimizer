@@ -52,6 +52,9 @@ internal abstract class FakeProbe : IProbe
     public bool RequiresNetwork { get; }
 
     /// <inheritdoc />
+    public ProbeScope Scope { get; init; } = ProbeScope.System;
+
+    /// <inheritdoc />
     public TimeSpan DefaultTimeout { get; }
 
     /// <summary>RunAsync가 호출된 횟수.</summary>

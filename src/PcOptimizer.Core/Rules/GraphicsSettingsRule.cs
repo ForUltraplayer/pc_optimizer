@@ -5,6 +5,7 @@
  */
 
 // 기본 패키지
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 // 사용자 패키지
@@ -22,6 +23,8 @@ namespace PcOptimizer.Core.Rules;
 /// <item>알 수 없는 값·DWORD가 아닌 형식: CannotVerify(Unsupported).</item>
 /// <item>읽기 실패(존재 여부 측정값 없음): CannotVerify(PartialData).</item>
 /// </list>
+/// HAGS(시스템 범위)와 게임 모드(사용자 범위)는 서로 다른 프로브에서 오므로 각각 독립적으로 판정합니다.
+/// 한쪽 프로브가 건너뜀·실패여도 다른 쪽 판정은 유지합니다.
 /// </summary>
 public sealed class GraphicsSettingsRule : IRule
 {
@@ -51,37 +54,49 @@ public sealed class GraphicsSettingsRule : IRule
     {
         ArgumentNullException.ThrowIfNull(snapshot);
 
-        if (!snapshot.TryGetProbe(GraphicsSettingsProbeContract.PROBE_ID, out var result)
-            || (result.Status != ProbeStatus.Success && result.Status != ProbeStatus.Partial))
+        var findings = new List<Finding>();
+        if (TryGetUsable(snapshot, GraphicsSettingsProbeContract.PROBE_ID, out var hagsResult))
         {
-            return [];
-        }
-
-        return
-        [
-            EvaluateSetting(
+            findings.Add(EvaluateSetting(
                 snapshot,
-                result,
+                hagsResult,
                 new Setting(
+                    GraphicsSettingsProbeContract.PROBE_ID,
                     HAGS_FINDING_ID,
                     GraphicsSettingsProbeContract.HAGS_PREFIX,
                     HAGS_VALUE_NAME,
                     CoreStrings.Graphics_Name_Hags,
                     HAGS_SETTINGS_URI,
                     GraphicsSettingsProbeContract.HAGS_ENABLED,
-                    GraphicsSettingsProbeContract.HAGS_DISABLED)),
-            EvaluateSetting(
+                    GraphicsSettingsProbeContract.HAGS_DISABLED)));
+        }
+
+        if (TryGetUsable(snapshot, GraphicsSettingsProbeContract.GAME_MODE_PROBE_ID, out var gameModeResult))
+        {
+            findings.Add(EvaluateSetting(
                 snapshot,
-                result,
+                gameModeResult,
                 new Setting(
+                    GraphicsSettingsProbeContract.GAME_MODE_PROBE_ID,
                     GAME_MODE_FINDING_ID,
                     GraphicsSettingsProbeContract.GAME_MODE_PREFIX,
                     GAME_MODE_VALUE_NAME,
                     CoreStrings.Graphics_Name_GameMode,
                     GAME_MODE_SETTINGS_URI,
                     GraphicsSettingsProbeContract.GAME_MODE_ENABLED,
-                    GraphicsSettingsProbeContract.GAME_MODE_DISABLED)),
-        ];
+                    GraphicsSettingsProbeContract.GAME_MODE_DISABLED)));
+        }
+
+        return findings;
+    }
+
+    /// <summary>
+    /// 판정에 쓸 수 있는(성공·부분) 프로브 결과를 찾는다. 건너뜀·실패·취소는 엔진이 상태 Finding으로 알리므로 판정하지 않는다.
+    /// </summary>
+    private static bool TryGetUsable(ScanSnapshot snapshot, string probeId, [MaybeNullWhen(false)] out ProbeResult result)
+    {
+        return snapshot.TryGetProbe(probeId, out result)
+            && (result.Status == ProbeStatus.Success || result.Status == ProbeStatus.Partial);
     }
 
     /// <summary>
@@ -92,7 +107,7 @@ public sealed class GraphicsSettingsRule : IRule
         string Name(string field) => GraphicsSettingsProbeContract.MeasurementName(setting.Prefix, field);
 
         Measurement[] measured = SnapshotValues.WithPrefix(result, setting.Prefix + ".");
-        var exists = SnapshotValues.Boolean(snapshot, GraphicsSettingsProbeContract.PROBE_ID, Name(GraphicsSettingsProbeContract.FIELD_EXISTS));
+        var exists = SnapshotValues.Boolean(snapshot, setting.ProbeId, Name(GraphicsSettingsProbeContract.FIELD_EXISTS));
         if (exists is null)
         {
             return Create(
@@ -115,8 +130,8 @@ public sealed class GraphicsSettingsRule : IRule
                 CannotVerifyReason.Unsupported);
         }
 
-        var kind = SnapshotValues.Text(snapshot, GraphicsSettingsProbeContract.PROBE_ID, Name(GraphicsSettingsProbeContract.FIELD_KIND));
-        var value = SnapshotValues.Integer(snapshot, GraphicsSettingsProbeContract.PROBE_ID, Name(GraphicsSettingsProbeContract.FIELD_VALUE));
+        var kind = SnapshotValues.Text(snapshot, setting.ProbeId, Name(GraphicsSettingsProbeContract.FIELD_KIND));
+        var value = SnapshotValues.Integer(snapshot, setting.ProbeId, Name(GraphicsSettingsProbeContract.FIELD_VALUE));
         var state = string.Equals(kind, GraphicsSettingsProbeContract.KIND_DWORD, StringComparison.Ordinal) && value is { } known
             ? StateOf(setting, known)
             : null;
@@ -187,6 +202,7 @@ public sealed class GraphicsSettingsRule : IRule
     /// 판정할 레지스트리 설정 하나의 정의입니다.
     /// </summary>
     private sealed record Setting(
+        string ProbeId,
         string FindingId,
         string Prefix,
         string ValueName,

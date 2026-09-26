@@ -82,6 +82,9 @@ public sealed class TrimPolicyProbe : IProbe
     public bool RequiresNetwork => false;
 
     /// <inheritdoc />
+    public ProbeScope Scope => ProbeScope.System;
+
+    /// <inheritdoc />
     public TimeSpan DefaultTimeout => FSUTIL_TIMEOUT + PROBE_TIMEOUT_MARGIN;
 
     /// <inheritdoc />

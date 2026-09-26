@@ -32,10 +32,13 @@ public sealed class GraphicsSettingsRuleTests
     /// </summary>
     private static ScanSnapshot Snapshot(FakeRegistryValue hags, FakeRegistryValue gameMode, ProbeStatus status = ProbeStatus.Success)
     {
-        var measurements = new List<Measurement>();
-        Add(measurements, GraphicsSettingsProbeContract.HAGS_PREFIX, hags);
-        Add(measurements, GraphicsSettingsProbeContract.GAME_MODE_PREFIX, gameMode);
-        return HardwareRuleTestData.Snapshot(EngineTestData.CreateResult(GraphicsSettingsProbeContract.PROBE_ID, status, measurements));
+        var hagsMeasurements = new List<Measurement>();
+        var gameModeMeasurements = new List<Measurement>();
+        Add(hagsMeasurements, GraphicsSettingsProbeContract.HAGS_PREFIX, hags);
+        Add(gameModeMeasurements, GraphicsSettingsProbeContract.GAME_MODE_PREFIX, gameMode);
+        return HardwareRuleTestData.Snapshot(
+            EngineTestData.CreateResult(GraphicsSettingsProbeContract.PROBE_ID, status, hagsMeasurements),
+            EngineTestData.CreateResult(GraphicsSettingsProbeContract.GAME_MODE_PROBE_ID, status, gameModeMeasurements));
     }
 
     /// <summary>
@@ -148,9 +151,26 @@ public sealed class GraphicsSettingsRuleTests
     [Fact]
     public void 실패한_프로브는_판정하지_않는다()
     {
-        var snapshot = HardwareRuleTestData.Snapshot(EngineTestData.CreateResult(GraphicsSettingsProbeContract.PROBE_ID, ProbeStatus.Failed));
+        var snapshot = HardwareRuleTestData.Snapshot(
+            EngineTestData.CreateResult(GraphicsSettingsProbeContract.PROBE_ID, ProbeStatus.Failed),
+            EngineTestData.CreateResult(GraphicsSettingsProbeContract.GAME_MODE_PROBE_ID, ProbeStatus.Failed));
 
         Assert.Empty(RULE.Evaluate(snapshot));
+    }
+
+    /// <summary>사용자 범위 게임 모드 프로브를 건너뛰어도(다른 계정으로 승격) 시스템 범위 HAGS 판정은 유지하고 게임 모드는 판정하지 않는다.</summary>
+    [Fact]
+    public void 게임_모드_프로브를_건너뛰어도_HAGS는_판정한다()
+    {
+        var hags = new List<Measurement>();
+        Add(hags, GraphicsSettingsProbeContract.HAGS_PREFIX, new FakeRegistryValue(true, Value: GraphicsSettingsProbeContract.HAGS_ENABLED));
+        var snapshot = HardwareRuleTestData.Snapshot(
+            EngineTestData.CreateResult(GraphicsSettingsProbeContract.PROBE_ID, ProbeStatus.Success, hags),
+            EngineTestData.CreateResult(GraphicsSettingsProbeContract.GAME_MODE_PROBE_ID, ProbeStatus.Skipped));
+
+        var finding = Assert.Single(RULE.Evaluate(snapshot));
+        Assert.Equal(GraphicsSettingsRule.HAGS_FINDING_ID, finding.Id);
+        Assert.Equal(Verdict.Info, finding.Verdict);
     }
 
     /// <summary>설정값만으로 지원·실행·재부팅 적용을 단정하지 않는다.</summary>

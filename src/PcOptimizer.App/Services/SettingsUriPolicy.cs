@@ -34,6 +34,9 @@ public sealed class SettingsUriPolicy
     /// <summary>저장소(저장 공간 센스) 설정 URI.</summary>
     public const string STORAGE_SENSE_SETTINGS_URI = "ms-settings:storagesense";
 
+    /// <summary>시작 앱 설정 URI.</summary>
+    public const string STARTUP_APPS_SETTINGS_URI = "ms-settings:startupapps";
+
     private const string LOG_CATEGORY = nameof(SettingsUriPolicy);
 
     /// <summary>허용 목록(키: 비교용, 값: 실행할 정식 표기).</summary>
@@ -44,6 +47,7 @@ public sealed class SettingsUriPolicy
         [ADVANCED_GRAPHICS_SETTINGS_URI] = ADVANCED_GRAPHICS_SETTINGS_URI,
         [GAME_MODE_SETTINGS_URI] = GAME_MODE_SETTINGS_URI,
         [STORAGE_SENSE_SETTINGS_URI] = STORAGE_SENSE_SETTINGS_URI,
+        [STARTUP_APPS_SETTINGS_URI] = STARTUP_APPS_SETTINGS_URI,
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     private readonly IAppLogger _logger;

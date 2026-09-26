@@ -107,4 +107,24 @@ public class ProbeResultConverterTests
 
         Assert.Equal(FindingCategory.Unclassified, finding.Category);
     }
+
+    /// <summary>
+    /// 지원 불가(Unsupported)로 건너뛴 결과는 근거만으로 이유를 알 수 없으므로 첫 Issue 요약을 상세에 보이고,
+    /// 그 밖의 건너뜀·실패 결과는 상세를 비워 둔다(근거 문장과 중복·예외 정보 노출 방지).
+    /// </summary>
+    [Fact]
+    public void 지원_불가_건너뜀만_Issue_요약을_상세로_보인다()
+    {
+        const string SCOPE_SUMMARY = "다른 계정으로 승격되어 원래 창에서 확인";
+        var snapshot = EngineTestData.CreateSnapshot(
+            EngineTestData.CreateResult("skipped", ProbeStatus.Skipped, issues: [new Issue(CannotVerifyReason.Unsupported, SCOPE_SUMMARY)]),
+            EngineTestData.CreateResult("failed", ProbeStatus.Failed, issues: [new Issue(CannotVerifyReason.Unsupported, "IOException")]),
+            EngineTestData.CreateResult("cancelled", ProbeStatus.Skipped, issues: [new Issue(CannotVerifyReason.ElevationRequired, "관리자 권한 필요")]));
+
+        var findings = ProbeResultConverter.Convert(snapshot, CATEGORIES);
+
+        Assert.Equal(SCOPE_SUMMARY, Assert.Single(findings, f => f.Category == FindingCategory.Driver).Detail);
+        Assert.Null(Assert.Single(findings, f => f.Category == FindingCategory.Memory).Detail);
+        Assert.Null(Assert.Single(findings, f => f.Category == FindingCategory.Storage).Detail);
+    }
 }

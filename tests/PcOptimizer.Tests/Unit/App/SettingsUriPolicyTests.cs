@@ -33,6 +33,7 @@ public sealed class SettingsUriPolicyTests
     [InlineData("ms-settings:display-advancedgraphics")]
     [InlineData("ms-settings:gaming-gamemode")]
     [InlineData("ms-settings:storagesense")]
+    [InlineData("ms-settings:startupapps")]
     public void 허용된_URI는_실행한다(string uri)
     {
         var policy = CreatePolicy();
@@ -98,6 +99,7 @@ public sealed class SettingsUriPolicyTests
     [InlineData(GraphicsSettingsRule.HAGS_SETTINGS_URI)]
     [InlineData(GraphicsSettingsRule.GAME_MODE_SETTINGS_URI)]
     [InlineData(StorageSpaceRule.STORAGE_SETTINGS_URI)]
+    [InlineData(StartupItemsRule.STARTUP_SETTINGS_URI)]
     public void 규칙이_쓰는_설정_URI는_허용_목록에_있다(string uri)
     {
         Assert.True(SettingsUriPolicy.IsAllowed(uri));
