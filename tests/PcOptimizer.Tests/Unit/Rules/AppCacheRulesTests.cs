@@ -1,7 +1,7 @@
 /**
  * @file    : AppCacheRulesTests.cs
  * @author  : rudals252
- * @brief   : 앱 캐시 규칙(관측·부분·없음·보호·병합·관측 실패, 검토 영향/영향 미확인, 사용자 설정 경로/기본 위치만 확인, Adobe·UNC 설정 확인 불가), Squirrel 버전 폴더 정보, 규칙 목록 요약(수·사유·무결성 실패·보호 정책 무효)과 금지 문구 부재를 가짜 스냅샷으로 검증
+ * @brief   : 앱 캐시 앱 카드(검토 규칙만 캐시 문구·설정 열기, 커뮤니티 규칙은 중립 문구·상세 보기, 같은 앱 합치기, 파일 없는 앱은 요약에 접기, 개인정보 관련 규칙 제외, 부분·관리자 검사 범위), Adobe·UNC 설정 확인 불가, Squirrel 버전 폴더 정보, 규칙 목록 요약(수·사유·접은 앱 수·무결성 실패·보호 정책 무효)과 금지 문구 부재를 가짜 스냅샷으로 검증
  */
 
 // 사용자 패키지
@@ -41,49 +41,123 @@ public sealed class AppCacheRulesTests
         }
     }
 
-    /// <summary>검토하지 않은 커뮤니티 규칙: 관측 크기 정보, 영향 미확인, 경로는 문장에 없고 측정값에만 있다. 상세 보기·저장소 설정 열기만 제공한다.</summary>
+    /// <summary>
+    /// 규칙 목록 요약을 평가한다.
+    /// </summary>
+    private static Finding Summary(params FakeAppRule[] rules)
+    {
+        return Assert.Single(new RuleCatalogSummaryRule().Evaluate(AppCacheTestData.Snapshot(ProbeStatus.Success, AppCacheTestData.Catalog(), AppCacheTestData.Rules(rules))));
+    }
+
+    /// <summary>검토하지 않은 커뮤니티 규칙 카드: 앱 이름·관측 크기, "캐시" 대신 중립 문구, 영향 미확인, 상세 보기만(저장소 설정 열기 없음). 경로는 문장에 없고 측정값에만 있다.</summary>
     [Fact]
-    public void 커뮤니티_규칙은_관측_크기와_영향_미확인을_표시한다()
+    public void 커뮤니티_규칙_카드는_중립_문구와_상세_보기만_제공한다()
     {
         var finding = Assert.Single(Evaluate(new FakeAppRule(COMMUNITY_ID, "Discord", AppCacheProbeContract.RULE_STATE_OBSERVED, 1_500_000, 42, SharedWith: ["winapp2:Discord Cache"])));
 
-        Assert.Equal(AppCacheRule.FINDING_ID_PREFIX + COMMUNITY_ID, finding.Id);
+        Assert.Equal(AppCacheRule.FINDING_ID_PREFIX + "Discord", finding.Id);
         Assert.Equal(FindingCategory.AppCache, finding.Category);
         Assert.Equal(Verdict.Info, finding.Verdict);
-        Assert.Contains("Discord", finding.Title, StringComparison.Ordinal);
-        Assert.Contains("1.5 MB", finding.Title, StringComparison.Ordinal);
+        Assert.Equal("Discord: 규칙 위치의 파일 관측 1.5 MB", finding.Title);
+        Assert.DoesNotContain("캐시", finding.Title, StringComparison.Ordinal);
         Assert.Contains("42", finding.Evidence, StringComparison.Ordinal);
         Assert.Equal("영향 미확인", finding.Impact!.Benefit);
         Assert.Contains("영향 미확인", finding.Detail!, StringComparison.Ordinal);
+        Assert.Contains(COMMUNITY_ID + ": 1.5 MB", finding.Detail!, StringComparison.Ordinal);
         Assert.Contains("winapp2:Discord Cache", finding.Detail!, StringComparison.Ordinal);
         Assert.DoesNotContain(@"C:\", AppCacheTestData.Text(finding), StringComparison.Ordinal);
         Assert.Contains(finding.Measured, m => m.Name.EndsWith(AppCacheProbeContract.FIELD_PATHS, StringComparison.Ordinal));
-        Assert.Equal([typeof(ShowDetailsAction), typeof(OpenSettingsAction)], finding.Actions.Select(a => a.GetType()));
-        Assert.Equal(AppCacheRule.STORAGE_SETTINGS_URI, ((OpenSettingsAction)finding.Actions[1]).Uri);
+        Assert.Equal([typeof(ShowDetailsAction)], finding.Actions.Select(a => a.GetType()));
         Assert.Null(finding.Recommendation);
         AssertNoForbiddenPhrases([finding]);
     }
 
-    /// <summary>검토한 보충 규칙은 메타데이터의 영향을 쓰고, 사용자 설정 경로를 적용했는지·기본 위치만 확인했는지 범위를 밝힌다.</summary>
+    /// <summary>검토한 보충 규칙 카드만 캐시 문구와 저장소 설정 열기를 쓰고, 메타데이터 영향과 사용자 설정 경로/기본 위치만 확인 범위를 밝힌다.</summary>
     [Theory]
     [InlineData(AppCacheProbeContract.CONFIG_SOURCE_USER, "사용자 설정 경로")]
     [InlineData(AppCacheProbeContract.CONFIG_SOURCE_DEFAULT_ONLY, "기본 위치만 확인")]
-    public void 보충_규칙은_검토한_영향과_설정_범위를_표시한다(string configSource, string expected)
+    public void 보충_규칙_카드는_캐시_문구와_검토_영향과_설정_범위를_표시한다(string configSource, string expected)
     {
         var finding = Assert.Single(Evaluate(new FakeAppRule(
             NPM_ID, "npm cache", AppCacheProbeContract.RULE_STATE_OBSERVED, 2_000_000_000, 10, Origin: AppCacheProbeContract.ORIGIN_SUPPLEMENT,
-            ConfigSource: configSource, ConfigApp: "npm", Impact: ("다음 설치 때 받을 패키지 사본", "오프라인 설치가 안 될 수 있음", "npm install 때 다시 받음"))));
+            ConfigSource: configSource, ConfigApp: "npm", Impact: ("다음 설치 때 받을 패키지 사본", "오프라인 설치가 안 될 수 있음", "npm install 때 다시 받음"), App: "npm")));
 
-        Assert.Equal(Verdict.Info, finding.Verdict);
+        Assert.Equal(AppCacheRule.FINDING_ID_PREFIX + "npm", finding.Id);
+        Assert.Equal("npm: 캐시·임시 파일 후보 관측 2.0 GB", finding.Title);
         Assert.Equal("다음 설치 때 받을 패키지 사본", finding.Impact!.Benefit);
         Assert.Equal("오프라인 설치가 안 될 수 있음", finding.Impact.SideEffect);
         Assert.Contains(expected, finding.Detail!, StringComparison.Ordinal);
         Assert.Contains("테스트 버전 메모", finding.Detail!, StringComparison.Ordinal);
         Assert.DoesNotContain("영향 미확인", AppCacheTestData.Text(finding), StringComparison.Ordinal);
+        Assert.Equal([typeof(ShowDetailsAction), typeof(OpenSettingsAction)], finding.Actions.Select(a => a.GetType()));
+        Assert.Equal(AppCacheRule.STORAGE_SETTINGS_URI, ((OpenSettingsAction)finding.Actions[1]).Uri);
         AssertNoForbiddenPhrases([finding]);
     }
 
-    /// <summary>관리자 권한 검사에서는 사용자 설정 경로를 적용하지 않았다고 밝힌다.</summary>
+    /// <summary>같은 앱 이름의 규칙은 카드 하나로 합치고 규칙별 크기를 상세에 나열한다. 검토 규칙과 커뮤니티 규칙이 섞여 파일을 셌으면 중립 문구·상세 보기만이다.</summary>
+    [Fact]
+    public void 같은_앱의_규칙은_카드_하나로_합친다()
+    {
+        var findings = Evaluate(
+            new FakeAppRule("winapp2:Chrome Caches", "Chrome Caches", AppCacheProbeContract.RULE_STATE_OBSERVED, 300, 3, App: "Chrome"),
+            new FakeAppRule("winapp2:Chrome Logs", "Chrome Logs", AppCacheProbeContract.RULE_STATE_OBSERVED, 200, 2, App: "Chrome"),
+            new FakeAppRule("winapp2:Chrome Extra", "Chrome Extra", AppCacheProbeContract.RULE_STATE_ABSENT, App: "Chrome"),
+            new FakeAppRule("supplement:Mixed", "Mixed", AppCacheProbeContract.RULE_STATE_OBSERVED, 10, 1, Origin: AppCacheProbeContract.ORIGIN_SUPPLEMENT, Impact: ("a", "b", "c"), App: "Mixed"),
+            new FakeAppRule("winapp2:Mixed", "Mixed", AppCacheProbeContract.RULE_STATE_OBSERVED, 10, 1, App: "Mixed"));
+
+        Assert.Equal(2, findings.Count);
+        var chrome = Assert.Single(findings, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + "Chrome");
+        Assert.Equal("Chrome: 규칙 위치의 파일 관측 500 B", chrome.Title);
+        Assert.Contains("winapp2:Chrome Caches: 300 B", chrome.Detail!, StringComparison.Ordinal);
+        Assert.Contains("winapp2:Chrome Logs: 200 B", chrome.Detail!, StringComparison.Ordinal);
+        Assert.Contains("winapp2:Chrome Extra: 이 규칙 위치에서는 관측한 파일이 없어요", chrome.Detail!, StringComparison.Ordinal);
+        var mixed = Assert.Single(findings, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + "Mixed");
+        Assert.DoesNotContain("캐시", mixed.Title, StringComparison.Ordinal);
+        Assert.Equal([typeof(ShowDetailsAction)], mixed.Actions.Select(a => a.GetType()));
+    }
+
+    /// <summary>관측한 파일이 없는 앱(없음·병합·보호·확인 불가)은 카드가 아니고, 요약 카드에 사유별 앱 수로 접힌다.</summary>
+    [Fact]
+    public void 파일이_없는_앱은_카드가_아니고_요약에_접힌다()
+    {
+        FakeAppRule[] rules =
+        [
+            new(COMMUNITY_ID, "Discord", AppCacheProbeContract.RULE_STATE_OBSERVED, 100, 1),
+            new("winapp2:Absent", "Absent App", AppCacheProbeContract.RULE_STATE_ABSENT),
+            new("winapp2:Merged", "Merged App", AppCacheProbeContract.RULE_STATE_MERGED, MergedTargets: 1),
+            new("winapp2:Protected", "Protected App", AppCacheProbeContract.RULE_STATE_PROTECTED, ProtectedTargets: 2),
+            new("winapp2:Denied", "Denied App", AppCacheProbeContract.RULE_STATE_ACCESS_DENIED),
+            new("winapp2:Slow", "Slow App", AppCacheProbeContract.RULE_STATE_TIMED_OUT),
+        ];
+
+        var findings = Evaluate(rules);
+        var summary = Summary(rules);
+
+        Assert.Equal([AppCacheRule.FINDING_ID_PREFIX + "Discord"], findings.Select(f => f.Id));
+        Assert.Contains("관측한 파일이 있는 앱 1개", summary.Detail!, StringComparison.Ordinal);
+        Assert.Contains("파일이 관측되지 않은 앱 1개", summary.Detail!, StringComparison.Ordinal);
+        Assert.Contains("같은 위치라 합친 앱 1개", summary.Detail!, StringComparison.Ordinal);
+        Assert.Contains("재지 않은 앱 1개", summary.Detail!, StringComparison.Ordinal);
+        Assert.Contains("확인하지 못한 앱 2개", summary.Detail!, StringComparison.Ordinal);
+    }
+
+    /// <summary>원본 Warning이 있거나 이름에 비밀번호·쿠키·세션·기록·자격 증명 낱말이 든 규칙은 크기가 있어도 카드에서 빠지고 요약에 개수만 남는다.</summary>
+    [Theory]
+    [InlineData("Google Chrome Saved Usernames & Passwords", false)]
+    [InlineData("Microsoft Edge Web Browsing Cookies", false)]
+    [InlineData("Firefox Session Restore", false)]
+    [InlineData("Google Chrome Web Browsing History", false)]
+    [InlineData("Windows Credential Manager Cache", false)]
+    [InlineData("Steam Installers", true)]
+    public void 개인정보_관련_규칙은_카드에서_빼고_센다(string name, bool hasWarning)
+    {
+        var rule = new FakeAppRule("winapp2:" + name, name, AppCacheProbeContract.RULE_STATE_OBSERVED, 2_100_000, 3, HasWarning: hasWarning);
+
+        Assert.Empty(Evaluate(rule));
+        Assert.Contains("개인정보 관련 규칙 1개 제외", Summary(rule).Detail!, StringComparison.Ordinal);
+    }
+
+    /// <summary>관리자 권한 검사에서는 보충 규칙 카드에 사용자 설정 경로를 적용하지 않았다고 밝힌다.</summary>
     [Fact]
     public void 관리자_권한_검사는_기본_위치만_확인했다고_밝힌다()
     {
@@ -98,38 +172,19 @@ public sealed class AppCacheRulesTests
         Assert.Contains("관리자 권한 검사", finding.Detail!, StringComparison.Ordinal);
     }
 
-    /// <summary>상태별 판정: 부분 관측은 정보(부분 표시), 없음은 정보, 보호·병합·제외는 크기 없이, 접근 거부·시간 초과는 확인 불가.</summary>
-    [Theory]
-    [InlineData(AppCacheProbeContract.RULE_STATE_PARTIAL, 500L, Verdict.Info, null, "일부 관측")]
-    [InlineData(AppCacheProbeContract.RULE_STATE_ABSENT, 0L, Verdict.Info, null, "관측한 파일이 없어요")]
-    [InlineData(AppCacheProbeContract.RULE_STATE_PROTECTED, null, Verdict.CannotVerify, CannotVerifyReason.Unsupported, "보호 폴더")]
-    [InlineData(AppCacheProbeContract.RULE_STATE_MERGED, null, Verdict.Info, null, "한 번만")]
-    [InlineData(AppCacheProbeContract.RULE_STATE_EXCLUDED, null, Verdict.Info, null, "제외 조건")]
-    [InlineData(AppCacheProbeContract.RULE_STATE_ACCESS_DENIED, null, Verdict.CannotVerify, CannotVerifyReason.AccessDenied, "확인하지 못했어요")]
-    [InlineData(AppCacheProbeContract.RULE_STATE_TIMED_OUT, null, Verdict.CannotVerify, CannotVerifyReason.Timeout, "확인하지 못했어요")]
-    [InlineData(AppCacheProbeContract.RULE_STATE_NOT_OBSERVED, null, Verdict.CannotVerify, CannotVerifyReason.PartialData, "확인하지 못했어요")]
-    public void 상태별로_판정한다(string state, long? bytes, Verdict verdict, CannotVerifyReason? reason, string titlePart)
-    {
-        var finding = Assert.Single(Evaluate(new FakeAppRule(COMMUNITY_ID, "Discord", state, bytes, 3, Partial: state == AppCacheProbeContract.RULE_STATE_PARTIAL, ProtectedTargets: 2, SkipAccessDenied: 1)));
-
-        Assert.Equal(verdict, finding.Verdict);
-        Assert.Equal(reason, finding.CannotVerifyReason);
-        Assert.Contains(titlePart, finding.Title, StringComparison.Ordinal);
-        AssertNoForbiddenPhrases([finding]);
-    }
-
-    /// <summary>부분 관측과 보호 위치 수·건너뛴 항목은 상세에 남는다.</summary>
+    /// <summary>부분 관측 카드는 부분 문구와 보호 위치 수·건너뛴 항목을 상세에 남긴다.</summary>
     [Fact]
     public void 부분_관측은_건너뛴_항목과_보호_위치를_밝힌다()
     {
         var finding = Assert.Single(Evaluate(new FakeAppRule(
-            COMMUNITY_ID, "Discord", AppCacheProbeContract.RULE_STATE_PARTIAL, 800, 4, Partial: true, ProtectedTargets: 1, SkipAccessDenied: 2, SkipTimeout: 1, HasWarning: true)));
+            COMMUNITY_ID, "Discord", AppCacheProbeContract.RULE_STATE_PARTIAL, 800, 4, Partial: true, ProtectedTargets: 1, SkipAccessDenied: 2, SkipTimeout: 1)));
 
+        Assert.Contains("일부 관측", finding.Title, StringComparison.Ordinal);
         Assert.Contains("부분 합계", finding.Evidence, StringComparison.Ordinal);
+        Assert.Contains("일부만 관측", finding.Detail!, StringComparison.Ordinal);
         Assert.Contains("보호 폴더 안이라 관측하지 않은 위치 1곳", finding.Detail!, StringComparison.Ordinal);
         Assert.Contains("접근 거부 2", finding.Detail!, StringComparison.Ordinal);
         Assert.Contains("시간 초과 1", finding.Detail!, StringComparison.Ordinal);
-        Assert.Contains("주의 문구", finding.Detail!, StringComparison.Ordinal);
     }
 
     /// <summary>Adobe 설정은 형식을 검증할 수 없어 확인 불가(Unsupported)이며 기본 위치 범위를 밝힌다. UNC·보호·오프라인·해석 불가·읽기 실패도 사유와 함께 확인 불가다. 적용·설정 없음은 따로 Finding을 만들지 않는다.</summary>

@@ -130,4 +130,43 @@ public sealed class Win32RegistryReader : IRegistryReader
             return new RegistrySubKeyReading(RegistryReadStatus.Error, [], ex.GetType().Name);
         }
     }
+
+    /// <inheritdoc />
+    public RegistryStringReading ReadStringValue(RegistryRoot root, RegistryView view, string subKey, string valueName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(subKey);
+        ArgumentNullException.ThrowIfNull(valueName);
+
+        try
+        {
+            using var baseKey = RegistryKey.OpenBaseKey(root == RegistryRoot.LocalMachine ? RegistryHive.LocalMachine : RegistryHive.CurrentUser, view);
+            using var key = baseKey.OpenSubKey(subKey, writable: false);
+            if (key is null)
+            {
+                return new RegistryStringReading(RegistryReadStatus.KeyMissing, null, null);
+            }
+
+            var raw = key.GetValue(valueName, null, RegistryValueOptions.DoNotExpandEnvironmentNames);
+            if (raw is null)
+            {
+                return new RegistryStringReading(RegistryReadStatus.ValueMissing, null, null);
+            }
+
+            return raw is string text
+                ? new RegistryStringReading(RegistryReadStatus.Found, text, null)
+                : new RegistryStringReading(RegistryReadStatus.Error, null, key.GetValueKind(valueName).ToString());
+        }
+        catch (SecurityException ex)
+        {
+            return new RegistryStringReading(RegistryReadStatus.AccessDenied, null, ex.GetType().Name);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return new RegistryStringReading(RegistryReadStatus.AccessDenied, null, ex.GetType().Name);
+        }
+        catch (IOException ex)
+        {
+            return new RegistryStringReading(RegistryReadStatus.Error, null, ex.GetType().Name);
+        }
+    }
 }

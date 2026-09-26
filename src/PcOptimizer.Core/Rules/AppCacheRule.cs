@@ -1,7 +1,7 @@
 /**
  * @file    : AppCacheRule.cs
  * @author  : rudals252
- * @brief   : 탐지된 앱 캐시 규칙별 관측 크기 정보(검토한 영향 또는 영향 미확인, 사용자 설정 경로/기본 위치만 확인 범위, 겹친 규칙, 보호·부분·없음 구분)와 앱 설정 위치 확인 불가를 내는 순수 판정 규칙
+ * @brief   : 관측한 파일이 있는 앱마다 카드 하나(검토한 보충 규칙만 캐시 문구·설정 열기, 커뮤니티 규칙은 중립 문구와 상세 보기만, 규칙별 크기·영향·설정 범위는 상세에)와 앱 설정 위치 확인 불가를 내는 순수 판정 규칙
  */
 
 // 기본 패키지
@@ -9,28 +9,31 @@ using System.Globalization;
 
 // 사용자 패키지
 using PcOptimizer.Core.Abstractions;
-using PcOptimizer.Core.Engine;
 using PcOptimizer.Core.Models;
 using PcOptimizer.Core.Resources;
 
 namespace PcOptimizer.Core.Rules;
 
 /// <summary>
-/// 앱 캐시 규칙입니다(스펙 §5 앱 캐시 행: Info '캐시/잔여 파일 후보의 관측 크기', 규칙별 검증된 영향 표시, 미검토 규칙은 영향 미확인,
-/// 실행 중인 앱의 미사용 캐시로 확정하지 않음, 사용자 설정을 해석하지 못하면 기본 위치만 확인했다는 범위 표시).
+/// 앱 캐시 규칙입니다(스펙 §5 앱 캐시 행, §7 화면).
 /// </summary>
 /// <remarks>
-/// 후보(Candidate)를 만들지 않고, 크기를 비울 수 있는 용량으로 표현하지 않습니다. 제목·근거·상세에 경로를 넣지 않습니다(경로는 측정값에만).
+/// <list type="bullet">
+/// <item>카드는 앱 단위이며 관측한 파일이 있는 앱만 만듭니다. 파일 없음·겹쳐 합침·보호·확인 불가 앱은 <see cref="RuleCatalogSummaryRule"/> 요약에 개수로 접습니다.</item>
+/// <item>"캐시·임시 파일 후보" 문구와 저장소 설정 열기는 파일을 센 규칙이 모두 검토한 보충 규칙인 카드에만 씁니다. 커뮤니티 규칙은 "규칙 위치의 파일"로 표시합니다.</item>
+/// <item>원본 Warning 문구가 있거나 비밀번호·쿠키·세션·기록·자격 증명 관련 이름의 규칙은 카드에서 뺍니다.</item>
+/// <item>후보(Candidate)를 만들지 않고, 크기를 비울 수 있는 용량으로 표현하지 않으며, 문장에 경로를 넣지 않습니다(경로는 측정값에만).</item>
+/// </list>
 /// </remarks>
 public sealed class AppCacheRule : IRule
 {
     /// <summary>규칙 ID.</summary>
     public const string RULE_ID = "appCache.rules";
 
-    /// <summary>규칙별 Finding ID 접두사(뒤에 규칙 ID).</summary>
-    public const string FINDING_ID_PREFIX = "appCache.rule:";
+    /// <summary>앱 카드 Finding ID 접두사(뒤에 앱 이름).</summary>
+    public const string FINDING_ID_PREFIX = "appCache.app:";
 
-    /// <summary>앱 설정 위치 Finding ID 접두사(뒤에 앱 이름).</summary>
+    /// <summary>앱 설정 위치 Finding ID 접두사(뒤에 앱 설정 리더 이름).</summary>
     public const string CONFIG_FINDING_ID_PREFIX = "appCache.config:";
 
     /// <summary>저장소 설정 URI(허용 목록에 있는 값).</summary>
@@ -55,17 +58,11 @@ public sealed class AppCacheRule : IRule
         }
 
         var elevated = SnapshotValues.Boolean(snapshot, PROBE_ID, AppCacheProbeContract.ELEVATED_DEFAULTS_ONLY) ?? false;
-        var findings = new List<Finding>();
-        var ruleCount = SnapshotValues.Integer(snapshot, PROBE_ID, AppCacheProbeContract.RULE_COUNT) ?? 0;
-        for (var index = 0; index < ruleCount; index++)
-        {
-            findings.Add(EvaluateRule(snapshot, result, index, elevated));
-        }
-
+        var findings = AppCacheCardPlanner.Plan(snapshot).Cards.Select(card => CreateCard(snapshot, result, card, elevated)).ToList();
         var configCount = SnapshotValues.Integer(snapshot, PROBE_ID, AppCacheProbeContract.CONFIG_COUNT) ?? 0;
         for (var index = 0; index < configCount; index++)
         {
-            if (EvaluateConfig(snapshot, result, index) is { } finding)
+            if (AppCacheConfigFindings.Evaluate(snapshot, result, index) is { } finding)
             {
                 findings.Add(finding);
             }
@@ -75,33 +72,73 @@ public sealed class AppCacheRule : IRule
     }
 
     /// <summary>
-    /// 규칙 하나를 판정한다.
+    /// 앱 카드 하나를 만든다.
     /// </summary>
-    private static Finding EvaluateRule(ScanSnapshot snapshot, ProbeResult result, int index, bool elevated)
+    private static Finding CreateCard(ScanSnapshot snapshot, ProbeResult result, AppCacheCard card, bool elevated)
     {
-        string Name(string field) => AppCacheProbeContract.Name(AppCacheProbeContract.RULE_PREFIX, index, field);
-        string? Text(string field) => SnapshotValues.Text(snapshot, PROBE_ID, Name(field));
-        long Count(string field) => SnapshotValues.Integer(snapshot, PROBE_ID, Name(field)) ?? 0;
-
-        var ruleId = Text(AppCacheProbeContract.FIELD_ID) ?? index.ToString(CultureInfo.InvariantCulture);
-        var name = Text(AppCacheProbeContract.FIELD_NAME) ?? ruleId;
-        var state = Text(AppCacheProbeContract.FIELD_STATE);
-        var bytes = SnapshotValues.Integer(snapshot, PROBE_ID, Name(AppCacheProbeContract.FIELD_BYTES));
-        var files = Count(AppCacheProbeContract.FIELD_FILE_COUNT).ToString(COUNT_FORMAT, CultureInfo.InvariantCulture);
-        var duplicates = SnapshotValues.Boolean(snapshot, PROBE_ID, Name(AppCacheProbeContract.FIELD_DUPLICATES_POSSIBLE)) ?? true;
+        var observed = card.Rules.Where(rule => rule.Bytes is > 0).ToList();
+        var duplicates = observed.Any(rule => Boolean(snapshot, rule, AppCacheProbeContract.FIELD_DUPLICATES_POSSIBLE) ?? true);
         var sizeNote = duplicates ? CoreStrings.FileScan_SizeNote_Estimated : CoreStrings.FileScan_SizeNote_Verified;
-        var reviewed = SnapshotValues.Boolean(snapshot, PROBE_ID, Name(AppCacheProbeContract.FIELD_REVIEWED)) ?? false;
-        var benefit = Text(AppCacheProbeContract.FIELD_IMPACT_BENEFIT);
-        var sideEffect = Text(AppCacheProbeContract.FIELD_IMPACT_SIDE_EFFECT);
-        var impact = reviewed && benefit is not null && sideEffect is not null
+        var files = card.FileCount.ToString(COUNT_FORMAT, CultureInfo.InvariantCulture);
+        var size = ByteSizeText.Format(card.Bytes);
+        var reviewedRule = card.Reviewed ? observed.First(rule => rule.Supplement) : null;
+
+        var title = (card.Reviewed, card.Partial) switch
+        {
+            (true, false) => SnapshotValues.Format(CoreStrings.AppCache_Title_Observed, card.App, size),
+            (true, true) => SnapshotValues.Format(CoreStrings.AppCache_Title_Partial, card.App, size),
+            (false, false) => SnapshotValues.Format(CoreStrings.AppCache_Title_CommunityObserved, card.App, size),
+            _ => SnapshotValues.Format(CoreStrings.AppCache_Title_CommunityPartial, card.App, size),
+        };
+        var evidence = SnapshotValues.Format(card.Partial ? CoreStrings.AppCache_Evidence_Partial : CoreStrings.AppCache_Evidence_Observed, files, sizeNote);
+        var impact = reviewedRule is not null && Text(snapshot, reviewedRule, AppCacheProbeContract.FIELD_IMPACT_BENEFIT) is { } benefit
+            && Text(snapshot, reviewedRule, AppCacheProbeContract.FIELD_IMPACT_SIDE_EFFECT) is { } sideEffect
             ? new Impact(benefit, sideEffect)
             : new Impact(CoreStrings.AppCache_Impact_Unknown, CoreStrings.AppCache_Impact_UnknownSideEffect);
 
+        var measured = card.Rules
+            .SelectMany(rule => SnapshotValues.WithPrefix(result, AppCacheProbeContract.ItemPrefix(AppCacheProbeContract.RULE_PREFIX, rule.Index)))
+            .ToList();
+        IReadOnlyList<FindingAction> actions = card.Reviewed
+            ? [new ShowDetailsAction(), new OpenSettingsAction(STORAGE_SETTINGS_URI)]
+            : [new ShowDetailsAction()];
+        return new Finding(
+            id: FINDING_ID_PREFIX + card.App,
+            category: FindingCategory.AppCache,
+            title: title,
+            measured: measured,
+            evidence: evidence,
+            verdict: Verdict.Info,
+            cannotVerifyReason: null,
+            detail: string.Join(DETAIL_SEPARATOR, Details(snapshot, card, reviewedRule, elevated)),
+            recommendation: null,
+            impact: impact,
+            actions: actions);
+    }
+
+    /// <summary>
+    /// 카드 상세: 규칙별 크기, 영향(검토 또는 미확인), 설정 범위, 겹친 규칙, 위치 수, 건너뜀.
+    /// </summary>
+    private static List<string> Details(ScanSnapshot snapshot, AppCacheCard card, AppCacheRuleEntry? reviewedRule, bool elevated)
+    {
         var details = new List<string>();
-        if (reviewed && benefit is not null && sideEffect is not null)
+        foreach (var rule in card.Rules)
         {
-            details.Add(SnapshotValues.Format(CoreStrings.AppCache_Detail_Impact, benefit, sideEffect, Text(AppCacheProbeContract.FIELD_IMPACT_REGENERATION) ?? CoreStrings.Unclassified_NoValue));
-            if (Text(AppCacheProbeContract.FIELD_APP_VERSION_NOTES) is { } notes)
+            var targets = Integer(snapshot, rule, AppCacheProbeContract.FIELD_TARGET_COUNT);
+            details.Add(rule.Bytes is > 0
+                ? SnapshotValues.Format(rule.Partial ? CoreStrings.AppCache_Detail_RuleLinePartial : CoreStrings.AppCache_Detail_RuleLine,
+                    rule.Id, ByteSizeText.Format(rule.Bytes.Value), rule.FileCount.ToString(COUNT_FORMAT, CultureInfo.InvariantCulture), targets)
+                : SnapshotValues.Format(CoreStrings.AppCache_Detail_RuleNoFiles, rule.Id));
+        }
+
+        if (reviewedRule is not null && Text(snapshot, reviewedRule, AppCacheProbeContract.FIELD_IMPACT_BENEFIT) is { } benefit)
+        {
+            details.Add(SnapshotValues.Format(
+                CoreStrings.AppCache_Detail_Impact,
+                benefit,
+                Text(snapshot, reviewedRule, AppCacheProbeContract.FIELD_IMPACT_SIDE_EFFECT) ?? CoreStrings.Unclassified_NoValue,
+                Text(snapshot, reviewedRule, AppCacheProbeContract.FIELD_IMPACT_REGENERATION) ?? CoreStrings.Unclassified_NoValue));
+            if (Text(snapshot, reviewedRule, AppCacheProbeContract.FIELD_APP_VERSION_NOTES) is { } notes)
             {
                 details.Add(SnapshotValues.Format(CoreStrings.AppCache_Detail_AppVersion, notes));
             }
@@ -111,38 +148,49 @@ public sealed class AppCacheRule : IRule
             details.Add(CoreStrings.AppCache_Detail_ImpactUnknown);
         }
 
-        AddConfigDetail(details, Text(AppCacheProbeContract.FIELD_CONFIG_SOURCE), Text(AppCacheProbeContract.FIELD_CONFIG_APP), elevated);
-        AddCountDetails(snapshot, Name, details);
-        if (SnapshotValues.Boolean(snapshot, PROBE_ID, Name(AppCacheProbeContract.FIELD_HAS_WARNING)) == true)
+        foreach (var rule in card.Rules.Where(rule => rule.Supplement))
         {
-            details.Add(CoreStrings.AppCache_Detail_Warning);
+            AddConfigDetail(details, Text(snapshot, rule, AppCacheProbeContract.FIELD_CONFIG_SOURCE), Text(snapshot, rule, AppCacheProbeContract.FIELD_CONFIG_APP), elevated);
         }
 
-        var measured = SnapshotValues.WithPrefix(result, AppCacheProbeContract.ItemPrefix(AppCacheProbeContract.RULE_PREFIX, index));
-        var detail = string.Join(DETAIL_SEPARATOR, details);
-        Finding Info(string title, string evidence) => Create(FINDING_ID_PREFIX + ruleId, title, measured, evidence, Verdict.Info, null, detail, impact);
-        Finding NotVerified(string title, CannotVerifyReason reason, string evidence) => Create(FINDING_ID_PREFIX + ruleId, title, measured, evidence, Verdict.CannotVerify, reason, detail, impact);
-
-        return state switch
+        var shared = card.Rules
+            .SelectMany(rule => SnapshotValues.TextList(snapshot, PROBE_ID, Name(rule, AppCacheProbeContract.FIELD_SHARED_WITH)) ?? [])
+            .Where(id => card.Rules.All(rule => rule.Id != id))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (shared.Count > 0)
         {
-            AppCacheProbeContract.RULE_STATE_OBSERVED when bytes is { } observed => Info(
-                SnapshotValues.Format(CoreStrings.AppCache_Title_Observed, name, ByteSizeText.Format(observed)),
-                SnapshotValues.Format(CoreStrings.AppCache_Evidence_Observed, files, sizeNote)),
-            AppCacheProbeContract.RULE_STATE_PARTIAL when bytes is { } partial => Info(
-                SnapshotValues.Format(CoreStrings.AppCache_Title_Partial, name, ByteSizeText.Format(partial)),
-                SnapshotValues.Format(CoreStrings.AppCache_Evidence_Partial, files, sizeNote)),
-            AppCacheProbeContract.RULE_STATE_ABSENT => Info(SnapshotValues.Format(CoreStrings.AppCache_Title_Absent, name), CoreStrings.AppCache_Evidence_Absent),
-            AppCacheProbeContract.RULE_STATE_MERGED => Info(SnapshotValues.Format(CoreStrings.AppCache_Title_Merged, name), CoreStrings.AppCache_Evidence_Merged),
-            AppCacheProbeContract.RULE_STATE_EXCLUDED => Info(SnapshotValues.Format(CoreStrings.AppCache_Title_Excluded, name), CoreStrings.AppCache_Evidence_Excluded),
-            AppCacheProbeContract.RULE_STATE_PROTECTED => NotVerified(
-                SnapshotValues.Format(CoreStrings.AppCache_Title_Protected, name), CannotVerifyReason.Unsupported, CoreStrings.AppCache_Evidence_Protected),
-            AppCacheProbeContract.RULE_STATE_ACCESS_DENIED => NotObserved(CannotVerifyReason.AccessDenied),
-            AppCacheProbeContract.RULE_STATE_TIMED_OUT => NotObserved(CannotVerifyReason.Timeout),
-            _ => NotObserved(CannotVerifyReason.PartialData),
-        };
+            details.Add(SnapshotValues.Format(CoreStrings.AppCache_Detail_SharedWith, string.Join(LIST_SEPARATOR, shared)));
+        }
 
-        Finding NotObserved(CannotVerifyReason reason) =>
-            NotVerified(SnapshotValues.Format(CoreStrings.AppCache_Title_NotObserved, name), reason, CannotVerifyTexts.EvidenceFor(reason));
+        foreach (var (field, template) in new[]
+        {
+            (AppCacheProbeContract.FIELD_PROTECTED_TARGETS, CoreStrings.AppCache_Detail_Protected),
+            (AppCacheProbeContract.FIELD_MERGED_TARGETS, CoreStrings.AppCache_Detail_Merged),
+            (AppCacheProbeContract.FIELD_EXCLUDED_TARGETS, CoreStrings.AppCache_Detail_Excluded),
+        })
+        {
+            if (card.Rules.Sum(rule => Integer(snapshot, rule, field)) is > 0 and var total)
+            {
+                details.Add(SnapshotValues.Format(template, total));
+            }
+        }
+
+        long[] skips =
+        [
+            card.Rules.Sum(rule => Integer(snapshot, rule, AppCacheProbeContract.FIELD_SKIP_ACCESS_DENIED)),
+            card.Rules.Sum(rule => Integer(snapshot, rule, AppCacheProbeContract.FIELD_SKIP_IN_USE)),
+            card.Rules.Sum(rule => Integer(snapshot, rule, AppCacheProbeContract.FIELD_SKIP_TIMEOUT)),
+            card.Rules.Sum(rule => Integer(snapshot, rule, AppCacheProbeContract.FIELD_SKIP_PROTECTED)),
+            card.Rules.Sum(rule => Integer(snapshot, rule, AppCacheProbeContract.FIELD_SKIP_REPARSE)),
+            card.Rules.Sum(rule => Integer(snapshot, rule, AppCacheProbeContract.FIELD_SKIP_PLACEHOLDER)),
+        ];
+        if (skips.Any(skip => skip > 0))
+        {
+            details.Add(SnapshotValues.Format(CoreStrings.AppCache_Detail_Skips, [.. skips.Cast<object>()]));
+        }
+
+        return details;
     }
 
     /// <summary>
@@ -168,138 +216,34 @@ public sealed class AppCacheRule : IRule
     }
 
     /// <summary>
-    /// 겹친 규칙·보호·병합·제외 위치 수와 건너뛴 항목을 상세에 더한다(0이면 생략).
+    /// 규칙 필드 측정 이름.
     /// </summary>
-    private static void AddCountDetails(ScanSnapshot snapshot, Func<string, string> name, List<string> details)
+    private static string Name(AppCacheRuleEntry rule, string field)
     {
-        long Count(string field) => SnapshotValues.Integer(snapshot, PROBE_ID, name(field)) ?? 0;
-
-        if (SnapshotValues.TextList(snapshot, PROBE_ID, name(AppCacheProbeContract.FIELD_SHARED_WITH)) is { Count: > 0 } shared)
-        {
-            details.Add(SnapshotValues.Format(CoreStrings.AppCache_Detail_SharedWith, string.Join(LIST_SEPARATOR, shared)));
-        }
-
-        foreach (var (field, template) in new[]
-        {
-            (AppCacheProbeContract.FIELD_PROTECTED_TARGETS, CoreStrings.AppCache_Detail_Protected),
-            (AppCacheProbeContract.FIELD_MERGED_TARGETS, CoreStrings.AppCache_Detail_Merged),
-            (AppCacheProbeContract.FIELD_EXCLUDED_TARGETS, CoreStrings.AppCache_Detail_Excluded),
-        })
-        {
-            if (Count(field) is > 0 and var value)
-            {
-                details.Add(SnapshotValues.Format(template, value));
-            }
-        }
-
-        long[] skips =
-        [
-            Count(AppCacheProbeContract.FIELD_SKIP_ACCESS_DENIED),
-            Count(AppCacheProbeContract.FIELD_SKIP_IN_USE),
-            Count(AppCacheProbeContract.FIELD_SKIP_TIMEOUT),
-            Count(AppCacheProbeContract.FIELD_SKIP_PROTECTED),
-            Count(AppCacheProbeContract.FIELD_SKIP_REPARSE),
-            Count(AppCacheProbeContract.FIELD_SKIP_PLACEHOLDER),
-        ];
-        if (skips.Any(skip => skip > 0))
-        {
-            details.Add(SnapshotValues.Format(CoreStrings.AppCache_Detail_Skips, [.. skips.Cast<object>()]));
-        }
+        return AppCacheProbeContract.Name(AppCacheProbeContract.RULE_PREFIX, rule.Index, field);
     }
 
     /// <summary>
-    /// 앱 설정 리더 결과 하나를 판정한다(순회하지 않은 설정 위치·형식 미검증만 Finding을 만든다).
+    /// 규칙 문자열 필드.
     /// </summary>
-    private static Finding? EvaluateConfig(ScanSnapshot snapshot, ProbeResult result, int index)
+    private static string? Text(ScanSnapshot snapshot, AppCacheRuleEntry rule, string field)
     {
-        string Name(string field) => AppCacheProbeContract.Name(AppCacheProbeContract.CONFIG_PREFIX, index, field);
-
-        var app = SnapshotValues.Text(snapshot, PROBE_ID, Name(AppCacheProbeContract.FIELD_APP));
-        var state = SnapshotValues.Text(snapshot, PROBE_ID, Name(AppCacheProbeContract.FIELD_STATE));
-        if (app is null)
-        {
-            return null;
-        }
-
-        (CannotVerifyReason Reason, string Evidence)? outcome = state switch
-        {
-            AppCacheProbeContract.CONFIG_STATE_CANNOT_VERIFY => (CannotVerifyReason.Unsupported, CoreStrings.AppCache_Config_Evidence_Adobe),
-            AppCacheProbeContract.CONFIG_STATE_UNC => (CannotVerifyReason.Unsupported, CoreStrings.AppCache_Config_Evidence_Unc),
-            AppCacheProbeContract.CONFIG_STATE_PROTECTED => (CannotVerifyReason.Unsupported, CoreStrings.AppCache_Config_Evidence_Protected),
-            AppCacheProbeContract.CONFIG_STATE_OFFLINE => (CannotVerifyReason.Unsupported, CoreStrings.AppCache_Config_Evidence_Offline),
-            AppCacheProbeContract.CONFIG_STATE_INVALID => (CannotVerifyReason.Unsupported, CoreStrings.AppCache_Config_Evidence_Invalid),
-            AppCacheProbeContract.CONFIG_STATE_UNREADABLE => (CannotVerifyReason.AccessDenied, CoreStrings.AppCache_Config_Evidence_Unreadable),
-            _ => null,
-        };
-        if (outcome is not { } found)
-        {
-            return null;
-        }
-
-        var title = state == AppCacheProbeContract.CONFIG_STATE_CANNOT_VERIFY
-            ? CoreStrings.AppCache_Config_Title_Adobe
-            : SnapshotValues.Format(CoreStrings.AppCache_Config_Title_NotTraversed, AppLabel(app));
-        return new Finding(
-            id: CONFIG_FINDING_ID_PREFIX + app,
-            category: FindingCategory.AppCache,
-            title: title,
-            measured: SnapshotValues.WithPrefix(result, AppCacheProbeContract.ItemPrefix(AppCacheProbeContract.CONFIG_PREFIX, index)),
-            evidence: found.Evidence,
-            verdict: Verdict.CannotVerify,
-            cannotVerifyReason: found.Reason,
-            detail: SnapshotValues.Format(CoreStrings.AppCache_Config_Detail_Scope, ScopeLabel(app)),
-            recommendation: null,
-            impact: null,
-            actions: [new ShowDetailsAction()]);
+        return SnapshotValues.Text(snapshot, PROBE_ID, Name(rule, field));
     }
 
     /// <summary>
-    /// 앱 설정 리더 이름의 화면용 이름.
+    /// 규칙 정수 필드(없으면 0).
     /// </summary>
-    private static string AppLabel(string app)
+    private static long Integer(ScanSnapshot snapshot, AppCacheRuleEntry rule, string field)
     {
-        return app switch
-        {
-            "npm" => CoreStrings.AppCache_ConfigApp_npm,
-            "pip" => CoreStrings.AppCache_ConfigApp_pip,
-            "nuget" => CoreStrings.AppCache_ConfigApp_nuget,
-            "steam" => CoreStrings.AppCache_ConfigApp_steam,
-            _ => CoreStrings.AppCache_ConfigApp_adobe,
-        };
+        return SnapshotValues.Integer(snapshot, PROBE_ID, Name(rule, field)) ?? 0;
     }
 
     /// <summary>
-    /// 앱별로 읽는 설정 범위 설명.
+    /// 규칙 불리언 필드.
     /// </summary>
-    private static string ScopeLabel(string app)
+    private static bool? Boolean(ScanSnapshot snapshot, AppCacheRuleEntry rule, string field)
     {
-        return app switch
-        {
-            "npm" => CoreStrings.AppCache_ConfigScope_npm,
-            "pip" => CoreStrings.AppCache_ConfigScope_pip,
-            "nuget" => CoreStrings.AppCache_ConfigScope_nuget,
-            "steam" => CoreStrings.AppCache_ConfigScope_steam,
-            _ => CoreStrings.AppCache_ConfigScope_adobe,
-        };
-    }
-
-    /// <summary>
-    /// 규칙별 Finding을 만든다. 상세 보기와 저장소 설정 열기를 붙인다.
-    /// </summary>
-    private static Finding Create(
-        string id, string title, IReadOnlyList<Measurement> measured, string evidence, Verdict verdict, CannotVerifyReason? reason, string detail, Impact impact)
-    {
-        return new Finding(
-            id: id,
-            category: FindingCategory.AppCache,
-            title: title,
-            measured: measured,
-            evidence: evidence,
-            verdict: verdict,
-            cannotVerifyReason: reason,
-            detail: detail,
-            recommendation: null,
-            impact: impact,
-            actions: [new ShowDetailsAction(), new OpenSettingsAction(STORAGE_SETTINGS_URI)]);
+        return SnapshotValues.Boolean(snapshot, PROBE_ID, Name(rule, field));
     }
 }

@@ -1,11 +1,10 @@
 /**
  * @file    : RuleCatalogLoader.cs
  * @author  : rudals252
- * @brief   : 앱 폴더의 rules\ 아래 포함 규칙 파일(sources.json이 가리키는 winapp2.ini·supplement.ini·rule-metadata.json)만 읽어 SHA-256 무결성을 확인한 뒤 해석하는 로더(내려받기·사용자 경로 없음, 파일이 없거나 해시가 다르면 규칙을 쓰지 않음, 같은 해시면 해석 결과 재사용)
+ * @brief   : 어셈블리에 포함된 규칙 리소스(sources.json이 가리키는 winapp2.ini·supplement.ini·rule-metadata.json)만 읽어 SHA-256 일관성을 확인한 뒤 해석하는 로더(파일 시스템·내려받기·사용자 경로 없음, 없거나 해시가 다르면 규칙을 쓰지 않음, 같은 해시면 해석 결과 재사용)
  */
 
 // 기본 패키지
-using System.Security;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -56,8 +55,8 @@ public sealed record RuleCatalog(
 /// </summary>
 public sealed class RuleCatalogLoader
 {
-    /// <summary>앱 폴더 기준 규칙 폴더.</summary>
-    public const string RULES_FOLDER = "rules";
+    /// <summary>포함 리소스 이름 접두사(뒤에 파일 이름, Probes 프로젝트의 LogicalName과 같음).</summary>
+    public const string RESOURCE_PREFIX = "PcOptimizer.Rules.";
 
     /// <summary>출처 목록 파일 이름.</summary>
     public const string MANIFEST_FILE = "sources.json";
@@ -76,7 +75,7 @@ public sealed class RuleCatalogLoader
     /// <summary>
     /// 로더를 만듭니다.
     /// </summary>
-    /// <param name="readFile">규칙 폴더의 파일 이름으로 바이트를 읽는 함수(없거나 읽지 못하면 null).</param>
+    /// <param name="readFile">규칙 파일 이름으로 바이트를 읽는 함수(없거나 읽지 못하면 null). 제품 구성은 포함 리소스만 읽는다.</param>
     /// <param name="time">시간 공급자(해석 시간 측정).</param>
     public RuleCatalogLoader(Func<string, byte[]?> readFile, TimeProvider time)
     {
@@ -87,30 +86,32 @@ public sealed class RuleCatalogLoader
     }
 
     /// <summary>
-    /// 앱 폴더(<see cref="AppContext.BaseDirectory"/>)의 rules\만 읽는 로더를 만듭니다. 승격 여부와 관계없이 다른 경로를 읽지 않습니다.
+    /// 이 어셈블리에 리소스로 포함된 규칙만 읽는 로더를 만듭니다. 파일 시스템(앱 폴더·사용자 경로)의 규칙 파일은 읽지 않으므로
+    /// 승격 여부와 관계없이 사용자 쓰기 가능한 폴더의 파일을 바꿔 규칙을 바꿀 수 없습니다(스펙 §6).
     /// </summary>
     /// <returns>로더.</returns>
-    public static RuleCatalogLoader CreateBundled()
+    public static RuleCatalogLoader CreateEmbedded()
     {
-        var folder = Path.Combine(AppContext.BaseDirectory, RULES_FOLDER);
-        return new RuleCatalogLoader(name => ReadBundledFile(folder, name), TimeProvider.System);
+        return new RuleCatalogLoader(ReadEmbeddedFile, TimeProvider.System);
     }
 
     /// <summary>
-    /// 규칙 폴더의 파일 하나를 읽는다(단순 파일 이름만, 없거나 너무 크거나 읽지 못하면 null).
+    /// 포함 리소스 하나를 읽습니다(단순 파일 이름만, 없거나 너무 크면 null).
     /// </summary>
-    private static byte[]? ReadBundledFile(string folder, string name)
+    /// <param name="name">파일 이름(예: "winapp2.ini").</param>
+    /// <returns>바이트 또는 null.</returns>
+    public static byte[]? ReadEmbeddedFile(string name)
     {
-        var path = Path.Combine(folder, name);
-        try
-        {
-            var info = new FileInfo(path);
-            return info.Exists && info.Length <= MAX_RULE_FILE_BYTES ? File.ReadAllBytes(path) : null;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
+        ArgumentNullException.ThrowIfNull(name);
+        using var stream = typeof(RuleCatalogLoader).Assembly.GetManifestResourceStream(RESOURCE_PREFIX + name);
+        if (stream is null || stream.Length > MAX_RULE_FILE_BYTES)
         {
             return null;
         }
+
+        using var buffer = new MemoryStream((int)stream.Length);
+        stream.CopyTo(buffer);
+        return buffer.ToArray();
     }
 
     /// <summary>

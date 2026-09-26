@@ -198,14 +198,16 @@ public sealed class AppConfigReaderTests
         Assert.Empty(SteamLibraryFoldersParser.Parse("\"libraryfolders\" { }")!);
     }
 
-    /// <summary>Steam: 레지스트리 SteamPath(슬래시 경로) 아래 vdf의 각 라이브러리에 대해 steamapps\shadercache만 돌려주며 라이브러리·게임 폴더는 돌려주지 않는다.</summary>
+    /// <summary>
+    /// Steam: 레지스트리 SteamPath(슬래시 경로) 아래 vdf의 각 라이브러리에 대해 steamapps\shadercache만 돌려주며 라이브러리·게임 폴더는 돌려주지 않는다.
+    /// 레지스트리는 SteamPath 값 하나만 요청하고 키 전체(자동 로그인 계정 등)는 읽지 않는다.
+    /// </summary>
     [Fact]
     public void Steam은_라이브러리별_shadercache만_돌려준다()
     {
-        var registry = new FakeRegistryReader().WithKeyValues(
-            RegistryRoot.CurrentUser, RegistryView.Default, SteamLibraryReader.USER_KEY,
-            new RegistryValueEntry("AutoLoginUser", "String", "fakeuser", null),
-            new RegistryValueEntry(SteamLibraryReader.USER_VALUE, "String", "c:/program files (x86)/steam", null));
+        var registry = new FakeRegistryReader()
+            .WithKeyValues(RegistryRoot.CurrentUser, RegistryView.Default, SteamLibraryReader.USER_KEY, new RegistryValueEntry("AutoLoginUser", "String", "fakeuser", null))
+            .WithString(RegistryRoot.CurrentUser, RegistryView.Default, SteamLibraryReader.USER_KEY, SteamLibraryReader.USER_VALUE, "c:/program files (x86)/steam");
         var environment = Environment().WithFile(@"c:\program files (x86)\steam\steamapps\libraryfolders.vdf", Fixture("libraryfolders.vdf"));
 
         var reading = new SteamLibraryReader(environment, registry, new FakeDirectoryEntrySource()).Read();
@@ -216,6 +218,8 @@ public sealed class AppConfigReaderTests
         Assert.Equal([@"c:\program files (x86)\steam\steamapps\shadercache", @"D:\SteamLibrary\steamapps\shadercache"], reading.Paths);
         Assert.All(reading.Paths, path => Assert.EndsWith(@"\steamapps\shadercache", path, StringComparison.OrdinalIgnoreCase));
         AssertNoSecrets(Dump(reading));
+        Assert.Empty(registry.KeyReads);
+        Assert.Equal([FakeRegistryReader.KeyOf(RegistryRoot.CurrentUser, RegistryView.Default, SteamLibraryReader.USER_KEY) + "|" + SteamLibraryReader.USER_VALUE], registry.StringReads);
     }
 
     /// <summary>Steam: 레지스트리가 없으면 설정 없음, HKLM 32비트 InstallPath로 대신 찾고 vdf가 없으면 설치 폴더만, vdf가 깨지면 해석 불가.</summary>
@@ -223,9 +227,7 @@ public sealed class AppConfigReaderTests
     public void Steam_기본_대체_해석불가를_처리한다()
     {
         var none = new SteamLibraryReader(Environment(), new FakeRegistryReader(), new FakeDirectoryEntrySource()).Read();
-        var machine = new FakeRegistryReader().WithKeyValues(
-            RegistryRoot.LocalMachine, RegistryView.Registry32, SteamLibraryReader.MACHINE_KEY,
-            new RegistryValueEntry(SteamLibraryReader.MACHINE_VALUE, "String", @"E:\Steam", null));
+        var machine = new FakeRegistryReader().WithString(RegistryRoot.LocalMachine, RegistryView.Registry32, SteamLibraryReader.MACHINE_KEY, SteamLibraryReader.MACHINE_VALUE, @"E:\Steam");
         var fallback = new SteamLibraryReader(Environment(), machine, new FakeDirectoryEntrySource()).Read();
         var broken = new SteamLibraryReader(Environment().WithFile(@"E:\Steam\steamapps\libraryfolders.vdf", Fixture("libraryfolders-broken.vdf")), machine, new FakeDirectoryEntrySource()).Read();
 
@@ -234,6 +236,9 @@ public sealed class AppConfigReaderTests
         Assert.Equal(1, fallback.LibraryCount);
         Assert.Equal(AppConfigReadState.Invalid, broken.State);
         Assert.Empty(broken.Paths);
+        Assert.Empty(machine.KeyReads);
+        Assert.All(machine.StringReads, read => Assert.True(
+            read.EndsWith("|" + SteamLibraryReader.USER_VALUE, StringComparison.Ordinal) || read.EndsWith("|" + SteamLibraryReader.MACHINE_VALUE, StringComparison.Ordinal)));
     }
 
     /// <summary>Adobe: 형식을 검증할 수 없어 어떤 파일도 읽지 않고 항상 형식 미검증을 돌려준다.</summary>

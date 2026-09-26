@@ -1,13 +1,12 @@
 /**
  * @file    : AppCacheTargetBuilder.cs
  * @author  : rudals252
- * @brief   : 탐지된 지원 규칙의 FileKey·ExcludeKey를 이 PC 경로로 펼쳐 관측 후보·제외 조건을 만들고(앱 설정 경로는 검토 우선순위로 앞에), 폴더 이름만 보는 규칙(Squirrel)은 Update.exe가 있는 앱의 app-* 이름만 모으며, 펼칠 수 없는 규칙은 통째로 건너뛰는 구성기
+ * @brief   : 탐지된 지원 규칙의 FileKey·ExcludeKey를 이 PC 경로로 펼쳐 관측 후보·제외 조건을 만들고(앱 설정 경로는 검토 우선순위로 앞에, 중간 정션을 거치는 경로는 버림), 펼칠 수 없는 규칙은 통째로 건너뛰는 구성기
  */
 
 // 사용자 패키지
 using PcOptimizer.Core.Cleaning;
 using PcOptimizer.Probes.Applications.ConfigReaders;
-using PcOptimizer.Probes.Storage;
 
 namespace PcOptimizer.Probes.Applications;
 
@@ -20,16 +19,15 @@ namespace PcOptimizer.Probes.Applications;
 /// <param name="ProtectedWildcards">보호 루트 안이라 와일드카드를 열거하지 않은 FileKey 수.</param>
 /// <param name="IncompleteExpansions">접근 거부 등으로 일부만 펼친 FileKey 수.</param>
 /// <param name="Config">연결된 앱 설정 분류 결과(없으면 null).</param>
+/// <param name="ReparseSkipped">중간 폴더가 reparse point라 따라가지 않은 FileKey 경로 수.</param>
 internal sealed record RuleTargets(
-    CleaningRule Rule, RuleMetadata? Metadata, UnsupportedRuleReason? RuntimeFailure, int ProtectedWildcards, int IncompleteExpansions, ClassifiedAppConfig? Config);
-
-/// <summary>
-/// Squirrel 앱 하나의 버전 폴더 이름입니다.
-/// </summary>
-/// <param name="App">앱 폴더 이름.</param>
-/// <param name="Parent">앱 폴더 경로(측정값 전용).</param>
-/// <param name="VersionFolders">app-* 폴더 이름(정렬).</param>
-internal sealed record SquirrelApp(string App, string Parent, IReadOnlyList<string> VersionFolders);
+    CleaningRule Rule,
+    RuleMetadata? Metadata,
+    UnsupportedRuleReason? RuntimeFailure,
+    int ProtectedWildcards,
+    int IncompleteExpansions,
+    ClassifiedAppConfig? Config,
+    int ReparseSkipped = 0);
 
 /// <summary>
 /// 구성 결과 전체입니다.
@@ -37,18 +35,13 @@ internal sealed record SquirrelApp(string App, string Parent, IReadOnlyList<stri
 /// <param name="Rules">규칙별 결과(보충 규칙 먼저).</param>
 /// <param name="Candidates">관측 후보.</param>
 /// <param name="Exclusions">제외 조건.</param>
-/// <param name="Squirrel">Squirrel 앱.</param>
-internal sealed record TargetBuild(
-    IReadOnlyList<RuleTargets> Rules, IReadOnlyList<ObservationCandidate> Candidates, IReadOnlyList<ExclusionSpec> Exclusions, IReadOnlyList<SquirrelApp> Squirrel);
+internal sealed record TargetBuild(IReadOnlyList<RuleTargets> Rules, IReadOnlyList<ObservationCandidate> Candidates, IReadOnlyList<ExclusionSpec> Exclusions);
 
 /// <summary>
 /// 관측 후보 구성기입니다.
 /// </summary>
-internal sealed class AppCacheTargetBuilder(Winapp2PathResolver resolver, PathPatternExpander expander, IDirectoryEntrySource source)
+internal sealed class AppCacheTargetBuilder(Winapp2PathResolver resolver, PathPatternExpander expander)
 {
-    /// <summary>Squirrel 설치 확인 파일(앱 폴더 바로 아래).</summary>
-    public const string SQUIRREL_UPDATER = "Update.exe";
-
     private static readonly IReadOnlyList<string> ALL_FILES = [RulePatternMatcher.ALL_FILES];
 
     /// <summary>
@@ -58,6 +51,7 @@ internal sealed class AppCacheTargetBuilder(Winapp2PathResolver resolver, PathPa
     /// <param name="metadata">규칙 ID별 메타데이터.</param>
     /// <param name="configs">리더 이름별 앱 설정 분류 결과.</param>
     /// <param name="isProtected">보호 루트 확인 함수.</param>
+    /// <param name="reparse">중간 폴더 reparse 검사기.</param>
     /// <param name="ct">취소 토큰.</param>
     /// <returns>구성 결과.</returns>
     public TargetBuild Build(
@@ -65,24 +59,17 @@ internal sealed class AppCacheTargetBuilder(Winapp2PathResolver resolver, PathPa
         IReadOnlyDictionary<string, RuleMetadata> metadata,
         IReadOnlyDictionary<string, ClassifiedAppConfig> configs,
         Func<string, bool> isProtected,
+        ReparseAncestorCheck reparse,
         CancellationToken ct)
     {
         var rules = new List<RuleTargets>();
         var candidates = new List<ObservationCandidate>();
         var exclusions = new List<ExclusionSpec>();
-        var squirrel = new List<SquirrelApp>();
         foreach (var rule in detected.OrderBy(rule => rule.Origin == RuleOrigin.Supplement ? 0 : 1))
         {
             ct.ThrowIfCancellationRequested();
             var meta = metadata.GetValueOrDefault(rule.Id);
             var config = meta?.ConfigReader is { } app ? configs.GetValueOrDefault(app) : null;
-            if (meta?.Observation == ObservationKind.FolderNamesOnly)
-            {
-                var failure = CollectSquirrel(rule, isProtected, squirrel, ct);
-                rules.Add(new RuleTargets(rule, meta, failure, 0, 0, config));
-                continue;
-            }
-
             var ruleCandidates = new List<ObservationCandidate>();
             var ruleExclusions = new List<ExclusionSpec>();
             var precedence = rule.Origin == RuleOrigin.Supplement ? ObservationPrecedence.Reviewed : ObservationPrecedence.Community;
@@ -91,51 +78,54 @@ internal sealed class AppCacheTargetBuilder(Winapp2PathResolver resolver, PathPa
                 ruleCandidates.Add(new ObservationCandidate(rule.Id, ObservationPrecedence.Reviewed, path, ALL_FILES, true, TargetSource.UserConfig));
             }
 
-            var (runtimeFailure, protectedWildcards, incomplete) = ExpandFileKeys(rule, precedence, isProtected, ruleCandidates, ct);
-            runtimeFailure ??= ResolveExclusions(rule, ruleExclusions);
+            var expansion = ExpandFileKeys(rule, precedence, isProtected, reparse, ruleCandidates, ct);
+            var runtimeFailure = expansion.Failure ?? ResolveExclusions(rule, ruleExclusions);
             if (runtimeFailure is null)
             {
                 candidates.AddRange(ruleCandidates);
                 exclusions.AddRange(ruleExclusions);
             }
 
-            rules.Add(new RuleTargets(rule, meta, runtimeFailure, protectedWildcards, incomplete, config));
+            rules.Add(new RuleTargets(rule, meta, runtimeFailure, expansion.ProtectedWildcards, expansion.Incomplete, config, expansion.ReparseSkipped));
         }
 
-        return new TargetBuild(rules.AsReadOnly(), candidates.AsReadOnly(), exclusions.AsReadOnly(), squirrel.AsReadOnly());
+        return new TargetBuild(rules.AsReadOnly(), candidates.AsReadOnly(), exclusions.AsReadOnly());
     }
 
     /// <summary>
     /// FileKey 폴더를 펼쳐 후보에 더한다. 펼칠 수 없으면 사유를 돌려준다.
     /// </summary>
-    private (UnsupportedRuleReason? Failure, int ProtectedWildcards, int Incomplete) ExpandFileKeys(
-        CleaningRule rule, ObservationPrecedence precedence, Func<string, bool> isProtected, List<ObservationCandidate> output, CancellationToken ct)
+    private ExpansionTally ExpandFileKeys(
+        CleaningRule rule, ObservationPrecedence precedence, Func<string, bool> isProtected, ReparseAncestorCheck reparse, List<ObservationCandidate> output, CancellationToken ct)
     {
-        var protectedWildcards = 0;
-        var incomplete = 0;
+        var tally = new ExpansionTally(null, 0, 0, 0);
         foreach (var fileKey in rule.FileKeys)
         {
             var resolution = resolver.Resolve(fileKey.PathTemplate);
             if (!resolution.IsResolved)
             {
-                return (resolution.Failure, protectedWildcards, incomplete);
+                return tally with { Failure = resolution.Failure };
             }
 
             foreach (var path in resolution.Paths)
             {
-                var expansion = expander.Expand(path, directoriesOnly: true, isProtected, ct);
+                var expansion = expander.Expand(path, directoriesOnly: true, isProtected, ct, reparse);
                 if (expansion.Exceeded)
                 {
-                    return (UnsupportedRuleReason.WildcardBoundExceeded, protectedWildcards, incomplete);
+                    return tally with { Failure = UnsupportedRuleReason.WildcardBoundExceeded };
                 }
 
-                protectedWildcards += expansion.ProtectedSkipped ? 1 : 0;
-                incomplete += expansion.Incomplete ? 1 : 0;
+                tally = tally with
+                {
+                    ProtectedWildcards = tally.ProtectedWildcards + (expansion.ProtectedSkipped ? 1 : 0),
+                    Incomplete = tally.Incomplete + (expansion.Incomplete ? 1 : 0),
+                    ReparseSkipped = tally.ReparseSkipped + (expansion.ReparseSkipped ? 1 : 0),
+                };
                 output.AddRange(expansion.Matches.Select(match => new ObservationCandidate(rule.Id, precedence, match, fileKey.Patterns, fileKey.Recurse, TargetSource.Default)));
             }
         }
 
-        return (null, protectedWildcards, incomplete);
+        return tally;
     }
 
     /// <summary>
@@ -158,39 +148,7 @@ internal sealed class AppCacheTargetBuilder(Winapp2PathResolver resolver, PathPa
     }
 
     /// <summary>
-    /// Squirrel 규칙: FileKey 폴더(app-*)를 펼쳐, 부모 폴더에 Update.exe가 있는 앱의 버전 폴더 이름만 모은다(크기 관측 없음).
+    /// FileKey 펼치기 집계.
     /// </summary>
-    private UnsupportedRuleReason? CollectSquirrel(CleaningRule rule, Func<string, bool> isProtected, List<SquirrelApp> output, CancellationToken ct)
-    {
-        foreach (var fileKey in rule.FileKeys)
-        {
-            var resolution = resolver.Resolve(fileKey.PathTemplate);
-            if (!resolution.IsResolved)
-            {
-                return resolution.Failure;
-            }
-
-            foreach (var path in resolution.Paths)
-            {
-                var expansion = expander.Expand(path, directoriesOnly: true, isProtected, ct);
-                if (expansion.Exceeded)
-                {
-                    return UnsupportedRuleReason.WildcardBoundExceeded;
-                }
-
-                foreach (var group in expansion.Matches.GroupBy(match => PathScope.GetParent(match)!, StringComparer.OrdinalIgnoreCase))
-                {
-                    if (source.ProbeRoot(Path.Join(group.Key, SQUIRREL_UPDATER)) != RootPresence.NotDirectory)
-                    {
-                        continue;
-                    }
-
-                    var names = group.Select(PathScope.GetLeafName).Order(StringComparer.OrdinalIgnoreCase).ToList();
-                    output.Add(new SquirrelApp(PathScope.GetLeafName(group.Key), group.Key, names.AsReadOnly()));
-                }
-            }
-        }
-
-        return null;
-    }
+    private sealed record ExpansionTally(UnsupportedRuleReason? Failure, int ProtectedWildcards, int Incomplete, int ReparseSkipped);
 }

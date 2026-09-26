@@ -1,7 +1,7 @@
 /**
  * @file    : PathPatternExpander.cs
  * @author  : rudals252
- * @brief   : 폴더 구성 요소에 * ? 와일드카드가 든 절대 경로를 부모 폴더 열거로 펼치는 제한된 확장기(구성 요소당 일치 64개·전체 256개 한도, 보호 루트 안은 열거하지 않음, 중간 구성 요소의 reparse·placeholder는 따라가지 않음, 파일 내용 읽기 없음)
+ * @brief   : 폴더 구성 요소에 * ? 와일드카드가 든 절대 경로를 부모 폴더 열거로 펼치는 제한된 확장기(구성 요소당 일치 64개·전체 256개 한도, 보호 루트 안은 열거하지 않음, 와일드카드·고정 이름 모두 중간 구성 요소의 reparse·placeholder는 따라가지 않음, 파일 내용 읽기 없음)
  */
 
 // 기본 패키지
@@ -20,7 +20,8 @@ namespace PcOptimizer.Probes.Applications;
 /// <param name="Exceeded">일치 개수 한도를 넘었는지 여부(넘으면 일부만 적용하지 않도록 쓰는 쪽이 규칙을 건너뜀).</param>
 /// <param name="Incomplete">열거하지 못한 부모(접근 거부·사용 중)가 있어 결과가 불완전한지 여부.</param>
 /// <param name="ProtectedSkipped">보호 루트 안이라 열거하지 않은 부모가 있는지 여부.</param>
-public sealed record ExpansionResult(IReadOnlyList<string> Matches, bool Exceeded, bool Incomplete, bool ProtectedSkipped);
+/// <param name="ReparseSkipped">중간 폴더가 reparse point라 따라가지 않은 경로가 있는지 여부.</param>
+public sealed record ExpansionResult(IReadOnlyList<string> Matches, bool Exceeded, bool Incomplete, bool ProtectedSkipped, bool ReparseSkipped = false);
 
 /// <summary>
 /// 와일드카드 경로 확장기입니다(규칙 탐지·FileKey 폴더 공용).
@@ -52,28 +53,40 @@ public sealed class PathPatternExpander
     /// <param name="directoriesOnly">마지막 구성 요소도 폴더만 고를지 여부(false면 파일도 포함, 탐지용).</param>
     /// <param name="isProtected">보호 루트 확인 함수(보호 루트 안의 폴더는 열거하지 않음).</param>
     /// <param name="ct">취소 토큰.</param>
+    /// <param name="reparse">중간 폴더 reparse 검사기(없으면 이 호출용으로 만듦).</param>
     /// <returns>확장 결과.</returns>
-    public ExpansionResult Expand(string path, bool directoriesOnly, Func<string, bool> isProtected, CancellationToken ct)
+    /// <remarks>
+    /// 와일드카드가 없는 중간 구성 요소도 폴더마다 reparse point인지 확인하고, reparse이면 그 경로를 버립니다(정션을 거쳐 다른 폴더로 가지 않음).
+    /// 마지막 구성 요소 자체의 reparse 여부는 쓰는 쪽(탐지·관측)이 확인합니다.
+    /// </remarks>
+    public ExpansionResult Expand(string path, bool directoriesOnly, Func<string, bool> isProtected, CancellationToken ct, ReparseAncestorCheck? reparse = null)
     {
         ArgumentNullException.ThrowIfNull(path);
         ArgumentNullException.ThrowIfNull(isProtected);
+        reparse ??= new ReparseAncestorCheck(_source);
 
         var segments = Winapp2PathSyntax.Segments(path);
         if (!segments.Any(Winapp2PathSyntax.HasWildcard))
         {
-            return new ExpansionResult([PathScope.Normalize(path)], false, false, false);
+            var normalized = PathScope.Normalize(path);
+            return reparse.HasReparseAncestor(normalized)
+                ? new ExpansionResult([], false, false, false, ReparseSkipped: true)
+                : new ExpansionResult([normalized], false, false, false);
         }
 
         List<string> current = [segments[0] + PathScope.SEPARATOR];
         var incomplete = false;
         var protectedSkipped = false;
+        var reparseSkipped = false;
         for (var index = 1; index < segments.Length; index++)
         {
             var segment = segments[index];
             var isLast = index == segments.Length - 1;
             if (!Winapp2PathSyntax.HasWildcard(segment))
             {
-                current = [.. current.Select(prefix => Path.Join(prefix, segment))];
+                var joined = current.Select(prefix => Path.Join(prefix, segment)).ToList();
+                current = isLast ? joined : [.. joined.Where(prefix => !reparse.IsReparsePoint(prefix))];
+                reparseSkipped |= current.Count < joined.Count;
                 continue;
             }
 
@@ -91,20 +104,20 @@ public sealed class PathPatternExpander
                 incomplete |= failed;
                 if (matches is null)
                 {
-                    return new ExpansionResult([], true, incomplete, protectedSkipped);
+                    return new ExpansionResult([], true, incomplete, protectedSkipped, reparseSkipped);
                 }
 
                 next.AddRange(matches);
                 if (next.Count > MAX_EXPANDED_PATHS)
                 {
-                    return new ExpansionResult([], true, incomplete, protectedSkipped);
+                    return new ExpansionResult([], true, incomplete, protectedSkipped, reparseSkipped);
                 }
             }
 
             current = next;
         }
 
-        return new ExpansionResult([.. current.Select(PathScope.Normalize)], false, incomplete, protectedSkipped);
+        return new ExpansionResult([.. current.Select(PathScope.Normalize)], false, incomplete, protectedSkipped, reparseSkipped);
     }
 
     /// <summary>

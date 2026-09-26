@@ -91,6 +91,11 @@ internal static class RuleObservationAggregator
             skips = skips.Increment(ScanSkipReason.AccessDenied);
         }
 
+        for (var index = 0; index < rule.ReparseSkipped; index++)
+        {
+            skips = skips.Increment(ScanSkipReason.Reparse);
+        }
+
         var observed = measured.Where(result => result.IsObserved).ToList();
         var partial = observed.Count > 0
             && (rule.IncompleteExpansions > 0 || measured.Any(result => result.State is TargetState.Partial or TargetState.AccessDenied or TargetState.TimedOut or TargetState.Error));

@@ -1,7 +1,7 @@
 /**
  * @file    : RuleCatalogSummaryRule.cs
  * @author  : rudals252
- * @brief   : 포함 규칙 스냅샷의 버전·커밋, 무결성 확인 상태, 지원/사유별 미지원·탐지 규칙 수를 요약하는 정보 규칙(무결성 실패·보호 정책 무효는 확인 불가)
+ * @brief   : 포함 규칙 스냅샷의 버전·커밋, 무결성 확인 상태, 지원/사유별 미지원·탐지 규칙 수, 앱 카드 수와 카드로 보이지 않는 앱(파일 없음·합침·보호·확인 불가)·개인정보 관련 제외 규칙 수를 요약하는 정보 규칙(무결성 실패·보호 정책 무효는 확인 불가)
  */
 
 // 기본 패키지
@@ -97,6 +97,14 @@ public sealed class RuleCatalogSummaryRule : IRule
         if (Count(AppCacheProbeContract.DETECTION_UNKNOWN_COUNT) is > 0 and var unknown)
         {
             details.Add(SnapshotValues.Format(CoreStrings.AppCache_Catalog_Detail_Unknown, unknown));
+        }
+
+        var (cards, folded) = AppCacheCardPlanner.Plan(snapshot);
+        details.Add(SnapshotValues.Format(CoreStrings.AppCache_Catalog_Detail_Cards, cards.Count));
+        details.Add(SnapshotValues.Format(CoreStrings.AppCache_Catalog_Detail_Folded, folded.NoFilesApps, folded.MergedApps, folded.ProtectedApps, folded.UnverifiedApps));
+        if (folded.SensitiveRules > 0)
+        {
+            details.Add(SnapshotValues.Format(CoreStrings.AppCache_Catalog_Detail_Sensitive, folded.SensitiveRules));
         }
 
         if (SnapshotValues.Boolean(snapshot, PROBE_ID, AppCacheProbeContract.ELEVATED_DEFAULTS_ONLY) == true)

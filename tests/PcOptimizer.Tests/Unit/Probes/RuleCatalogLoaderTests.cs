@@ -1,7 +1,7 @@
 /**
  * @file    : RuleCatalogLoaderTests.cs
  * @author  : rudals252
- * @brief   : 포함 규칙 로더의 무결성 확인(파일 없음·SHA-256 불일치·출처 목록·메타데이터 무효 시 규칙 미사용), 같은 해시 재사용, 실제 포함 규칙 파일(스냅샷 해시·항목 수·보충 규칙 7종 전부 지원·메타데이터 짝·금지 문구)을 검증
+ * @brief   : 포함 규칙 로더의 무결성 확인(파일 없음·SHA-256 불일치·출처 목록·메타데이터 무효 시 규칙 미사용), 같은 해시 재사용, 어셈블리 포함 리소스만 읽기(출력 폴더에 규칙 없음·폴더의 일관된 변조 무시), 실제 포함 규칙(스냅샷 해시·항목 수·보충 규칙 6종 전부 지원·Squirrel 목록·메타데이터 짝·금지 문구·app-* FileKey 없음)을 검증
  */
 
 // 기본 패키지
@@ -25,8 +25,16 @@ namespace PcOptimizer.Tests.Unit.Probes;
 /// </summary>
 public sealed class RuleCatalogLoaderTests(ITestOutputHelper output)
 {
-    /// <summary>테스트 출력 폴더의 포함 규칙 폴더(App 프로젝트가 복사).</summary>
-    public static readonly string BUNDLED_RULES = Path.Combine(AppContext.BaseDirectory, RuleCatalogLoader.RULES_FOLDER);
+    /// <summary>테스트 출력 폴더의 rules 폴더(보호 정책·라이선스 고지만 복사되고 앱 캐시 규칙 파일은 없어야 함).</summary>
+    public static readonly string OUTPUT_RULES = Path.Combine(AppContext.BaseDirectory, "rules");
+
+    /// <summary>
+    /// 포함 리소스 하나를 읽는다(없으면 테스트 실패).
+    /// </summary>
+    internal static byte[] Embedded(string name)
+    {
+        return RuleCatalogLoader.ReadEmbeddedFile(name) ?? throw new InvalidOperationException(name + " 포함 리소스 없음");
+    }
 
     private const string SMALL_WINAPP2 = "[Tiny App *]\nDetectFile=%LocalAppData%\\Tiny\nFileKey1=%LocalAppData%\\Tiny\\Cache|*|RECURSE\n";
 
@@ -38,8 +46,8 @@ public sealed class RuleCatalogLoaderTests(ITestOutputHelper output)
         var files = new Dictionary<string, byte[]>(StringComparer.Ordinal)
         {
             ["winapp2.ini"] = Encoding.UTF8.GetBytes(winapp2),
-            ["supplement.ini"] = supplement is null ? File.ReadAllBytes(Path.Combine(BUNDLED_RULES, "supplement.ini")) : Encoding.UTF8.GetBytes(supplement),
-            ["rule-metadata.json"] = metadata is null ? File.ReadAllBytes(Path.Combine(BUNDLED_RULES, "rule-metadata.json")) : Encoding.UTF8.GetBytes(metadata),
+            ["supplement.ini"] = supplement is null ? Embedded("supplement.ini") : Encoding.UTF8.GetBytes(supplement),
+            ["rule-metadata.json"] = metadata is null ? Embedded("rule-metadata.json") : Encoding.UTF8.GetBytes(metadata),
         };
         files["sources.json"] = Encoding.UTF8.GetBytes(Manifest(files));
         return files;
@@ -82,7 +90,7 @@ public sealed class RuleCatalogLoaderTests(ITestOutputHelper output)
         Assert.True(first.IsVerified);
         Assert.Same(first, second);
         Assert.Equal(1, first.CommunityReport!.TotalRules);
-        Assert.Equal(7, first.SupplementReport!.TotalRules);
+        Assert.Equal(6, first.SupplementReport!.TotalRules);
         Assert.Equal("999999", first.Winapp2Source!.UpstreamVersion);
     }
 
@@ -118,12 +126,62 @@ public sealed class RuleCatalogLoaderTests(ITestOutputHelper output)
         Assert.Empty(catalog.Rules);
     }
 
+    /// <summary>
+    /// 규칙은 어셈블리 포함 리소스에서만 읽는다: 출력 폴더(AppContext.BaseDirectory\rules)에는 앱 캐시 규칙 파일이 없고(복사하지 않음),
+    /// 그래도 포함 규칙이 무결성 확인을 통과한다. 따라서 사용자 쓰기 가능한 폴더에 규칙·sources.json을 함께 바꿔 놓아도 적용되지 않는다.
+    /// </summary>
+    [Fact]
+    public void 포함_리소스만_읽고_출력_폴더의_규칙_파일은_쓰지_않는다()
+    {
+        foreach (var name in new[] { "winapp2.ini", "supplement.ini", "rule-metadata.json", RuleCatalogLoader.MANIFEST_FILE })
+        {
+            Assert.False(File.Exists(Path.Combine(OUTPUT_RULES, name)), name + " 파일이 출력 폴더에 있다");
+        }
+
+        var catalog = RuleCatalogLoader.CreateEmbedded().Load();
+
+        Assert.True(catalog.IsVerified);
+        Assert.Contains(RuleCatalogLoader.RESOURCE_PREFIX + "winapp2.ini", typeof(RuleCatalogLoader).Assembly.GetManifestResourceNames());
+    }
+
+    /// <summary>
+    /// 사용자 쓰기 가능한 폴더에 규칙 파일과 그 해시를 담은 sources.json을 함께 바꿔 놓아도(일관된 변조) 로더는 포함 리소스만 써서
+    /// 원래 스냅샷(4,068개)을 해석한다. 같은 클래스 안이라 출력 폴더 검사와 동시에 실행되지 않으며, 끝나면 만든 파일을 지운다.
+    /// </summary>
+    [Fact]
+    public void 출력_폴더의_규칙과_출처_목록을_함께_바꿔도_포함_규칙을_쓴다()
+    {
+        var written = new List<string>();
+        Directory.CreateDirectory(OUTPUT_RULES);
+        try
+        {
+            foreach (var (name, bytes) in Files(SMALL_WINAPP2))
+            {
+                var path = Path.Combine(OUTPUT_RULES, name);
+                File.WriteAllBytes(path, bytes);
+                written.Add(path);
+            }
+
+            var catalog = RuleCatalogLoader.CreateEmbedded().Load();
+
+            Assert.True(catalog.IsVerified);
+            Assert.Equal(4068, catalog.CommunityReport!.TotalRules);
+        }
+        finally
+        {
+            foreach (var path in written)
+            {
+                File.Delete(path);
+            }
+        }
+    }
+
     /// <summary>실제 포함 규칙: sources.json의 해시와 파일이 맞고, 스냅샷은 머리글의 항목 수(4,068)와 같으며, 커밋·원본 해시·라이선스가 기록되어 있다.</summary>
     [Fact]
     public void 포함_규칙_스냅샷의_출처와_무결성이_맞다()
     {
-        var catalog = RuleCatalogLoader.CreateBundled().Load();
-        using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(BUNDLED_RULES, RuleCatalogLoader.MANIFEST_FILE)));
+        var catalog = RuleCatalogLoader.CreateEmbedded().Load();
+        using var manifest = JsonDocument.Parse(Embedded(RuleCatalogLoader.MANIFEST_FILE));
         var winapp2 = manifest.RootElement.GetProperty("files").EnumerateArray().Single(file => file.GetProperty("kind").GetString() == "winapp2");
 
         Assert.True(catalog.IsVerified, catalog.State + " " + catalog.FailedFile);
@@ -133,8 +191,8 @@ public sealed class RuleCatalogLoaderTests(ITestOutputHelper output)
         Assert.Equal("CC-BY-SA-4.0", catalog.Winapp2Source.License);
         Assert.Matches("^[0-9a-f]{64}$", winapp2.GetProperty("upstreamSha256").GetString());
         Assert.Contains("the winapp2 project", winapp2.GetProperty("attribution").GetString(), StringComparison.Ordinal);
-        Assert.StartsWith("; Version: 260915", File.ReadAllText(Path.Combine(BUNDLED_RULES, "winapp2.ini")), StringComparison.Ordinal);
-        Assert.True(File.Exists(Path.Combine(BUNDLED_RULES, "LICENSE-winapp2.md")));
+        Assert.StartsWith("; Version: 260915", Encoding.UTF8.GetString(Embedded("winapp2.ini")), StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(OUTPUT_RULES, "LICENSE-winapp2.md")));
 
         var report = catalog.CommunityReport;
         output.WriteLine($"winapp2 total={report.TotalRules} supported={report.SupportedRules} unsupported={report.UnsupportedRules} parseMs={catalog.ParseElapsed.TotalMilliseconds:0}");
@@ -152,17 +210,27 @@ public sealed class RuleCatalogLoaderTests(ITestOutputHelper output)
         Assert.True(report.SupportedRules > report.TotalRules / 2, "지원 규칙이 절반 이상이어야 한다(모두 미지원으로만 처리한 구현 방지)");
     }
 
-    /// <summary>보충 규칙 7종은 모두 지원 문법으로 해석되고, 각각 검토 메타데이터가 있으며(짝이 맞음), Squirrel은 폴더 이름만 보고, 영향 문장에 금지 문구가 없다.</summary>
+    /// <summary>
+    /// 보충 규칙 6종은 모두 지원 문법으로 해석되고 각각 검토 메타데이터(앱 이름 포함)가 있으며, Squirrel 버전 폴더는 정리 규칙이 아니라
+    /// 메타데이터 목록(확인한 앱 폴더·app-* 패턴·Update.exe)으로만 정의된다. 영향 문장에 금지 문구가 없다.
+    /// </summary>
     [Fact]
-    public void 보충_규칙_7종은_모두_지원되고_메타데이터와_짝이_맞다()
+    public void 보충_규칙은_모두_지원되고_메타데이터와_짝이_맞다()
     {
-        var catalog = RuleCatalogLoader.CreateBundled().Load();
+        var catalog = RuleCatalogLoader.CreateEmbedded().Load();
         var supplement = catalog.Rules.Where(rule => rule.Origin == RuleOrigin.Supplement).ToList();
 
-        Assert.Equal(7, supplement.Count);
+        Assert.Equal(6, supplement.Count);
         Assert.All(supplement, rule => Assert.True(rule.IsSupported, rule.Name + " " + rule.UnsupportedReason));
-        Assert.Equal(supplement.Select(rule => rule.Id).Order(StringComparer.Ordinal), catalog.Metadata.Keys.Order(StringComparer.Ordinal));
-        Assert.Equal(ObservationKind.FolderNamesOnly, catalog.Metadata["supplement:Squirrel app version folders"].Observation);
+        Assert.All(supplement, rule => Assert.False(string.IsNullOrWhiteSpace(catalog.Metadata[rule.Id].AppLabel)));
+        var listing = Assert.Single(catalog.Metadata.Values, meta => meta.Observation == ObservationKind.FolderNamesOnly);
+        Assert.Equal("listing:Squirrel app version folders", listing.RuleId);
+        Assert.Equal([@"%LocalAppData%\Discord"], listing.Listing!.ParentTemplates);
+        Assert.Equal("app-*", listing.Listing.Pattern);
+        Assert.Equal("Update.exe", listing.Listing.Marker);
+        Assert.Equal(
+            supplement.Select(rule => rule.Id).Append(listing.RuleId).Order(StringComparer.Ordinal),
+            catalog.Metadata.Keys.Order(StringComparer.Ordinal));
         Assert.Equal(["adobe", "npm", "nuget", "pip", "steam"], catalog.Metadata.Values.Select(meta => meta.ConfigReader).OfType<string>().Order(StringComparer.Ordinal));
         foreach (var meta in catalog.Metadata.Values)
         {
@@ -173,5 +241,20 @@ public sealed class RuleCatalogLoaderTests(ITestOutputHelper output)
                 Assert.DoesNotContain(phrase, text, StringComparison.Ordinal);
             }
         }
+    }
+
+    /// <summary>
+    /// supplement.ini(winapp2 형식, 다른 정리 도구가 읽을 수 있음)에는 앱 버전 폴더(app-*)를 가리키는 FileKey가 없다.
+    /// 그런 FileKey는 실제 정리 도구에서 설치된 앱을 지우는 삭제 규칙이 되므로 이름 나열은 코드와 메타데이터로만 한다.
+    /// </summary>
+    [Fact]
+    public void 보충_규칙에는_앱_버전_폴더_FileKey가_없다()
+    {
+        var text = Encoding.UTF8.GetString(Embedded("supplement.ini"));
+        var rules = Winapp2Parser.Parse(text, RuleOrigin.Supplement).Rules;
+
+        Assert.DoesNotContain(rules.SelectMany(rule => rule.FileKeys), key => key.PathTemplate.Contains("app-", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain("Squirrel", string.Join('|', rules.Select(rule => rule.Name)), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("app-*", text, StringComparison.OrdinalIgnoreCase);
     }
 }

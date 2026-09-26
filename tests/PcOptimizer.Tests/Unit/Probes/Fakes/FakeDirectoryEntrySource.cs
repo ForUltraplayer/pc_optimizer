@@ -1,7 +1,7 @@
 /**
  * @file    : FakeDirectoryEntrySource.cs
  * @author  : rudals252
- * @brief   : 경로별 고정 항목 목록·접근 거부·열거 도중 실패·열거 시점 훅·등록 폴더 안 파일의 존재 확인을 가진 테스트용 디렉터리 열거 공급자와 가짜 항목 생성 도우미
+ * @brief   : 경로별 고정 항목 목록·접근 거부·열거 도중 실패·열거 시점 훅·등록 폴더 안 파일의 존재 확인·reparse 속성 폴더의 존재 확인을 가진 테스트용 디렉터리 열거 공급자와 가짜 항목 생성 도우미
  */
 
 // 기본 패키지
@@ -89,18 +89,24 @@ internal sealed class FakeDirectoryEntrySource : IDirectoryEntrySource
             return RootPresence.AccessDenied;
         }
 
+        // 부모 목록에 reparse 속성 폴더로 등록되어 있으면 reparse point로 본다(정션 미추종 확인용).
+        var parent = Path.GetDirectoryName(path);
+        var name = Path.GetFileName(path);
+        var sibling = parent is not null && _directories.TryGetValue(parent, out var siblings)
+            ? siblings.Where(entry => string.Equals(entry.Name, name, StringComparison.OrdinalIgnoreCase)).Select(entry => (DirectoryEntry?)entry).FirstOrDefault()
+            : (DirectoryEntry?)null;
+        if (sibling is { IsDirectory: true } folder && folder.Attributes.HasFlag(FileAttributes.ReparsePoint))
+        {
+            return RootPresence.ReparsePoint;
+        }
+
         if (_directories.ContainsKey(path))
         {
             return RootPresence.Directory;
         }
 
         // 등록한 폴더의 파일 항목이면 파일로 본다(앱 캐시 탐지의 파일 존재 확인용).
-        var parent = Path.GetDirectoryName(path);
-        var name = Path.GetFileName(path);
-        return parent is not null && _directories.TryGetValue(parent, out var siblings)
-            && siblings.Any(entry => !entry.IsDirectory && string.Equals(entry.Name, name, StringComparison.OrdinalIgnoreCase))
-            ? RootPresence.NotDirectory
-            : RootPresence.Missing;
+        return sibling is { IsDirectory: false } ? RootPresence.NotDirectory : RootPresence.Missing;
     }
 
     /// <inheritdoc />

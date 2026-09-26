@@ -1,7 +1,7 @@
 /**
  * @file    : SquirrelVersionFoldersRule.cs
  * @author  : rudals252
- * @brief   : Squirrel 설치 앱(Discord·Slack·GitHub Desktop)의 app-* 버전 폴더 이름만 나열하는 정보 규칙(크기 합산·사용 여부 판정 없음)
+ * @brief   : Squirrel 설치 앱(rule-metadata.json 목록의 확인한 앱, 현재 Discord)의 app-* 버전 폴더 이름만 나열하는 정보 규칙(크기 합산·사용 여부 판정 없음)
  */
 
 // 사용자 패키지

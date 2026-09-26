@@ -1,7 +1,7 @@
 /**
  * @file    : IRegistryReader.cs
  * @author  : rudals252
- * @brief   : 레지스트리 값 하나, 키의 모든 값 또는 하위 키 이름을 읽는 조회 전용 계약과 결과(키/값 없음·형식·값·접근 거부·오류 구분) 레코드. 테스트에서 fixture 값으로 바꿔 끼운다
+ * @brief   : 레지스트리 값 하나(DWORD·문자열), 키의 모든 값 또는 하위 키 이름을 읽는 조회 전용 계약과 결과(키/값 없음·형식·값·접근 거부·오류 구분) 레코드. 테스트에서 fixture 값으로 바꿔 끼운다
  */
 
 // 기본 패키지
@@ -77,6 +77,14 @@ public sealed record RegistryKeyReading(RegistryReadStatus Status, IReadOnlyList
 public sealed record RegistrySubKeyReading(RegistryReadStatus Status, IReadOnlyList<string> Names, string? ErrorCode);
 
 /// <summary>
+/// 문자열 값 하나의 읽기 결과입니다. Status가 Found일 때만 Text가 있습니다.
+/// </summary>
+/// <param name="Status">읽기 상태(Found·KeyMissing·ValueMissing·AccessDenied·Error).</param>
+/// <param name="Text">문자열 데이터(환경 변수는 펼치지 않음).</param>
+/// <param name="ErrorCode">실패 원인(예외 형식 이름 또는 값 형식 이름, 메시지 원문 아님).</param>
+public sealed record RegistryStringReading(RegistryReadStatus Status, string? Text, string? ErrorCode);
+
+/// <summary>
 /// 레지스트리 조회 계약입니다. 쓰기 메서드는 두지 않으며 구현은 예외 대신 상태로 실패를 알립니다.
 /// </summary>
 public interface IRegistryReader
@@ -107,4 +115,14 @@ public interface IRegistryReader
     /// <param name="subKey">하위 키 경로.</param>
     /// <returns>하위 키 이름 읽기 결과.</returns>
     RegistrySubKeyReading ReadSubKeyNames(RegistryRoot root, RegistryView view, string subKey);
+
+    /// <summary>
+    /// 문자열 값 하나만 읽습니다(키의 다른 값은 읽지 않음, 환경 변수는 펼치지 않음).
+    /// </summary>
+    /// <param name="root">루트.</param>
+    /// <param name="view">레지스트리 보기.</param>
+    /// <param name="subKey">하위 키 경로.</param>
+    /// <param name="valueName">값 이름.</param>
+    /// <returns>문자열 값 읽기 결과(String/ExpandString이 아니면 Error).</returns>
+    RegistryStringReading ReadStringValue(RegistryRoot root, RegistryView view, string subKey, string valueName);
 }

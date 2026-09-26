@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "notes": "PC Optimizer 포함 규칙 파일의 출처·라이선스·무결성 목록. 앱은 이 목록의 sha256과 앱 폴더 rules\\ 파일의 SHA-256이 모두 같을 때만 규칙을 쓴다(자동 다운로드 없음). 규칙 파일을 고치면 이 값도 함께 갱신해야 한다.",
+  "notes": "PC Optimizer 포함 규칙 파일의 출처·라이선스·무결성 목록. 이 파일과 세 규칙 파일은 빌드 때 Probes 어셈블리에 리소스로 들어가며, 앱은 파일 시스템의 규칙 파일을 읽지 않고 포함 리소스의 SHA-256이 이 목록과 모두 같을 때만 규칙을 쓴다(내부 일관성 확인, 자동 다운로드 없음). 규칙 파일을 고치면 이 값도 함께 갱신해야 한다.",
   "files": [
     {
       "path": "winapp2.ini",
@@ -23,14 +23,14 @@
     {
       "path": "supplement.ini",
       "kind": "supplement",
-      "sha256": "48f580aab6262fbb45c6bf708d42d4836c6c59fa0e73655714614238c30a574f",
+      "sha256": "9d588bdffabf2b6e6e937e264aed7ce2474dd07130274c80568d8048f46d600c",
       "license": "CC-BY-SA-4.0",
       "attribution": "PC Optimizer supplement rules (rudals252), Winapp2.ini format by the winapp2 project."
     },
     {
       "path": "rule-metadata.json",
       "kind": "metadata",
-      "sha256": "eeef5778962004a934a598778b28e80304df7e7ffab5d4a5d3eddca6bef9824e",
+      "sha256": "06267eb42dffe4c505c29a5faf7f4a92fcf75f6411f108ca251089a6c32935cd",
       "license": "CC-BY-SA-4.0",
       "attribution": "PC Optimizer reviewed rule metadata (rudals252)."
     }

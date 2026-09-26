@@ -1,7 +1,7 @@
 /**
  * @file    : AppCacheProbeTests.cs
  * @author  : rudals252
- * @brief   : 앱 캐시 프로브 전체 흐름(가짜 PC): 보충 7종 탐지·관측, 겹친 커뮤니티 규칙 병합, 설정 재정의(스캔 루트 밖), Steam 게임 본체 제외, NuGet 보호 폴더 설정 경로 우회 금지, Squirrel 이름만, 관리자 검사의 기본 위치만, 무결성·보호 정책 실패, 인증 토큰이 측정값·로그·내보내기에 남지 않음을 검증
+ * @brief   : 앱 캐시 프로브 전체 흐름(가짜 PC): 보충 규칙 탐지·관측과 앱 카드, 기본 폴더 없이 설정으로 옮긴 캐시 탐지, 겹친 커뮤니티 규칙 병합, 설정 재정의(스캔 루트 밖), Steam 게임 본체 제외, NuGet 보호 폴더 설정 경로 우회 금지, Squirrel 이름만(메타데이터 목록), 다른 사용자·Public·정션 경로, 관리자 검사의 기본 위치만, 무결성·보호 정책 실패, 인증 토큰이 측정값·로그·내보내기에 남지 않음을 검증
  */
 
 // 사용자 패키지
@@ -121,7 +121,7 @@ public sealed class AppCacheProbeTests
         Assert.Contains("보호 폴더", config.Evidence, StringComparison.Ordinal);
     }
 
-    /// <summary>Squirrel은 Update.exe가 있는 앱(Discord)의 app-* 이름만 모으고(slack은 설치 구조가 아니어서 제외), 크기를 재지 않는다.</summary>
+    /// <summary>Squirrel은 메타데이터 목록(확인한 Discord만)의 앱 폴더에 Update.exe가 있을 때 app-* 이름만 모으고(목록에 없는 slack은 제외), 크기를 재지 않는다.</summary>
     [Fact]
     public async Task Squirrel은_설치_구조가_맞는_앱의_버전_폴더_이름만_모은다()
     {
@@ -149,7 +149,7 @@ public sealed class AppCacheProbeTests
         Assert.Equal(new IntegerValue(2), Field(snapshot, "winapp2:Mixed Merged And Protected", AppCacheProbeContract.FIELD_PROTECTED_TARGETS));
         Assert.Throws<InvalidOperationException>(() => RuleIndex(snapshot, "winapp2:Not Installed"));
         Assert.Throws<InvalidOperationException>(() => RuleIndex(snapshot, "winapp2:Registry Only Unsupported"));
-        Assert.Throws<InvalidOperationException>(() => RuleIndex(snapshot, "winapp2:Unresolved Public"));
+        Assert.Throws<InvalidOperationException>(() => RuleIndex(snapshot, "winapp2:Unresolved Music"));
         var runtime = Assert.IsType<TextListValue>(snapshot.GetMeasurement(PROBE_ID, AppCacheProbeContract.RUNTIME_UNSUPPORTED_BY_REASON)!.Value).Values;
         Assert.Equal(["UnresolvedVariable=1"], runtime);
         var summary = Assert.Single(new RuleCatalogSummaryRule().Evaluate(snapshot));
@@ -171,7 +171,7 @@ public sealed class AppCacheProbeTests
         Assert.DoesNotContain(@"C:\$Recycle.Bin\" + AppCacheTestEnvironment.OTHER_SID, environment.Source.Enumerated);
     }
 
-    /// <summary>보충 7종 중 이 가짜 PC에 있는 6종(Squirrel 포함)이 탐지되고, 각 규칙 Finding은 금지 문구 없이 정보로 나온다.</summary>
+    /// <summary>보충 규칙 6종이 이 가짜 PC에서 탐지되어 앱 카드(검토 영향·캐시 문구·설정 열기)로 나오고 금지 문구가 없다. 커뮤니티 규칙 카드는 중립 문구·영향 미확인이다.</summary>
     [Fact]
     public async Task 보충_규칙이_탐지되고_정보로_나온다()
     {
@@ -179,10 +179,12 @@ public sealed class AppCacheProbeTests
 
         var findings = new AppCacheRule().Evaluate(snapshot);
 
-        foreach (var id in new[] { "supplement:Adobe Media Cache Files", "supplement:npm cache", "supplement:pip cache", "supplement:NuGet global packages", "supplement:Steam shader cache", "supplement:NVIDIA and Direct3D shader caches" })
+        foreach (var app in new[] { "Adobe 미디어 캐시", "npm", "pip", "NuGet", "Steam 셰이더 캐시", "NVIDIA·Direct3D 셰이더 캐시" })
         {
-            var finding = Assert.Single(findings, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + id);
+            var finding = Assert.Single(findings, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + app);
             Assert.Equal(Verdict.Info, finding.Verdict);
+            Assert.Contains("캐시·임시 파일 후보", finding.Title, StringComparison.Ordinal);
+            Assert.Contains(finding.Actions, action => action is OpenSettingsAction);
             Assert.DoesNotContain("영향 미확인", finding.Impact!.Benefit, StringComparison.Ordinal);
             foreach (var phrase in Rules.AppCacheTestData.FORBIDDEN_PHRASES)
             {
@@ -191,7 +193,57 @@ public sealed class AppCacheProbeTests
         }
 
         Assert.Contains(findings, f => f.Id == AppCacheRule.CONFIG_FINDING_ID_PREFIX + "adobe" && f.CannotVerifyReason == CannotVerifyReason.Unsupported);
-        Assert.Equal("영향 미확인", Assert.Single(findings, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + "winapp2:Vendor Logs").Impact!.Benefit);
+        var community = Assert.Single(findings, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + "Vendor Logs");
+        Assert.Equal("영향 미확인", community.Impact!.Benefit);
+        Assert.DoesNotContain("캐시", community.Title, StringComparison.Ordinal);
+        Assert.DoesNotContain(community.Actions, action => action is OpenSettingsAction);
+    }
+
+    /// <summary>
+    /// npm·pip·NuGet 기본 캐시 폴더가 없어도 설정 값(.npmrc cache=, PIP_CACHE_DIR, NUGET_PACKAGES)이 있으면 그 보충 규칙을 탐지하고 설정 경로를 재며,
+    /// 카드는 "사용자 설정 경로"를 밝힌다(설정 값 자체가 탐지 근거).
+    /// </summary>
+    [Fact]
+    public async Task 설정으로_옮긴_캐시는_기본_폴더가_없어도_탐지하고_잰다()
+    {
+        var environment = new AppCacheTestEnvironment(defaultCaches: false);
+        environment.Environment
+            .WithVariable(PcOptimizer.Probes.Applications.ConfigReaders.NuGetConfigReader.ENVIRONMENT_VARIABLE, @"D:\NuGetPkgs")
+            .WithVariable(PcOptimizer.Probes.Applications.ConfigReaders.PipConfigReader.ENVIRONMENT_VARIABLE, @"D:\PipCache");
+
+        var (_, snapshot) = await RunAsync(environment);
+        var findings = new AppCacheRule().Evaluate(snapshot);
+
+        foreach (var (ruleId, bytes, app) in new[] { ("supplement:npm cache", 1000L, "npm"), ("supplement:pip cache", 700L, "pip"), ("supplement:NuGet global packages", 600L, "NuGet") })
+        {
+            Assert.Equal(new IntegerValue(bytes), Field(snapshot, ruleId, AppCacheProbeContract.FIELD_BYTES));
+            Assert.Equal(new TextValue(AppCacheProbeContract.CONFIG_SOURCE_USER), Field(snapshot, ruleId, AppCacheProbeContract.FIELD_CONFIG_SOURCE));
+            Assert.Contains("사용자 설정 경로", Assert.Single(findings, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + app).Detail!, StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>%Public%(공용 폴더)을 가리키는 규칙은 다른 사용자 위치로 막지 않고 자기 상태로 잰다.</summary>
+    [Fact]
+    public async Task 공용_폴더_규칙은_다른_사용자_위치로_막지_않는다()
+    {
+        var (_, snapshot) = await RunAsync(new AppCacheTestEnvironment());
+
+        Assert.Equal(new IntegerValue(60), Field(snapshot, "winapp2:Public Vendor", AppCacheProbeContract.FIELD_BYTES));
+        Assert.Equal(new TextValue(AppCacheProbeContract.RULE_STATE_OBSERVED), Field(snapshot, "winapp2:Public Vendor", AppCacheProbeContract.FIELD_STATE));
+    }
+
+    /// <summary>중간 폴더가 정션(Documents and Settings)인 FileKey 경로는 따라가지 않고 reparse로 센다: 그 아래 폴더를 열거하지 않고 크기도 없다.</summary>
+    [Fact]
+    public async Task 중간_정션을_거치는_경로는_따라가지_않는다()
+    {
+        var environment = new AppCacheTestEnvironment();
+
+        var (_, snapshot) = await RunAsync(environment);
+
+        Assert.Equal(new TextValue(AppCacheProbeContract.RULE_STATE_ABSENT), Field(snapshot, "winapp2:Junction Path", AppCacheProbeContract.FIELD_STATE));
+        Assert.Null(Field(snapshot, "winapp2:Junction Path", AppCacheProbeContract.FIELD_BYTES));
+        Assert.Equal(new IntegerValue(1), Field(snapshot, "winapp2:Junction Path", AppCacheProbeContract.FIELD_SKIP_REPARSE));
+        Assert.DoesNotContain(environment.Source.Enumerated, path => path.StartsWith(@"C:\Documents and Settings", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>관리자 권한 검사는 사용자 설정 파일을 읽지 않고(설정 경로 미적용) 기본 위치만 보며 그 사실을 측정값에 남긴다.</summary>
@@ -267,7 +319,7 @@ public sealed class AppCacheProbeTests
             _ => string.Empty,
         }));
         var logText = string.Join('\n', logger.Entries.Select(entry => entry.Message));
-        Assert.Contains(scan.Report.Findings, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + "supplement:npm cache");
+        Assert.Contains(scan.Report.Findings, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + "npm");
         foreach (var secret in AppConfigReaderTests.SECRETS)
         {
             Assert.DoesNotContain(secret, measurementText, StringComparison.OrdinalIgnoreCase);

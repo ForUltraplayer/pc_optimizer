@@ -148,4 +148,56 @@ public sealed class AppCacheMeasurerTests
         Assert.Equal(TargetState.TimedOut, results[1].State);
         Assert.DoesNotContain(@"E:\Next", source.Enumerated);
     }
+
+    /// <summary>
+    /// 공유 스캔 합계(<see cref="DirectoryScanResult.TryGetDirectoryTotals"/>)는 보호 폴더·reparse 폴더·클라우드 placeholder 폴더의 내용을 넣지 않고 건너뜀으로만 센다.
+    /// 그래서 그 합계를 쓰는 앱 캐시 전체 대상도 그 내용을 세지 않는다.
+    /// </summary>
+    [Fact]
+    public async Task 공유_스캔_합계는_보호_reparse_placeholder_하위를_넣지_않는다()
+    {
+        var source = FileScanServiceTests.Tree()
+            .Dir(PROFILE + @"\AppData\Local", FakeDirectoryEntrySource.Folder("Temp"), FakeDirectoryEntrySource.Folder("Microsoft"), FakeDirectoryEntrySource.Folder("Mixed"))
+            .Dir(LOCAL + @"\Mixed",
+                FakeDirectoryEntrySource.File("a.bin", 10),
+                FakeDirectoryEntrySource.Folder("Link", FileAttributes.ReparsePoint),
+                FakeDirectoryEntrySource.Folder("Cloud", FileAttributes.Offline))
+            .Dir(LOCAL + @"\Mixed\Link", FakeDirectoryEntrySource.File("through-link.bin", 1000))
+            .Dir(LOCAL + @"\Mixed\Cloud", FakeDirectoryEntrySource.File("cloud.bin", 1000));
+        var shared = await FileScanServiceTests.Service(source).GetOrScanAsync(FileScanServiceTests.Context(), CancellationToken.None);
+
+        Assert.True(shared.TryGetDirectoryTotals(PROFILE, out var profile));
+        Assert.True(profile.Skips.ProtectedExcluded >= 1);
+        Assert.DoesNotContain(PROFILE + @"\Documents", source.Enumerated);
+        Assert.True(shared.TryGetDirectoryTotals(LOCAL + @"\Mixed", out var mixed));
+        Assert.Equal(10, mixed.Bytes);
+        Assert.Equal(1, mixed.Skips.Reparse);
+        Assert.Equal(1, mixed.Skips.Placeholder);
+        Assert.DoesNotContain(LOCAL + @"\Mixed\Link", source.Enumerated);
+        Assert.DoesNotContain(LOCAL + @"\Mixed\Cloud", source.Enumerated);
+
+        var plan = ObservationPlanner.Plan([Candidate("winapp2:Mixed", ObservationPrecedence.Community, LOCAL + @"\Mixed", true, "*")], [], []);
+        var result = Assert.Single(new AppCacheMeasurer(source, new ManualTimeProvider()).Measure(plan, shared, _ => false, TimeSpan.FromMinutes(1), CancellationToken.None));
+
+        Assert.True(result.FromSharedScan);
+        Assert.Equal(10, result.Bytes);
+    }
+
+    /// <summary>대상 폴더의 중간 폴더가 정션이면 OS가 링크를 따라가므로 대상에 들어가지 않고 reparse로 센다(대상 폴더는 열거하지 않음).</summary>
+    [Fact]
+    public async Task 중간_폴더가_정션이면_대상에_들어가지_않는다()
+    {
+        var (shared, _) = await ScanAsync();
+        var source = new FakeDirectoryEntrySource()
+            .Dir(@"D:\", FakeDirectoryEntrySource.Folder("Link", FileAttributes.ReparsePoint))
+            .Dir(@"D:\Link\Cache", FakeDirectoryEntrySource.File("x.bin", 500));
+        var plan = ObservationPlanner.Plan([Candidate("winapp2:Linked", ObservationPrecedence.Community, @"D:\Link\Cache", true, "*")], [], []);
+
+        var result = Assert.Single(new AppCacheMeasurer(source, new ManualTimeProvider()).Measure(plan, shared, _ => false, TimeSpan.FromMinutes(1), CancellationToken.None));
+
+        Assert.Equal(TargetState.ReparsePoint, result.State);
+        Assert.Equal(0, result.Bytes);
+        Assert.Equal(1, result.Skips.Reparse);
+        Assert.DoesNotContain(@"D:\Link\Cache", source.Enumerated);
+    }
 }
