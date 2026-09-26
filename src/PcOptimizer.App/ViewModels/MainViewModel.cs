@@ -219,7 +219,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>검사 옵션(온라인 확인 등)을 바꿀 수 있는지 여부(검사 중에는 바꾸지 않음).</summary>
     public bool CanChangeOptions => !IsScanning;
 
-    /// <summary>보호 위치(Program Files)에 npm·pip·dotnet 중 하나라도 있어 정리 창을 보여 줄지 여부(생성 시 한 번 확인).</summary>
+    /// <summary>보호 위치(Program Files 계열)에 npm·pip·dotnet 중 하나라도 실행 가능한 상태로 있어(실행 규칙과 같은 후보·판정) 정리 창을 보여 줄지 여부(생성 시 한 번 확인).</summary>
     public bool CacheToolsAvailable { get; }
 
     /// <summary>

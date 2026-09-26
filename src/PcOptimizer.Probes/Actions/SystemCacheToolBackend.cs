@@ -1,7 +1,7 @@
 /**
  * @file    : SystemCacheToolBackend.cs
  * @author  : rudals252
- * @brief   : 설치된 npm·pip·dotnet HTTP 캐시만 찾고 보호 경계를 검사하여 공식 명령으로 정리. 관리자 권한 앱이므로 보호 위치(Program Files 계열) 도구만 실행하고, SystemOnly 인스턴스는 관측 전에 거절한다. 보호 위치 도구 존재 확인은 프로세스 실행·PATH 탐색 없이 한다
+ * @brief   : 설치된 npm·pip·dotnet HTTP 캐시만 찾고 보호 경계를 검사하여 공식 명령으로 정리. 관리자 권한 앱이므로 보호 위치(Program Files 계열) 도구만 실행하고, SystemOnly 인스턴스는 관측 전에 거절한다. 정리 창 노출 판정은 실행 규칙과 같은 후보·보호 위치 판정으로 존재만 확인한다(프로세스 실행 없음)
  */
 
 // 기본 패키지
@@ -28,6 +28,7 @@ public sealed class SystemCacheToolBackend : ICacheToolBackend
     public const string TOOL_NOT_IN_PROTECTED_LOCATION = "ToolNotInProtectedLocation";
 
     private const int MAX_EXECUTABLE_CANDIDATES = 3;
+    private const string PATH_VARIABLE = "PATH";
     private static readonly TimeSpan INSPECTION_BUDGET = TimeSpan.FromSeconds(15);
 
     private readonly IAppLogger _logger;
@@ -92,7 +93,8 @@ public sealed class SystemCacheToolBackend : ICacheToolBackend
     /// <remarks>
     /// SystemOnly이면 도구 탐색·파일 관측·프로세스 실행 전에 <see cref="USER_SCOPE_EXCLUDED"/>로 거절합니다.
     /// 보호 위치 밖의 후보(PATH 탐색 결과 포함)는 조회 명령도 실행하지 않고 건너뛰며, 보호 위치 후보가 하나도 없이 그런 후보만 있으면
-    /// <see cref="TOOL_NOT_IN_PROTECTED_LOCATION"/>로 거절합니다.
+    /// <see cref="TOOL_NOT_IN_PROTECTED_LOCATION"/>로 거절합니다. 후보 상한(<see cref="MAX_EXECUTABLE_CANDIDATES"/>)은 보호 위치 판정 뒤에 적용해
+    /// 사용자 폴더 후보가 상한을 소모하지 않습니다.
     /// </remarks>
     public async Task<CacheToolLocation?> LocateAsync(CacheTool tool, CancellationToken ct)
     {
@@ -102,7 +104,7 @@ public sealed class SystemCacheToolBackend : ICacheToolBackend
             throw new CacheToolUnavailableException(USER_SCOPE_EXCLUDED);
         }
         var outsideProtected = false;
-        var insideProtected = false;
+        var protectedCandidates = 0;
         foreach (var executable in _findExecutables(tool))
         {
             ct.ThrowIfCancellationRequested();
@@ -112,7 +114,7 @@ public sealed class SystemCacheToolBackend : ICacheToolBackend
                 outsideProtected = true;
                 continue;
             }
-            insideProtected = true;
+            if (++protectedCandidates > MAX_EXECUTABLE_CANDIDATES) { break; }
             if (!IsPlainPath(executable, directory: false, _entries)) { continue; }
             if (script is not null && !IsPlainPath(script, directory: false, _entries)) { continue; }
             var fingerprint = await _fingerprint(executable, script, ct).ConfigureAwait(false);
@@ -130,7 +132,7 @@ public sealed class SystemCacheToolBackend : ICacheToolBackend
             if (value.Contains('\n') || value.Contains('\r') || !Path.IsPathFullyQualified(value) || value.StartsWith("\\\\", StringComparison.Ordinal)) { continue; }
             return candidate with { CachePath = CachePathInspector.CanonicalPath(_environment, value) };
         }
-        if (outsideProtected && !insideProtected)
+        if (outsideProtected && protectedCandidates == 0)
         {
             _logger.Info(nameof(SystemCacheToolBackend), $"CacheToolRefused tool={tool} code={TOOL_NOT_IN_PROTECTED_LOCATION}");
             throw new CacheToolUnavailableException(TOOL_NOT_IN_PROTECTED_LOCATION);
@@ -174,30 +176,62 @@ public sealed class SystemCacheToolBackend : ICacheToolBackend
     }
 
     /// <summary>
-    /// 보호 위치(Program Files 표준 경로)에 npm·pip·dotnet 중 하나라도 일반 로컬 파일로 있는지 확인합니다.
-    /// 경로 존재 확인만 하며 도구 프로세스를 실행하거나 PATH를 탐색하지 않습니다.
+    /// 정리 창을 보여 줄지 판단합니다. 보호 위치(Program Files 계열)에 npm·pip·dotnet 중 하나라도 실행 가능한 상태로 있으면 true입니다.
+    /// 실행 규칙(<see cref="LocateAsync"/>)과 같은 후보 목록(표준 위치 + PATH)과 같은 보호 위치 판정을 쓰며, 존재 확인만 하고 도구 프로세스는 실행하지 않습니다.
     /// </summary>
     /// <returns>하나라도 있으면 true.</returns>
-    public static bool AnyToolInProtectedLocation()
-    {
-        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-        return Enum.GetValues<CacheTool>().Any(tool => IsInProtectedLocation(tool, programFiles));
-    }
+    public static bool AnyToolInProtectedLocation() => AnyToolInProtectedLocation(SystemPathEnvironment.Instance, ProtectedProgramRoot,
+        Environment.GetEnvironmentVariable(PATH_VARIABLE), FileSystemDirectoryEntrySource.Instance);
+
+    /// <summary>주입 가능한 <see cref="AnyToolInProtectedLocation()"/>입니다.</summary>
+    /// <param name="environment">경로 정규화 환경.</param>
+    /// <param name="programRoot">보호 위치 이름별 경로(없으면 null).</param>
+    /// <param name="pathVariable">PATH 값(없으면 null).</param>
+    /// <param name="entries">디렉터리 항목 공급자.</param>
+    /// <returns>하나라도 있으면 true.</returns>
+    internal static bool AnyToolInProtectedLocation(IPathEnvironment environment, Func<string, string?> programRoot, string? pathVariable,
+        IDirectoryEntrySource entries)
+        => Enum.GetValues<CacheTool>().Any(tool => IsToolInProtectedLocation(tool, environment, programRoot, pathVariable, entries));
 
     /// <summary>
-    /// 도구의 보호 위치 표준 실행 파일(그리고 npm은 고정 진입 파일)이 일반 로컬 파일로 있는지 확인합니다(존재 확인만).
+    /// 도구 하나가 보호 위치에 실행 가능한 상태로 있는지 확인합니다. 실행 파일과(npm은) 고정 진입 파일이 모두 보호 위치 아래의 일반 로컬 파일이어야 합니다.
     /// </summary>
     /// <param name="tool">도구.</param>
-    /// <param name="programFiles">Program Files 경로(알 수 없으면 빈 문자열).</param>
-    /// <param name="entries">디렉터리 항목 공급자(테스트 대역, 없으면 실제 파일 시스템).</param>
-    internal static bool IsInProtectedLocation(CacheTool tool, string programFiles, IDirectoryEntrySource? entries = null)
-    {
-        if (ProtectedLocationExecutable(tool, programFiles) is not { } executable || !IsPlainPath(executable, directory: false, entries))
+    /// <param name="environment">경로 정규화 환경.</param>
+    /// <param name="programRoot">보호 위치 이름별 경로(없으면 null).</param>
+    /// <param name="pathVariable">PATH 값(없으면 null).</param>
+    /// <param name="entries">디렉터리 항목 공급자.</param>
+    /// <returns>하나라도 있으면 true.</returns>
+    internal static bool IsToolInProtectedLocation(CacheTool tool, IPathEnvironment environment, Func<string, string?> programRoot,
+        string? pathVariable, IDirectoryEntrySource entries)
+        => CandidateExecutables(tool, programRoot, pathVariable).Any(executable =>
         {
-            return false;
-        }
+            var script = ScriptFor(tool, executable);
+            return CachePathInspector.IsProtectedProgramLocation(environment, programRoot, executable)
+                && (script is null || CachePathInspector.IsProtectedProgramLocation(environment, programRoot, script))
+                && IsPlainPath(executable, directory: false, entries)
+                && (script is null || IsPlainPath(script, directory: false, entries));
+        });
 
-        return ScriptFor(tool, executable) is not { } script || IsPlainPath(script, directory: false, entries);
+    /// <summary>
+    /// 실행 규칙과 노출 판정이 함께 쓰는 후보 실행 파일 목록입니다. 각 보호 위치의 표준 폴더(nodejs·dotnet, pip은 없음)를 먼저,
+    /// 그다음 PATH의 절대 경로를 순서대로 둡니다. 스토어 실행 별칭(WindowsApps)·상대 경로는 제외하고 중복을 없앱니다.
+    /// 보호 위치 판정과 후보 상한은 사용하는 쪽이 이 목록에 적용합니다(상한이 판정보다 앞서지 않음).
+    /// </summary>
+    /// <param name="tool">도구.</param>
+    /// <param name="programRoot">보호 위치 이름별 경로(없으면 null).</param>
+    /// <param name="pathVariable">PATH 값(없으면 null).</param>
+    /// <returns>후보 실행 파일 경로(존재 여부는 확인하지 않음).</returns>
+    internal static IEnumerable<string> CandidateExecutables(CacheTool tool, Func<string, string?> programRoot, string? pathVariable)
+    {
+        var name = ExecutableName(tool);
+        var standard = StandardFolder(tool) is { } folder
+            ? CachePathInspector.PROTECTED_PROGRAM_ROOTS.Select(programRoot).OfType<string>()
+                .Where(Path.IsPathFullyQualified).Select(root => Path.Combine(root, folder))
+            : [];
+        return standard.Concat((pathVariable ?? string.Empty).Split(';'))
+            .Where(path => Path.IsPathFullyQualified(path) && !path.Contains("WindowsApps", StringComparison.OrdinalIgnoreCase))
+            .Select(path => Path.Combine(path, name)).Distinct(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>도구의 공식 실행 파일 이름입니다.</summary>
@@ -209,35 +243,17 @@ public sealed class SystemCacheToolBackend : ICacheToolBackend
         _ => throw new ArgumentOutOfRangeException(nameof(tool)),
     };
 
-    /// <summary>
-    /// 보호 위치(Program Files)의 표준 실행 파일 경로입니다. 표준 위치가 없는 도구(pip)나 Program Files를 알 수 없으면 null.
-    /// </summary>
-    private static string? ProtectedLocationExecutable(CacheTool tool, string programFiles)
-    {
-        var folder = tool switch { CacheTool.Npm => "nodejs", CacheTool.NuGetHttp => "dotnet", _ => null };
-        if (folder is null || string.IsNullOrEmpty(programFiles) || !Path.IsPathFullyQualified(programFiles))
-        {
-            return null;
-        }
-
-        return Path.Combine(programFiles, folder, ExecutableName(tool));
-    }
+    /// <summary>보호 위치 아래 표준 설치 폴더 이름입니다. 표준 폴더가 없는 도구(pip, 버전별 폴더)는 null.</summary>
+    private static string? StandardFolder(CacheTool tool) => tool switch { CacheTool.Npm => "nodejs", CacheTool.NuGetHttp => "dotnet", _ => null };
 
     /// <summary>npm은 node.exe 옆의 고정 npm-cli.js로 실행합니다. 다른 도구는 null.</summary>
     private static string? ScriptFor(CacheTool tool, string executable) => tool == CacheTool.Npm
         ? Path.Combine(Path.GetDirectoryName(executable)!, "node_modules", "npm", "bin", "npm-cli.js")
         : null;
 
-    /// <summary>공식 실행 파일 이름만 절대 경로로 찾습니다. 현재 폴더·배치 파일·스토어 실행 별칭은 제외합니다.</summary>
+    /// <summary>실제 파일 시스템에 있는 후보만 돌려줍니다. 보호 위치 판정과 상한은 <see cref="LocateAsync"/>가 적용합니다.</summary>
     private static IEnumerable<string> FindExecutables(CacheTool tool)
-    {
-        var name = ExecutableName(tool);
-        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-        var standard = ProtectedLocationExecutable(tool, programFiles) is { } executable ? Path.GetDirectoryName(executable)! : string.Empty;
-        return new[] { standard }.Concat((Environment.GetEnvironmentVariable("PATH") ?? string.Empty).Split(';'))
-            .Where(path => Path.IsPathFullyQualified(path) && !path.Contains("WindowsApps", StringComparison.OrdinalIgnoreCase))
-            .Select(path => Path.Combine(path, name)).Distinct(StringComparer.OrdinalIgnoreCase).Where(File.Exists).Take(MAX_EXECUTABLE_CANDIDATES);
-    }
+        => CandidateExecutables(tool, ProtectedProgramRoot, Environment.GetEnvironmentVariable(PATH_VARIABLE)).Where(File.Exists);
 
     /// <summary>중간 폴더와 마지막 항목 모두 일반 로컬 항목이어야 합니다.</summary>
     internal static bool IsPlainPath(string path, bool directory, IDirectoryEntrySource? entries = null)

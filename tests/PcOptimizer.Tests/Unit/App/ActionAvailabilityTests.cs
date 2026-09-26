@@ -1,7 +1,7 @@
 /**
  * @file    : ActionAvailabilityTests.cs
  * @author  : rudals252
- * @brief   : 앱 안에서 바로 실행할 수 있는 후보 판정(도구 캐시 카드·보호 위치 도구 조건)과 보호 위치 도구 존재 확인(프로세스 실행·PATH 탐색 없음)을 검증
+ * @brief   : 앱 안에서 바로 실행할 수 있는 후보 판정(도구 캐시 카드·보호 위치 도구 조건)과 보호 위치 도구 존재 확인(실행 규칙과 같은 후보·판정, 프로세스 실행 없음)을 검증
  */
 
 // 사용자 패키지
@@ -18,6 +18,9 @@ public sealed class ActionAvailabilityTests
     private const string PROGRAM_FILES = @"C:\PF";
     private const string NODE_DIRECTORY = @"C:\PF\nodejs";
     private const string DOTNET_DIRECTORY = @"C:\PF\dotnet";
+    private const string PYTHON_DIRECTORY = @"C:\PF\Python312";
+    private const string PROGRAM_FILES_X86 = @"C:\PF86";
+    private const string X86_NODE_DIRECTORY = @"C:\PF86\nodejs";
 
     private static Finding Card(string id, Verdict verdict) => new(id, FindingCategory.AppCache, "제목", [], "근거", verdict, null, null,
         verdict == Verdict.Candidate ? new Recommendation("권고", "조건") : null, null, [],
@@ -57,32 +60,86 @@ public sealed class ActionAvailabilityTests
         Assert.Equal(installed, availability.CacheToolsAvailable);
     }
 
-    /// <summary>보호 위치(Program Files) 도구 확인은 실행 파일과 고정 진입 파일의 존재만 본다. pip는 기존 탐색에 보호 위치 표준 경로가 없다.</summary>
+    /// <summary>노출 판정은 실행 규칙과 같다: 표준 위치 npm은 진입 파일까지 있어야 하고, 보호 위치를 모르면 어떤 도구도 노출하지 않는다.</summary>
     [Fact]
-    public void ProtectedLocationCheckUsesStandardProgramFilesPathsOnly()
+    public void ProtectedLocationCheckMatchesExecutionRule()
     {
-        var npmOnly = BaseTree()
-            .Dir(NODE_DIRECTORY, FakeDirectoryEntrySource.File("node.exe", 1), FakeDirectoryEntrySource.Folder("node_modules"))
-            .Dir(NODE_DIRECTORY + @"\node_modules", FakeDirectoryEntrySource.Folder("npm"))
-            .Dir(NODE_DIRECTORY + @"\node_modules\npm", FakeDirectoryEntrySource.Folder("bin"))
-            .Dir(NODE_DIRECTORY + @"\node_modules\npm\bin", FakeDirectoryEntrySource.File("npm-cli.js", 1));
-        Assert.True(SystemCacheToolBackend.IsInProtectedLocation(CacheTool.Npm, PROGRAM_FILES, npmOnly));
-        Assert.False(SystemCacheToolBackend.IsInProtectedLocation(CacheTool.NuGetHttp, PROGRAM_FILES, npmOnly));
-        Assert.False(SystemCacheToolBackend.IsInProtectedLocation(CacheTool.Pip, PROGRAM_FILES, npmOnly));
+        var npmOnly = Tree(NODE_DIRECTORY + @"\node.exe", NODE_DIRECTORY + @"\node_modules\npm\bin\npm-cli.js");
+        Assert.True(IsExposed(CacheTool.Npm, null, npmOnly));
+        Assert.False(IsExposed(CacheTool.NuGetHttp, null, npmOnly));
+        Assert.False(IsExposed(CacheTool.Pip, null, npmOnly));
 
         // node.exe만 있고 npm 진입 파일이 없으면 npm 정리를 실행할 수 없다.
-        var nodeWithoutNpm = BaseTree().Dir(NODE_DIRECTORY, FakeDirectoryEntrySource.File("node.exe", 1));
-        Assert.False(SystemCacheToolBackend.IsInProtectedLocation(CacheTool.Npm, PROGRAM_FILES, nodeWithoutNpm));
+        Assert.False(IsExposed(CacheTool.Npm, null, Tree(NODE_DIRECTORY + @"\node.exe")));
 
-        var dotnet = BaseTree().Dir(DOTNET_DIRECTORY, FakeDirectoryEntrySource.File("dotnet.exe", 1));
-        Assert.True(SystemCacheToolBackend.IsInProtectedLocation(CacheTool.NuGetHttp, PROGRAM_FILES, dotnet));
+        var dotnet = Tree(DOTNET_DIRECTORY + @"\dotnet.exe");
+        Assert.True(IsExposed(CacheTool.NuGetHttp, null, dotnet));
 
-        // Program Files 위치를 알 수 없으면(빈 문자열) 어떤 도구도 보호 위치에 있다고 보지 않는다.
-        Assert.False(SystemCacheToolBackend.IsInProtectedLocation(CacheTool.NuGetHttp, string.Empty, dotnet));
+        // 보호 위치를 알 수 없으면 어떤 도구도 보호 위치에 있다고 보지 않는다.
+        Assert.False(SystemCacheToolBackend.AnyToolInProtectedLocation(new FakePathEnvironment(), _ => null, DOTNET_DIRECTORY, dotnet));
     }
 
-    /// <summary>Program Files까지 등록한 가짜 디렉터리 트리.</summary>
-    private static FakeDirectoryEntrySource BaseTree() => new FakeDirectoryEntrySource()
-        .Dir(@"C:\", FakeDirectoryEntrySource.Folder("PF"))
-        .Dir(PROGRAM_FILES, FakeDirectoryEntrySource.Folder("nodejs"), FakeDirectoryEntrySource.Folder("dotnet"));
+    /// <summary>Program Files의 Python만 PATH에 있어도 pip 정리를 실행할 수 있으므로 정리 창을 노출한다.</summary>
+    [Fact]
+    public void PythonOnlyInProgramFilesIsExposed()
+    {
+        var python = Tree(PYTHON_DIRECTORY + @"\python.exe");
+        Assert.True(IsExposed(CacheTool.Pip, PYTHON_DIRECTORY, python));
+        Assert.True(SystemCacheToolBackend.AnyToolInProtectedLocation(new FakePathEnvironment(), ProgramRoot, PYTHON_DIRECTORY, python));
+    }
+
+    /// <summary>Program Files (x86)에만 있는 도구도 보호 위치이므로 노출한다(PATH 없이 표준 위치).</summary>
+    [Fact]
+    public void X86OnlyToolIsExposed()
+    {
+        var node = Tree(X86_NODE_DIRECTORY + @"\node.exe", X86_NODE_DIRECTORY + @"\node_modules\npm\bin\npm-cli.js");
+        Assert.True(SystemCacheToolBackend.AnyToolInProtectedLocation(new FakePathEnvironment(), ProgramRoot, null, node));
+    }
+
+    /// <summary>사용자 폴더 도구만 있으면(PATH에 있어도) 관리자 권한 앱이 실행하지 않으므로 노출하지 않는다. 빈 PATH·도구 없음도 같다.</summary>
+    [Fact]
+    public void UserFolderToolsOnlyAreNotExposed()
+    {
+        const string USER_PYTHON = @"C:\Users\kim\AppData\Local\Programs\Python\Python312";
+        const string USER_NODE = @"C:\Users\kim\AppData\Roaming\nvm\v20";
+        var user = Tree(USER_PYTHON + @"\python.exe", USER_NODE + @"\node.exe", USER_NODE + @"\node_modules\npm\bin\npm-cli.js");
+        Assert.False(SystemCacheToolBackend.AnyToolInProtectedLocation(new FakePathEnvironment(), ProgramRoot, USER_PYTHON + ";" + USER_NODE, user));
+        Assert.False(SystemCacheToolBackend.AnyToolInProtectedLocation(new FakePathEnvironment(), ProgramRoot, string.Empty, Tree()));
+    }
+
+    /// <summary>도구 하나의 노출 판정(테스트 보호 위치 사용).</summary>
+    private static bool IsExposed(CacheTool tool, string? path, FakeDirectoryEntrySource tree)
+        => SystemCacheToolBackend.IsToolInProtectedLocation(tool, new FakePathEnvironment(), ProgramRoot, path, tree);
+
+    /// <summary>테스트 보호 위치: %ProgramFiles%·%ProgramW6432% = C:\PF, %ProgramFiles(x86)% = C:\PF86.</summary>
+    private static string? ProgramRoot(string name) => name switch
+    {
+        "ProgramFiles" or "ProgramW6432" => PROGRAM_FILES,
+        "ProgramFiles(x86)" => PROGRAM_FILES_X86,
+        _ => null,
+    };
+
+    /// <summary>주어진 파일과 모든 상위 폴더를 일반 항목으로 등록한 가짜 디렉터리 트리.</summary>
+    private static FakeDirectoryEntrySource Tree(params string[] files)
+    {
+        var directories = new Dictionary<string, List<PcOptimizer.Probes.Storage.DirectoryEntry>>(StringComparer.OrdinalIgnoreCase);
+        void AddDirectory(string path)
+        {
+            if (directories.ContainsKey(path)) { return; }
+            directories[path] = [];
+            if (System.IO.Path.GetDirectoryName(path) is not { } parent) { return; }
+            AddDirectory(parent);
+            directories[parent].Add(FakeDirectoryEntrySource.Folder(System.IO.Path.GetFileName(path)));
+        }
+        AddDirectory(@"C:\");
+        foreach (var file in files)
+        {
+            var parent = System.IO.Path.GetDirectoryName(file)!;
+            AddDirectory(parent);
+            directories[parent].Add(FakeDirectoryEntrySource.File(System.IO.Path.GetFileName(file), 1));
+        }
+        var tree = new FakeDirectoryEntrySource();
+        foreach (var (directory, entries) in directories) { tree.Dir(directory, [.. entries]); }
+        return tree;
+    }
 }
