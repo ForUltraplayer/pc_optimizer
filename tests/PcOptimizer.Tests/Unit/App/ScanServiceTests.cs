@@ -124,7 +124,7 @@ public sealed class ScanServiceTests
         Assert.Equal([FindingCategory.Memory, FindingCategory.Power], service.Categories);
     }
 
-    /// <summary>기본 구성은 P3b까지의 로컬 프로브를 등록하고, 네트워크 프로브는 없으며 관리자 권한 프로브는 TRIM 정책 하나뿐이다.</summary>
+    /// <summary>기본 구성은 P4까지의 로컬 프로브를 등록하고, 네트워크 프로브는 없으며 관리자 권한 프로브는 TRIM 정책 하나뿐이다.</summary>
     [Fact]
     public void 기본_구성은_로컬_프로브만_등록한다()
     {
@@ -149,7 +149,7 @@ public sealed class ScanServiceTests
     }
 
     /// <summary>
-    /// 기본 구성의 모든 프로브는 범위를 명시하며, HKCU·사용자 프로필을 읽는 프로브(게임 모드·시작 프로그램)만 사용자 범위다.
+    /// 기본 구성의 모든 프로브는 범위를 명시하며, HKCU·사용자 프로필을 읽는 프로브(게임 모드·시작 프로그램·파일 스캔)만 사용자 범위다.
     /// 새 프로브를 등록하면 이 목록에 범위를 추가해야 통과한다.
     /// </summary>
     [Fact]
@@ -169,6 +169,7 @@ public sealed class ScanServiceTests
             [PhysicalDiskProbeContract.PROBE_ID] = ProbeScope.System,
             [TrimPolicyProbeContract.PROBE_ID] = ProbeScope.System,
             [StartupItemsProbeContract.PROBE_ID] = ProbeScope.User,
+            [FileScanProbeContract.PROBE_ID] = ProbeScope.User,
         };
 
         var service = ScanService.CreateDefault(NullAppLogger.Instance);

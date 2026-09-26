@@ -1,7 +1,7 @@
 /**
  * @file    : Win32RegistryReader.cs
  * @author  : rudals252
- * @brief   : Microsoft.Win32.Registry로 레지스트리 값·키의 값 목록을 읽기 전용으로 여는 조회 구현(쓰기 권한 요청 없음, 실패를 상태로 변환)
+ * @brief   : Microsoft.Win32.Registry로 레지스트리 값·키의 값 목록·하위 키 이름을 읽기 전용으로 여는 조회 구현(쓰기 권한 요청 없음, 실패를 상태로 변환)
  */
 
 // 기본 패키지
@@ -101,6 +101,33 @@ public sealed class Win32RegistryReader : IRegistryReader
         catch (IOException ex)
         {
             return new RegistryKeyReading(RegistryReadStatus.Error, [], ex.GetType().Name);
+        }
+    }
+
+    /// <inheritdoc />
+    public RegistrySubKeyReading ReadSubKeyNames(RegistryRoot root, RegistryView view, string subKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(subKey);
+
+        try
+        {
+            using var baseKey = RegistryKey.OpenBaseKey(root == RegistryRoot.LocalMachine ? RegistryHive.LocalMachine : RegistryHive.CurrentUser, view);
+            using var key = baseKey.OpenSubKey(subKey, writable: false);
+            return key is null
+                ? new RegistrySubKeyReading(RegistryReadStatus.KeyMissing, [], null)
+                : new RegistrySubKeyReading(RegistryReadStatus.Found, key.GetSubKeyNames(), null);
+        }
+        catch (SecurityException ex)
+        {
+            return new RegistrySubKeyReading(RegistryReadStatus.AccessDenied, [], ex.GetType().Name);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return new RegistrySubKeyReading(RegistryReadStatus.AccessDenied, [], ex.GetType().Name);
+        }
+        catch (IOException ex)
+        {
+            return new RegistrySubKeyReading(RegistryReadStatus.Error, [], ex.GetType().Name);
         }
     }
 }

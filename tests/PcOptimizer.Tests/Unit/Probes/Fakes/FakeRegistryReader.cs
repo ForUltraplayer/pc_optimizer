@@ -1,7 +1,7 @@
 /**
  * @file    : FakeRegistryReader.cs
  * @author  : rudals252
- * @brief   : 값 이름별 고정 읽기 결과(값·없음·접근 거부)와 루트·보기·키별 고정 키 읽기 결과를 돌려주고 키 읽기 호출을 기록하는 테스트용 레지스트리 읽기
+ * @brief   : 값 이름별 고정 읽기 결과(값·없음·접근 거부)와 루트·보기·키별 고정 키 읽기·하위 키 이름 결과를 돌려주고 키 읽기 호출을 기록하는 테스트용 레지스트리 읽기
  */
 
 // 기본 패키지
@@ -19,6 +19,7 @@ internal sealed class FakeRegistryReader : IRegistryReader
 {
     private readonly Dictionary<string, RegistryValueReading> _values = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, RegistryKeyReading> _keys = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, RegistrySubKeyReading> _subKeys = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>키 읽기 호출 기록("루트|보기|키").</summary>
     public List<string> KeyReads { get; } = [];
@@ -56,6 +57,23 @@ internal sealed class FakeRegistryReader : IRegistryReader
     public FakeRegistryReader WithKeyValues(RegistryRoot root, RegistryView view, string subKey, params RegistryValueEntry[] values)
     {
         return WithKey(root, view, subKey, new RegistryKeyReading(RegistryReadStatus.Found, values, null));
+    }
+
+    /// <summary>
+    /// 하위 키 이름 읽기 결과를 등록한다.
+    /// </summary>
+    public FakeRegistryReader WithSubKeys(RegistryRoot root, RegistryView view, string subKey, RegistrySubKeyReading reading)
+    {
+        _subKeys[KeyOf(root, view, subKey)] = reading;
+        return this;
+    }
+
+    /// <inheritdoc />
+    public RegistrySubKeyReading ReadSubKeyNames(RegistryRoot root, RegistryView view, string subKey)
+    {
+        return _subKeys.TryGetValue(KeyOf(root, view, subKey), out var reading)
+            ? reading
+            : new RegistrySubKeyReading(RegistryReadStatus.KeyMissing, [], null);
     }
 
     /// <inheritdoc />

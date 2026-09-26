@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "notes": "PC Optimizer 보호 정책. 이 루트들의 내용은 순회하지 않고 제외 사유만 표시한다(스펙 5.2). Google Drive 동기화 폴더 감지는 1차(P4)에서 지원하지 않는다.",
+  "protectedRoots": [
+    { "kind": "knownFolder", "folder": "Documents" },
+    { "kind": "knownFolder", "folder": "Pictures" },
+    { "kind": "knownFolder", "folder": "Desktop" },
+    { "kind": "knownFolder", "folder": "Videos" },
+    { "kind": "knownFolder", "folder": "Music" },
+    { "kind": "environmentPath", "path": "%ProgramFiles%" },
+    { "kind": "environmentPath", "path": "%ProgramFiles(x86)%" },
+    { "kind": "environmentPath", "path": "%SystemRoot%\\System32" },
+    { "kind": "environmentPath", "path": "%SystemRoot%\\Installer" },
+    { "kind": "environmentPath", "path": "%SystemRoot%\\WinSxS" },
+    { "kind": "cloudSyncEnvironment", "provider": "OneDrive", "variable": "OneDrive" },
+    { "kind": "cloudSyncEnvironment", "provider": "OneDrive", "variable": "OneDriveConsumer" },
+    { "kind": "cloudSyncEnvironment", "provider": "OneDrive", "variable": "OneDriveCommercial" },
+    { "kind": "cloudSyncRegistry", "provider": "OneDrive", "hive": "HKCU", "key": "Software\\Microsoft\\OneDrive\\Accounts", "value": "UserFolder" },
+    { "kind": "cloudSyncJsonFile", "provider": "Dropbox", "file": "%LocalAppData%\\Dropbox\\info.json", "property": "path" }
+  ]
+}

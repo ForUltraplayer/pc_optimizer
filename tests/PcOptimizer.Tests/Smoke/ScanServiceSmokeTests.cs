@@ -1,7 +1,7 @@
 /**
  * @file    : ScanServiceSmokeTests.cs
  * @author  : rudals252
- * @brief   : [Smoke] 기본 구성 검사 서비스를 이 PC에서 끝까지 실행하고 익명화 JSON을 임시 폴더에 내보내 메모리·전원·디스플레이·드라이버·그래픽·보안·저장소·시작 프로그램 Finding과 개인정보·장치 ID 제거를 확인
+ * @brief   : [Smoke] 기본 구성 검사 서비스를 이 PC에서 끝까지 실행하고 익명화 JSON을 임시 폴더에 내보내 메모리·전원·디스플레이·드라이버·그래픽·보안·저장소·시작 프로그램·파일 스캔(임시 위치·미분류) Finding과 개인정보·장치 ID·프로필 하위 폴더 이름 제거를 확인
  */
 
 // 기본 패키지
@@ -76,5 +76,40 @@ public sealed class ScanServiceSmokeTests(ITestOutputHelper output)
         Assert.Contains(DisplayRefreshRule.FINDING_ID_PREFIX + "display-1", json, StringComparison.Ordinal);
         Assert.Contains(InstalledDriverRule.FINDING_ID_PREFIX + "pnp-", json, StringComparison.Ordinal);
         Assert.Contains(DiskHealthRule.FINDING_ID_PREFIX + "guid-", json, StringComparison.Ordinal);
+
+        // 파일 스캔(P4): 요약·임시 위치·미분류 요약 Finding이 있고, 기본 내보내기에 프로필 하위 폴더 경로·이름이 남지 않는다.
+        Assert.Contains(result.Report.Findings, f => f.Id == FileScanSummaryRule.SUMMARY_FINDING_ID);
+        Assert.Contains(result.Report.Findings, f => f.Id == UnclassifiedFolderRule.SUMMARY_FINDING_ID);
+        Assert.Equal(5, result.Report.Findings.Count(f => f.Id.StartsWith(TempLocationsRule.FINDING_ID_PREFIX, StringComparison.Ordinal)));
+        foreach (var finding in document.RootElement.GetProperty("findings").EnumerateArray()
+            .Where(f => f.GetProperty("id").GetString()!.StartsWith(TempLocationsRule.FINDING_ID_PREFIX, StringComparison.Ordinal)
+                || f.GetProperty("id").GetString()!.StartsWith(UnclassifiedFolderRule.FINDING_ID_PREFIX, StringComparison.Ordinal)
+                || f.GetProperty("id").GetString()!.StartsWith(FileScanSummaryRule.SUMMARY_FINDING_ID, StringComparison.Ordinal)))
+        {
+            output.WriteLine($"export {finding.GetProperty("id").GetString()} | {finding.GetProperty("verdict").GetString()} | {finding.GetProperty("title").GetString()}");
+        }
+
+        var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var profileCandidates = result.Report.Findings
+            .Where(f => f.Category == FindingCategory.Unclassified)
+            .SelectMany(f => f.Measured)
+            .Select(m => m.Value)
+            .OfType<TextValue>()
+            .Select(value => value.Value)
+            .Where(value => value.StartsWith(profile + @"", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        output.WriteLine($"profile candidate paths checked: {profileCandidates.Count}");
+        var unclassifiedJson = string.Concat(document.RootElement.GetProperty("findings").EnumerateArray()
+            .Where(f => f.GetProperty("category").GetString() == nameof(FindingCategory.Unclassified))
+            .Select(f => f.GetRawText()));
+        foreach (var candidatePath in profileCandidates)
+        {
+            var relative = candidatePath[(profile.Length + 1)..];
+            // JSON 문자열 안의 역슬래시는 \\로 기록된다. 같은 상대 경로가 시스템 경로 일부로 나올 수 있으므로(예: ...\NetworkService\AppData\Local) 프로필 자리표시자 기준으로 확인한다.
+            Assert.DoesNotContain(
+                (PersonalDataScrubber.PROFILE_PLACEHOLDER + @"\" + relative).Replace(@"\", @"\\", StringComparison.Ordinal), json, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("'" + Path.GetFileName(candidatePath) + "'", unclassifiedJson, StringComparison.OrdinalIgnoreCase);
+        }
     }
 }

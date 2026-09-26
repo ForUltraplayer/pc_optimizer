@@ -75,4 +75,11 @@
   <data name="Startup_FolderUnknown" xml:space="preserve"><value>시작프로그램 폴더({0})의 위치를 알 수 없어요</value><comment>{0}=특수 폴더 이름</comment></data>
   <data name="Startup_ApprovedAccessDenied" xml:space="preserve"><value>StartupApproved 키({0})를 읽을 권한이 없어 일부 항목의 활성 여부를 알 수 없어요</value><comment>{0}=레지스트리 키 경로</comment></data>
   <data name="Startup_ApprovedError" xml:space="preserve"><value>StartupApproved 키({0})를 읽는 중 오류가 발생했어요 ({1})</value><comment>{0}=레지스트리 키 경로, {1}=예외 형식 이름</comment></data>
+
+  <!-- 파일 스캔 -->
+  <data name="FileScan_PolicyInvalid" xml:space="preserve"><value>보호 정책(rules\protect.json)이 없거나 형식이 올바르지 않아 파일 검사를 시작하지 않았어요 ({0})</value><comment>{0}=정책 오류 코드(ProtectionPolicyError 이름)</comment></data>
+  <data name="FileScan_AccessDenied" xml:space="preserve"><value>접근이 거부된 폴더 {0}곳은 크기에 포함하지 못했어요</value><comment>{0}=개수</comment></data>
+  <data name="FileScan_InUse" xml:space="preserve"><value>사용 중이거나 검사 중에 바뀐 항목 {0}곳은 크기에 포함하지 못했어요</value><comment>{0}=개수</comment></data>
+  <data name="FileScan_VolumeTimedOut" xml:space="preserve"><value>볼륨 {0}은(는) 제한 시간 안에 모두 검사하지 못해 일부만 집계했어요</value><comment>{0}=볼륨 루트(예: C:\)</comment></data>
+  <data name="FileScan_RootError" xml:space="preserve"><value>검사 위치 {0}곳을 읽는 중 오류가 발생했어요</value><comment>{0}=개수</comment></data>
 </root>
