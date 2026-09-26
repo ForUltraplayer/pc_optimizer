@@ -1,12 +1,13 @@
 /**
  * @file    : SettingsUriPolicyTests.cs
  * @author  : rudals252
- * @brief   : 설정 URI 허용 목록 정책(허용 URI만 실행, file:/http:/미등록 ms-settings 등 거부) 단위 테스트
+ * @brief   : 설정 URI 허용 목록 정책(허용 URI만 실행, 규칙이 내는 설정 URI는 모두 허용, file:/http:/미등록 ms-settings·windowsdefender 등 거부) 단위 테스트
  */
 
 // 사용자 패키지
 using PcOptimizer.App.Services;
 using PcOptimizer.Core.Abstractions;
+using PcOptimizer.Core.Rules;
 
 namespace PcOptimizer.Tests.Unit.App;
 
@@ -29,6 +30,9 @@ public sealed class SettingsUriPolicyTests
     [Theory]
     [InlineData("ms-settings:display")]
     [InlineData("ms-settings:powersleep")]
+    [InlineData("ms-settings:display-advancedgraphics")]
+    [InlineData("ms-settings:gaming-gamemode")]
+    [InlineData("ms-settings:storagesense")]
     public void 허용된_URI는_실행한다(string uri)
     {
         var policy = CreatePolicy();
@@ -66,6 +70,9 @@ public sealed class SettingsUriPolicyTests
     [InlineData("ms-settings:")]
     [InlineData("C:\\Windows\\System32\\cmd.exe")]
     [InlineData("cmd.exe /c calc")]
+    [InlineData("windowsdefender://coreisolation")]
+    [InlineData("ms-settings:display-advancedgraphics-top")]
+    [InlineData("ms-settings:storagesense;calc")]
     public void 허용되지_않은_URI는_거부한다(string? uri)
     {
         var policy = CreatePolicy();
@@ -82,5 +89,17 @@ public sealed class SettingsUriPolicyTests
         var policy = new SettingsUriPolicy(NullAppLogger.Instance, _ => throw new InvalidOperationException("launcher failed"));
 
         Assert.False(policy.TryOpen("ms-settings:display"));
+    }
+
+    /// <summary>규칙이 Finding에 붙이는 설정 URI는 모두 허용 목록에 있다(없으면 설정 열기 대신 수동 안내만 보이게 됨).</summary>
+    [Theory]
+    [InlineData(PowerPlanRule.POWER_SETTINGS_URI)]
+    [InlineData(DisplayRefreshRule.DISPLAY_SETTINGS_URI)]
+    [InlineData(GraphicsSettingsRule.HAGS_SETTINGS_URI)]
+    [InlineData(GraphicsSettingsRule.GAME_MODE_SETTINGS_URI)]
+    [InlineData(StorageSpaceRule.STORAGE_SETTINGS_URI)]
+    public void 규칙이_쓰는_설정_URI는_허용_목록에_있다(string uri)
+    {
+        Assert.True(SettingsUriPolicy.IsAllowed(uri));
     }
 }

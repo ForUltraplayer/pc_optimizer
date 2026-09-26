@@ -20,6 +20,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- 비식별 fixture(fsutil 출력 샘플 등)를 테스트 출력 폴더로 복사한다 -->
+    <None Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\PcOptimizer.Core\PcOptimizer.Core.csproj" />
     <ProjectReference Include="..\..\src\PcOptimizer.Probes\PcOptimizer.Probes.csproj" />
     <ProjectReference Include="..\..\src\PcOptimizer.App\PcOptimizer.App.csproj" />

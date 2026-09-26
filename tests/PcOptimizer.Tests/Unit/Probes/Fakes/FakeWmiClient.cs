@@ -1,7 +1,7 @@
 /**
  * @file    : FakeWmiClient.cs
  * @author  : rudals252
- * @brief   : 클래스 이름별 고정 결과(비식별 fixture 행 또는 실패 상태)를 돌려주는 테스트용 WMI 클라이언트
+ * @brief   : 클래스 이름별 고정 결과(비식별 fixture 행 또는 실패 상태)를 돌려주고 조회한 네임스페이스를 기록하는 테스트용 WMI 클라이언트
  */
 
 // 사용자 패키지
@@ -34,9 +34,19 @@ internal sealed class FakeWmiClient : IWmiClient
         return this;
     }
 
+    /// <summary>조회한 (네임스페이스, 클래스) 기록(호출 순서).</summary>
+    public List<(string Namespace, string ClassName)> Queries { get; } = [];
+
     /// <inheritdoc />
     public WmiQueryResult Query(string className, IReadOnlyList<string> properties, TimeSpan timeout, CancellationToken ct)
     {
+        return Query(WmiNamespaces.CIMV2, className, properties, timeout, ct);
+    }
+
+    /// <inheritdoc />
+    public WmiQueryResult Query(string wmiNamespace, string className, IReadOnlyList<string> properties, TimeSpan timeout, CancellationToken ct)
+    {
+        Queries.Add((wmiNamespace, className));
         return _results.TryGetValue(className, out var result)
             ? result
             : WmiQueryResult.Failed(WmiQueryStatus.ClassUnavailable, nameof(WmiQueryStatus.ClassUnavailable));

@@ -1,7 +1,7 @@
 /**
  * @file    : WmiResultInterpreter.cs
  * @author  : rudals252
- * @brief   : WMI 조회 실패를 프로브 Issue로 바꾸고, WMI 원시 값(부호 없는 정수·문자열·정수 배열)을 형식 구분 값으로 읽는 도우미
+ * @brief   : WMI 조회 실패를 프로브 Issue로 바꾸고, WMI 원시 값(부호 없는 정수·문자열·정수/문자열 배열·DMTF 날짜)을 형식 구분 값으로 읽는 도우미
  */
 
 // 기본 패키지
@@ -18,6 +18,10 @@ namespace PcOptimizer.Probes.Platform;
 /// </summary>
 internal static class WmiResultInterpreter
 {
+    private const int DMTF_DATE_LENGTH = 8;
+    private const string DMTF_DATE_FORMAT = "yyyyMMdd";
+    private const string ISO_DATE_FORMAT = "yyyy-MM-dd";
+
     /// <summary>
     /// 실패한 조회를 사유 코드와 요약을 가진 Issue로 바꿉니다.
     /// </summary>
@@ -94,6 +98,53 @@ internal static class WmiResultInterpreter
     {
         return row.TryGetValue(property, out var raw) && raw is ushort[] values
             ? [.. values.Select(value => value.ToString(CultureInfo.InvariantCulture))]
+            : null;
+    }
+
+    /// <summary>
+    /// 행에서 부호 없는 32비트 정수 배열을 숫자 문자열 목록으로 읽습니다. 없으면 null(빈 배열은 빈 목록).
+    /// </summary>
+    /// <param name="row">행.</param>
+    /// <param name="property">속성 이름.</param>
+    /// <returns>숫자 문자열 목록 또는 null.</returns>
+    public static IReadOnlyList<string>? GetUInt32ArrayAsText(IReadOnlyDictionary<string, object?> row, string property)
+    {
+        return row.TryGetValue(property, out var raw) && raw is uint[] values
+            ? [.. values.Select(value => value.ToString(CultureInfo.InvariantCulture))]
+            : null;
+    }
+
+    /// <summary>
+    /// 행에서 문자열 배열을 읽습니다. 공백 항목은 빼고 앞뒤 공백을 제거합니다. 없으면 null.
+    /// </summary>
+    /// <param name="row">행.</param>
+    /// <param name="property">속성 이름.</param>
+    /// <returns>문자열 목록 또는 null.</returns>
+    public static IReadOnlyList<string>? GetStringArray(IReadOnlyDictionary<string, object?> row, string property)
+    {
+        return row.TryGetValue(property, out var raw) && raw is string[] values
+            ? [.. values.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim())]
+            : null;
+    }
+
+    /// <summary>
+    /// 행에서 DMTF 날짜/시간 문자열(예: "20260820000000.000000-000")의 날짜 부분을 "yyyy-MM-dd"로 읽습니다.
+    /// 없거나 형식이 맞지 않으면 null.
+    /// </summary>
+    /// <param name="row">행.</param>
+    /// <param name="property">속성 이름.</param>
+    /// <returns>날짜 문자열 또는 null.</returns>
+    public static string? GetDmtfDate(IReadOnlyDictionary<string, object?> row, string property)
+    {
+        var text = GetText(row, property);
+        if (text is null || text.Length < DMTF_DATE_LENGTH)
+        {
+            return null;
+        }
+
+        return DateTime.TryParseExact(
+            text[..DMTF_DATE_LENGTH], DMTF_DATE_FORMAT, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
+            ? date.ToString(ISO_DATE_FORMAT, CultureInfo.InvariantCulture)
             : null;
     }
 

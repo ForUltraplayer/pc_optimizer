@@ -1,7 +1,7 @@
 /**
  * @file    : IWmiClient.cs
  * @author  : rudals252
- * @brief   : WMI 클래스 조회 계약(제공자 타임아웃 포함). 테스트에서 fixture 행으로 바꿔 끼운다
+ * @brief   : WMI 클래스 조회 계약(네임스페이스 지정·제공자 타임아웃 포함). 테스트에서 fixture 행으로 바꿔 끼운다
  */
 
 namespace PcOptimizer.Probes.Platform;
@@ -20,4 +20,15 @@ public interface IWmiClient
     /// <param name="ct">취소 토큰(행 사이에서 확인).</param>
     /// <returns>조회 결과.</returns>
     WmiQueryResult Query(string className, IReadOnlyList<string> properties, TimeSpan timeout, CancellationToken ct);
+
+    /// <summary>
+    /// 지정한 네임스페이스에서 클래스의 지정 속성을 조회합니다. 네임스페이스가 없으면 ClassUnavailable입니다.
+    /// </summary>
+    /// <param name="wmiNamespace">WMI 네임스페이스(<see cref="WmiNamespaces"/>).</param>
+    /// <param name="className">WMI 클래스 이름.</param>
+    /// <param name="properties">읽을 속성 이름.</param>
+    /// <param name="timeout">제공자 타임아웃.</param>
+    /// <param name="ct">취소 토큰(행 사이에서 확인).</param>
+    /// <returns>조회 결과.</returns>
+    WmiQueryResult Query(string wmiNamespace, string className, IReadOnlyList<string> properties, TimeSpan timeout, CancellationToken ct);
 }

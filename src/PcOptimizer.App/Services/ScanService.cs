@@ -13,7 +13,9 @@ using PcOptimizer.Core.Abstractions;
 using PcOptimizer.Core.Engine;
 using PcOptimizer.Core.Models;
 using PcOptimizer.Core.Rules;
+using PcOptimizer.Probes.Drivers;
 using PcOptimizer.Probes.Hardware;
+using PcOptimizer.Probes.Storage;
 
 namespace PcOptimizer.App.Services;
 
@@ -24,7 +26,7 @@ namespace PcOptimizer.App.Services;
 public sealed class ScanService
 {
     /// <summary>내장 규칙 데이터 버전(외부 규칙 파일이 생기기 전까지 코드 내장 규칙만 사용).</summary>
-    public const string BUILTIN_RULES_VERSION = "builtin-p2";
+    public const string BUILTIN_RULES_VERSION = "builtin-p3a";
 
     private const string LOG_CATEGORY = nameof(ScanService);
     private const string ANONYMOUS_ID_PREFIX = "scan-user-";
@@ -78,7 +80,8 @@ public sealed class ScanService
     public IReadOnlyCollection<string> DrainingProbeIds => _coordinator.DrainingProbeIds;
 
     /// <summary>
-    /// P2 기본 구성(메모리·전원 프로브, 메모리 속도·전원 계획 규칙)으로 서비스를 만듭니다.
+    /// 기본 구성으로 서비스를 만듭니다. 프로브: 메모리·전원·디스플레이·시스템 정보·그래픽 설정·보안 상태·설치 GPU·볼륨·물리 디스크·TRIM 정책
+    /// (TRIM 정책만 관리자 권한 필요, 일반 권한에서는 ElevationRequired로 건너뜀). 네트워크 프로브는 없습니다.
     /// </summary>
     /// <param name="logger">공용 로거.</param>
     /// <returns>검사 서비스.</returns>
@@ -88,8 +91,30 @@ public sealed class ScanService
             ?? UNKNOWN_APP_VERSION;
 
         return new ScanService(
-            [new MemoryProbe(), new PowerProbe()],
-            [new MemorySpeedRule(), new PowerPlanRule()],
+            [
+                new MemoryProbe(),
+                new PowerProbe(),
+                new DisplayProbe(),
+                new SystemInfoProbe(),
+                new GraphicsSettingsProbe(),
+                new SecurityStatusProbe(),
+                new InstalledGpuProbe(),
+                new VolumeProbe(),
+                new PhysicalDiskProbe(),
+                new TrimPolicyProbe(),
+            ],
+            [
+                new MemorySpeedRule(),
+                new PowerPlanRule(),
+                new DisplayRefreshRule(),
+                new SystemInfoRule(),
+                new GraphicsSettingsRule(),
+                new SecurityStatusRule(),
+                new InstalledDriverRule(),
+                new StorageSpaceRule(),
+                new DiskHealthRule(),
+                new TrimPolicyRule(),
+            ],
             new ScanOptions(),
             new ScanReportVersions(appVersion, BUILTIN_RULES_VERSION),
             SystemClock.Instance,

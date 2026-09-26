@@ -1,0 +1,2 @@
+NTFS DisableDeleteNotify = 1  (Disallows TRIM operations from being sent to the storage device)
+ReFS DisableDeleteNotify is not currently set
