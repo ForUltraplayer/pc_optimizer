@@ -1,7 +1,7 @@
 <!--
 @file    : PcSpecView.xaml
 @author  : rudals252
-@brief   : 내 PC 사양 화면. fastfetch처럼 한 열로 머리글 줄, "[섹션]" 제목 줄, "라벨: 값" 줄(값이 길면 라벨 아래로 줄바꿈), 확인 불가 섹션 안내 한 줄을 나열하고, 새로 고침·텍스트 복사·TXT 저장·이미지 저장·식별 정보 포함 토글과 하단 익명화 표기를 둔다
+@brief   : 내 PC 사양 화면. fastfetch처럼 한 열로 머리글 줄, "[섹션]" 제목 줄, "라벨: 값" 줄(값이 길면 라벨 아래로 줄바꿈), 확인 불가 섹션 안내 한 줄을 나열하고, 새로 고침·텍스트 복사·TXT 저장·이미지 저장·식별 정보 포함 토글과 하단 익명화 표기를 둔다. 이전 사양 읽기의 프로브가 아직 끝나지 않았으면 종료 대기 안내를 보인다
 -->
 <UserControl x:Class="PcOptimizer.App.Views.PcSpecView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -39,6 +39,8 @@
                    Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibility}}" />
         <TextBlock Text="{x:Static res:Strings.Spec_BusyScanning}" Foreground="#644300" Margin="0,0,0,6" TextWrapping="Wrap"
                    Visibility="{Binding IsScanBusy, Converter={StaticResource BoolToVisibility}}" />
+        <TextBlock Text="{x:Static res:Strings.Spec_DrainingNote}" Foreground="#644300" Margin="0,0,0,6" TextWrapping="Wrap" AutomationProperties.AutomationId="SpecDrainingNote"
+                   Visibility="{Binding IsDraining, Converter={StaticResource BoolToVisibility}}" />
         <TextBlock Text="{Binding StatusMessage}" Margin="0,0,0,6" TextWrapping="Wrap" AutomationProperties.AutomationId="SpecStatusMessage"
                    Visibility="{Binding HasStatusMessage, Converter={StaticResource BoolToVisibility}}" />
         <!-- 이미지 저장 대상: 머리글·한 열 목록·하단 익명화 표기를 함께 렌더한다(흰 배경). -->

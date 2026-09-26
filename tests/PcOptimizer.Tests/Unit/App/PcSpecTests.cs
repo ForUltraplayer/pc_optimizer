@@ -1,7 +1,7 @@
 /**
  * @file    : PcSpecTests.cs
  * @author  : rudals252
- * @brief   : 내 PC 사양 스냅샷(섹션 순서·확인 불가 표시·장치별 개별 나열·빈 값 비표시)과 프로브 예외·타임아웃 흡수, 텍스트 형식(기본 익명화·확인 불가 섹션 한 줄), 사양 뷰모델(새로 고침·복사·TXT 저장·검사 중 새로 고침 막기·이미지 대상 없음)을 가짜 프로브 결과로 검증
+ * @brief   : 내 PC 사양 스냅샷(섹션 순서·확인 불가 표시·장치별 개별 나열·빈 값 비표시)과 프로브 예외·타임아웃 흡수, 타임아웃 뒤 살아 있는 공유 프로브 재진입 차단·종료 대기(REV-017), 텍스트 형식(기본 익명화·확인 불가 섹션 한 줄), 사양 뷰모델(새로 고침·복사·TXT 저장·검사 중 새로 고침 막기·종료 대기 중 새로 고침 막기·이미지 대상 없음)을 가짜 프로브 결과로 검증
  */
 
 // 기본 패키지
@@ -46,6 +46,7 @@ public sealed class PcSpecTests
     private const string SUGGESTED_DATE_FORMAT = "yyyyMMdd";
 
     private static readonly DateTimeOffset AT = new(2026, 9, 27, 0, 0, 0, TimeSpan.Zero);
+    private static readonly TimeSpan Bound = TimeSpan.FromSeconds(3);
     private static readonly byte[] UTF8_BOM = [0xEF, 0xBB, 0xBF];
 
     /// <summary>프로브 결과에서 9개 섹션을 순서대로 만들고, 없는 프로브는 확인 불가 섹션으로 표시한다.</summary>
@@ -327,6 +328,101 @@ public sealed class PcSpecTests
         Assert.Contains(logger.Entries, e => e.Message.Contains(MemoryProbeContract.PROBE_ID, StringComparison.Ordinal));
         Assert.All(logger.Entries, e => Assert.Null(e.Exception));
         Assert.All(logger.Entries, e => Assert.DoesNotContain(ThrowingProbe.ERROR_MESSAGE, e.Message, StringComparison.Ordinal));
+    }
+
+    /// <summary>사양 수집에서 타임아웃됐지만 아직 실행 중인 프로브를 재진입시키지 않아야 합니다(REV-017 재현 편입).</summary>
+    [Fact]
+    public async Task TimedOutSpecMustNotReenterLiveSharedProbe()
+    {
+        var probe = new NonCooperativeSpecProbe();
+        var service = new PcSpecService([probe], new FakeClock(), NullAppLogger.Instance, TestContexts.Normal);
+        try
+        {
+            await service.CaptureAsync(default).WaitAsync(Bound);
+            Assert.False(probe.Release.Task.IsCompleted);
+            await service.CaptureAsync(default).WaitAsync(Bound);
+            Assert.Equal(1, probe.Calls);
+        }
+        finally { probe.Release.TrySetResult(); }
+    }
+
+    /// <summary>살아 있는 프로브는 건너뜀 경고(ID만)로 남고, 끝나면 추적이 풀려 다음 수집에서 다시 호출된다(REV-017).</summary>
+    [Fact]
+    public async Task LiveProbeIsSkippedUntilItFinishesThenRunsAgain()
+    {
+        var probe = new NonCooperativeSpecProbe();
+        var logger = new RecordingLogger();
+        var service = new PcSpecService([probe], new FakeClock(), logger, TestContexts.Normal);
+        try
+        {
+            Assert.False(service.HasLiveProbes);
+            await service.CaptureAsync(default).WaitAsync(Bound);
+            Assert.True(service.HasLiveProbes);
+            var drain = service.WaitForDrainAsync(default);
+            Assert.False(drain.IsCompleted);
+
+            await service.CaptureAsync(default).WaitAsync(Bound);
+            Assert.Contains(logger.Entries, e => e.Message == $"SpecProbeStillRunning probe={SystemDetailsProbeContract.PROBE_ID}");
+
+            probe.Release.TrySetResult();
+            await drain.WaitAsync(Bound);
+            Assert.False(service.HasLiveProbes);
+            await service.CaptureAsync(default).WaitAsync(Bound);
+            Assert.Equal(2, probe.Calls);
+            Assert.All(logger.Entries, e => Assert.Null(e.Exception));
+        }
+        finally { probe.Release.TrySetResult(); }
+    }
+
+    /// <summary>종료 대기는 취소할 수 있고, 살아 있는 실행이 없으면 바로 끝난다(REV-017).</summary>
+    [Fact]
+    public async Task WaitForDrainIsCancellableAndCompletesWhenNothingLive()
+    {
+        var probe = new NonCooperativeSpecProbe();
+        var service = new PcSpecService([probe], new FakeClock(), NullAppLogger.Instance, TestContexts.Normal);
+        await service.WaitForDrainAsync(default).WaitAsync(Bound);
+        try
+        {
+            await service.CaptureAsync(default).WaitAsync(Bound);
+            using var cancellation = new CancellationTokenSource();
+            var drain = service.WaitForDrainAsync(cancellation.Token);
+            await cancellation.CancelAsync();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => drain.WaitAsync(Bound));
+            Assert.True(service.HasLiveProbes);
+        }
+        finally { probe.Release.TrySetResult(); }
+    }
+
+    /// <summary>
+    /// 사양 읽기가 살아 있는 프로브를 남기면 뷰모델은 새로 고침을 막고 종료 대기(IsDraining)를 켜며,
+    /// 프로브가 끝나면 UI 마샬러로 끄고 새로 고침을 다시 허용한다(REV-017).
+    /// </summary>
+    [Fact]
+    public async Task ViewModelKeepsDrainingUntilLiveProbeFinishes()
+    {
+        var probe = new NonCooperativeSpecProbe();
+        var dispatcher = new ImmediateUiDispatcher();
+        var service = new PcSpecService([probe], new FakeClock(), NullAppLogger.Instance, TestContexts.Normal);
+        var vm = new PcSpecViewModel(service, new PcSpecTextFormatter(), new RecordingClipboard(), new FixedExportPathPicker(null), () => null,
+            dispatcher, NullAppLogger.Instance, machineName: null, userName: null);
+        var drained = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(vm.IsDraining) && !vm.IsDraining) { drained.TrySetResult(); } };
+        try
+        {
+            await vm.RefreshCommand.ExecuteAsync(null).WaitAsync(Bound);
+            Assert.False(vm.IsLoading);
+            Assert.True(vm.IsDraining);
+            Assert.False(vm.RefreshCommand.CanExecute(null));
+
+            await vm.RefreshCommand.ExecuteAsync(null).WaitAsync(Bound);
+            Assert.Equal(1, probe.Calls);
+
+            probe.Release.TrySetResult();
+            await drained.Task.WaitAsync(Bound);
+            Assert.False(vm.IsDraining);
+            Assert.True(vm.RefreshCommand.CanExecute(null));
+        }
+        finally { probe.Release.TrySetResult(); }
     }
 
     /// <summary>텍스트 형식은 익명화 기본이며 PC 이름·사용자명은 토글이 켜졌을 때만 헤더에 들어간다.</summary>

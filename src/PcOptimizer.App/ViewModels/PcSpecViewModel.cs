@@ -1,7 +1,7 @@
 /**
  * @file    : PcSpecViewModel.cs
  * @author  : rudals252
- * @brief   : 내 PC 사양 화면 모델(새로 고침·한 열 줄 목록·기본 익명화 토글·텍스트 복사·TXT(UTF-8, BOM 없음)·PNG(96 DPI) 저장, 검사 중 새로 고침 막기)과 섹션·항목·확인 불가 안내 줄 모델
+ * @brief   : 내 PC 사양 화면 모델(새로 고침·한 열 줄 목록·기본 익명화 토글·텍스트 복사·TXT(UTF-8, BOM 없음)·PNG(96 DPI) 저장, 검사 진행·종료 중 새로 고침 막기, 타임아웃 뒤 살아 있는 사양 프로브 종료 대기 IsDraining)과 섹션·항목·확인 불가 안내 줄 모델
  */
 
 // 기본 패키지
@@ -29,7 +29,8 @@ namespace PcOptimizer.App.ViewModels;
 /// <summary>
 /// 내 PC 사양 화면 모델입니다. 화면은 fastfetch처럼 한 열로 <see cref="HeaderLines"/>와 <see cref="Lines"/>를 나열하며,
 /// 줄 구성은 <see cref="PcSpecTextFormatter.Format"/> 출력(빈 구분 줄 제외)과 같습니다. 식별 정보 포함은 기본 꺼짐입니다.
-/// 사양 프로브는 검사와 공유하므로 검사 중에는 <see cref="SetBusy"/>로 새로 고침을 막습니다.
+/// 사양 프로브는 검사와 공유하므로 검사 진행·종료 중에는 <see cref="SetBusy"/>로 새로 고침을 막고,
+/// 사양 읽기가 타임아웃 뒤에도 끝나지 않은 프로브를 남기면 끝날 때까지 <see cref="IsDraining"/>을 켜 둡니다(REV-017).
 /// </summary>
 public sealed partial class PcSpecViewModel : ObservableObject
 {
@@ -56,6 +57,14 @@ public sealed partial class PcSpecViewModel : ObservableObject
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RefreshCommand), nameof(CopyTextCommand), nameof(SaveTextCommand), nameof(SaveImageCommand))]
     private bool _isLoading;
+
+    /// <summary>
+    /// 이전 사양 읽기에서 타임아웃 뒤에도 끝나지 않은 프로브를 기다리는 중인지 여부. 이 동안 새로 고침·검사 시작·정리 창을 막습니다.
+    /// 프로브가 끝나지 않으면 계속 true로 남습니다.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
+    private bool _isDraining;
 
     /// <summary>PC 이름·사용자명·식별 항목을 포함할지 여부(기본 false, 공유용 익명화).</summary>
     [ObservableProperty]
@@ -126,7 +135,7 @@ public sealed partial class PcSpecViewModel : ObservableObject
     /// <summary>한 열로 나열할 줄(섹션 제목 → 항목 줄 또는 확인 불가 안내 줄).</summary>
     public ObservableCollection<object> Lines { get; } = [];
 
-    /// <summary>검사가 진행 중이라 새로 고침을 막았는지 여부.</summary>
+    /// <summary>검사가 진행 중이거나 검사 프로브가 아직 종료 중이라 새로 고침을 막았는지 여부.</summary>
     public bool IsScanBusy { get; private set; }
 
     /// <summary>현재 토글의 익명화 표기(이미지 하단에도 표시).</summary>
@@ -136,9 +145,9 @@ public sealed partial class PcSpecViewModel : ObservableObject
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
 
     /// <summary>
-    /// 검사 진행 여부를 알립니다. 사양 프로브를 검사와 공유하므로 검사 중에는 새로 고침을 막습니다(UI 스레드에서 호출).
+    /// 검사 진행·종료 중 여부를 알립니다. 사양 프로브를 검사와 공유하므로 검사 중이거나 검사 프로브가 아직 종료 중이면 새로 고침을 막습니다(UI 스레드에서 호출).
     /// </summary>
-    /// <param name="busy">검사 중이면 true.</param>
+    /// <param name="busy">검사 중이거나 검사 프로브가 종료 중이면 true.</param>
     public void SetBusy(bool busy)
     {
         if (IsScanBusy == busy)
@@ -153,10 +162,18 @@ public sealed partial class PcSpecViewModel : ObservableObject
 
     /// <summary>
     /// 사양을 새로 읽어 섹션·줄을 다시 만듭니다. 실패는 형식 이름만 기록하고 안내합니다.
+    /// 읽기 뒤에도 끝나지 않은 프로브가 남으면 <see cref="IsDraining"/>을 켜고, 끝나면 UI 스레드에서 끕니다(기다림은 UI 스레드를 막지 않음).
+    /// 검사 진행·종료 중이거나 종료 대기 중이면 실행하지 않습니다.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanRefresh))]
     private async Task RefreshAsync()
     {
+        if (!CanRefresh())
+        {
+            _logger.Info(LOG_CATEGORY, "SpecRefreshBlocked");
+            return;
+        }
+
         IsLoading = true;
         StatusMessage = null;
         PcSpecSnapshot? snapshot = null;
@@ -172,6 +189,7 @@ public sealed partial class PcSpecViewModel : ObservableObject
             failure = DisplayText.Format(Strings.Spec_RefreshFailed, ex.GetType().Name);
         }
 
+        var draining = _service.HasLiveProbes;
         await _dispatcher.InvokeAsync(() =>
         {
             if (snapshot is not null)
@@ -182,8 +200,38 @@ public sealed partial class PcSpecViewModel : ObservableObject
             }
 
             StatusMessage = failure;
+            if (draining)
+            {
+                IsDraining = true;
+            }
+
             IsLoading = false;
         }).ConfigureAwait(false);
+
+        if (draining)
+        {
+            // 새로 고침 명령은 여기서 끝낸다(IsLoading=false). 종료 대기는 따로 돌며 던지지 않는다.
+            _logger.Warn(LOG_CATEGORY, "SpecDraining");
+            _ = WatchDrainAsync();
+        }
+    }
+
+    /// <summary>
+    /// 살아 있는 사양 프로브가 모두 끝나기를 기다린 뒤 UI 스레드에서 <see cref="IsDraining"/>을 끈다.
+    /// 끝나지 않으면 true로 남는다. 대기·마샬링 실패는 형식 이름만 기록하고 던지지 않는다.
+    /// </summary>
+    private async Task WatchDrainAsync()
+    {
+        try
+        {
+            await _service.WaitForDrainAsync(CancellationToken.None).ConfigureAwait(false);
+            await _dispatcher.InvokeAsync(() => IsDraining = false).ConfigureAwait(false);
+            _logger.Info(LOG_CATEGORY, "SpecDrained");
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn(LOG_CATEGORY, $"SpecDrainWatchFailed error={ex.GetType().Name}");
+        }
     }
 
     /// <summary>
@@ -285,8 +333,8 @@ public sealed partial class PcSpecViewModel : ObservableObject
         await _dispatcher.InvokeAsync(() => StatusMessage = message).ConfigureAwait(false);
     }
 
-    /// <summary>새로 고칠 수 있는지 여부(읽는 중·검사 중이 아닐 때).</summary>
-    private bool CanRefresh() => !IsLoading && !IsScanBusy;
+    /// <summary>새로 고칠 수 있는지 여부(읽는 중·검사 진행/종료 중·사양 프로브 종료 대기 중이 아닐 때).</summary>
+    private bool CanRefresh() => !IsLoading && !IsScanBusy && !IsDraining;
 
     /// <summary>스냅샷을 복사·저장할 수 있는지 여부.</summary>
     private bool CanUseSnapshot() => Snapshot is not null && !IsLoading;

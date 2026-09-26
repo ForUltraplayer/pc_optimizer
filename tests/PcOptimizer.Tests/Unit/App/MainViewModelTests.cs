@@ -1,7 +1,7 @@
 /**
  * @file    : MainViewModelTests.cs
  * @author  : rudals252
- * @brief   : 메인 화면 모델의 상태 전이·Finding 기준 건수·바로 할 수 있는 것/직접 해야 하는 것 요약·정리 창 노출 조건·온라인 비교 완료 판정·분류 필터·취소 후 재검사·종료 중 표시·내보내기·다른 관리자 계정 실행 시 시스템 범위 안내 배너와 사용자 범위 프로브 건너뜀·내 PC 사양 전환(첫 진입 새로 고침을 기다리지 않는 전환, 검사 중 새로 고침 막기와 검사 후 자동 읽기, 사양 읽는 중 검사 시작 막기)을 가짜 프로브와 즉시 실행 마샬러로 검증
+ * @brief   : 메인 화면 모델의 상태 전이·Finding 기준 건수·바로 할 수 있는 것/직접 해야 하는 것 요약·정리 창 노출 조건·온라인 비교 완료 판정·분류 필터·취소 후 재검사·종료 중 표시·내보내기·다른 관리자 계정 실행 시 시스템 범위 안내 배너와 사용자 범위 프로브 건너뜀·내 PC 사양 전환(첫 진입 새로 고침을 기다리지 않는 전환, 검사 중 새로 고침 막기와 검사 후 자동 읽기, 사양 읽는 중 검사 시작 막기, 사양·검사 프로브 종료 대기 중 상호 차단)을 가짜 프로브와 즉시 실행 마샬러로 검증
  */
 
 // 기본 패키지
@@ -654,6 +654,53 @@ public sealed class MainViewModelTests
         await spec.RefreshCommand.ExecutionTask!.WaitAsync(WAIT_BOUND);
         Assert.Equal([false, true], changes);
         Assert.True(vm.CanOpenCacheTools);
+    }
+
+    /// <summary>사양 프로브가 타임아웃 뒤에도 종료 중이면(Spec.IsDraining) 검사 시작과 정리 창을 막고, 끝나면 다시 허용한다(REV-017·REV-018).</summary>
+    [Fact]
+    public async Task 사양_종료_대기_중에는_검사와_정리를_시작하지_않는다()
+    {
+        var probe = new NonCooperativeSpecProbe();
+        var spec = SpecTestFactory.Create(probes: [probe]);
+        using var vm = CreateReviewViewModel(UserScopeMode.Full, spec);
+        var drained = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(vm.CanOpenCacheTools) && vm.CanOpenCacheTools) { drained.TrySetResult(); } };
+        try
+        {
+            vm.ToggleSpecCommand.Execute(null);
+            await spec.RefreshCommand.ExecutionTask!.WaitAsync(WAIT_BOUND);
+
+            Assert.False(spec.IsLoading);
+            Assert.True(spec.IsDraining);
+            Assert.False(vm.StartScanCommand.CanExecute(null));
+            Assert.False(vm.CanOpenCacheTools);
+
+            probe.Release.TrySetResult();
+            await drained.Task.WaitAsync(WAIT_BOUND);
+            Assert.False(spec.IsDraining);
+            Assert.True(vm.StartScanCommand.CanExecute(null));
+            Assert.True(vm.CanOpenCacheTools);
+        }
+        finally { probe.Release.TrySetResult(); }
+    }
+
+    /// <summary>검사 프로브가 아직 종료 중이면(HasDrainingNote) 사양 새로 고침을 막고, 늦게 끝나면 다시 허용한다(REV-017 반대 방향).</summary>
+    [Fact]
+    public async Task 검사_종료_대기_중에는_사양_새로_고침을_하지_않는다()
+    {
+        var delayed = new DelayedProbe("fixture.delayed");
+        using var vm = CreateViewModel([delayed]);
+        await vm.StartScanCommand.ExecuteAsync(null);
+
+        Assert.True(vm.HasDrainingNote);
+        Assert.False(vm.IsScanning);
+        Assert.False(vm.Spec.RefreshCommand.CanExecute(null));
+
+        var cleared = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(vm.DrainingNote) && !vm.HasDrainingNote) { cleared.TrySetResult(); } };
+        delayed.Complete();
+        await cleared.Task.WaitAsync(WAIT_BOUND);
+        Assert.True(vm.Spec.RefreshCommand.CanExecute(null));
     }
 
     /// <summary>독립 리뷰 재현과 같은 조건(관리자 권한·보호 위치 도구 있음)으로 뷰모델을 만든다.</summary>

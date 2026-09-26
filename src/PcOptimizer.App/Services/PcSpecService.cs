@@ -1,10 +1,11 @@
 /**
  * @file    : PcSpecService.cs
  * @author  : rudals252
- * @brief   : 하드웨어 프로브를 규칙 없이 직접 실행해 내 PC 사양 스냅샷(9개 섹션)을 만든다(실행·조립·공용 형식 도우미). 섹션 빌더는 PcSpecService.Sections.cs. 검사와 무관하게 열 때마다 새로 읽는다
+ * @brief   : 하드웨어 프로브를 규칙 없이 직접 실행해 내 PC 사양 스냅샷(9개 섹션)을 만든다(실행·조립·공용 형식 도우미). 섹션 빌더는 PcSpecService.Sections.cs. 검사와 무관하게 열 때마다 새로 읽는다. 타임아웃 뒤에도 살아 있는 프로브 실행을 추적해 끝날 때까지 재호출하지 않는다(REV-017)
  */
 
 // 기본 패키지
+using System.Collections.Concurrent;
 using System.Globalization;
 
 // 사용자 패키지
@@ -20,6 +21,8 @@ namespace PcOptimizer.App.Services;
 /// 내 PC 사양 스냅샷을 만드는 서비스입니다.
 /// 사용자 요구(2026-09-27)에 따라 CPU·메인보드·GPU·RAM 모듈·디스크·볼륨·모니터·네트워크 어댑터를 요약하지 않고 장치마다 한 줄(라벨: 값)로 나열합니다.
 /// 값을 알 수 없으면 <see cref="PcSpecItem.Value"/>를 null로 두며 0·빈 문자열로 바꾸지 않습니다.
+/// 프로브 인스턴스는 일반 검사와 공유하므로, 기다리기를 멈춘(타임아웃·취소) 뒤에도 끝나지 않은 실행은 프로브 ID별로 보관하고
+/// 그 실행이 끝나기 전에는 같은 프로브를 다시 호출하지 않습니다(<see cref="HasLiveProbes"/>, <see cref="WaitForDrainAsync"/>).
 /// </summary>
 public sealed partial class PcSpecService
 {
@@ -70,6 +73,7 @@ public sealed partial class PcSpecService
     private readonly IClock _clock;
     private readonly IAppLogger _logger;
     private readonly Func<ScanContext> _contextFactory;
+    private readonly ConcurrentDictionary<string, Task> _liveProbes = new(StringComparer.Ordinal);
 
     /// <summary>서비스를 만듭니다.</summary>
     /// <param name="probes">등록된 프로브 전체(이 중 <see cref="PROBE_IDS"/>만 실행).</param>
@@ -87,6 +91,30 @@ public sealed partial class PcSpecService
         _clock = clock;
         _logger = logger;
         _contextFactory = contextFactory;
+    }
+
+    /// <summary>
+    /// 사양 수집이 타임아웃·취소로 기다리기를 멈췄지만 아직 끝나지 않은 프로브 실행이 있는지 여부입니다.
+    /// true인 동안 같은 프로브를 공유하는 검사·사양 새로 고침을 시작하지 않아야 합니다.
+    /// </summary>
+    public bool HasLiveProbes => LiveTasks().Length > 0;
+
+    /// <summary>
+    /// 살아 있는 프로브 실행이 모두 끝날 때까지 기다립니다. 늦게 끝난 실행의 실패는 던지지 않고 형식 이름만 기록합니다.
+    /// 끝나지 않는 실행이 있으면 완료되지 않으므로 UI 스레드에서 동기로 기다리지 않습니다.
+    /// </summary>
+    /// <param name="ct">대기 취소 토큰.</param>
+    /// <returns>살아 있는 실행이 없어지면 완료되는 작업.</returns>
+    /// <exception cref="OperationCanceledException">대기가 취소된 경우.</exception>
+    public async Task WaitForDrainAsync(CancellationToken ct)
+    {
+        while (LiveTasks() is { Length: > 0 } live)
+        {
+            foreach (var running in live)
+            {
+                await Task.WhenAny(running).WaitAsync(ct).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <summary>
@@ -113,6 +141,12 @@ public sealed partial class PcSpecService
             if (!CanRun(probe, context))
             {
                 _logger.Info(LOG_CATEGORY, $"SpecProbeSkipped probe={id}");
+                continue;
+            }
+
+            if (_liveProbes.TryGetValue(id, out var live) && !live.IsCompleted)
+            {
+                _logger.Warn(LOG_CATEGORY, $"SpecProbeStillRunning probe={id}");
                 continue;
             }
 
@@ -167,15 +201,18 @@ public sealed partial class PcSpecService
     }
 
     /// <summary>
-    /// 프로브 하나를 기본 타임아웃 안에서 실행한다. 취소 토큰을 무시하는 프로브도 기다리지 않도록 대기 자체에 시간 제한을 둔다.
+    /// 프로브 하나를 기본 타임아웃 안에서 실행한다. 취소 토큰을 무시하는 프로브도 기다리지 않도록 대기 자체에 시간 제한을 두고,
+    /// 기다리기를 멈춘 뒤에도 끝나지 않은 실행은 <see cref="TrackIfLive"/>로 보관한다.
     /// </summary>
     private async Task<ProbeResult?> RunProbeAsync(IProbe probe, ScanContext context, CancellationToken ct)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(probe.DefaultTimeout);
+        Task<ProbeResult>? running = null;
         try
         {
-            var result = await probe.RunAsync(context, timeout.Token).WaitAsync(probe.DefaultTimeout, ct).ConfigureAwait(false);
+            running = probe.RunAsync(context, timeout.Token);
+            var result = await running.WaitAsync(probe.DefaultTimeout, ct).ConfigureAwait(false);
             if (!string.Equals(result.ProbeId, probe.Id, StringComparison.Ordinal))
             {
                 _logger.Warn(LOG_CATEGORY, $"SpecProbeWrongId probe={probe.Id}");
@@ -198,6 +235,52 @@ public sealed partial class PcSpecService
             _logger.Error(LOG_CATEGORY, $"SpecProbeFailed probe={probe.Id} type={ex.GetType().Name}");
             return null;
         }
+        finally
+        {
+            TrackIfLive(probe.Id, running);
+        }
+    }
+
+    /// <summary>
+    /// 기다리기를 멈춘 프로브 실행이 아직 끝나지 않았으면 프로브 ID로 보관하고, 끝나면 제거한다(완료 전 재호출 차단).
+    /// </summary>
+    private void TrackIfLive(string probeId, Task? running)
+    {
+        if (running is null || running.IsCompleted)
+        {
+            return;
+        }
+
+        _liveProbes[probeId] = running;
+        _logger.Warn(LOG_CATEGORY, $"SpecProbeLive probe={probeId}");
+        _ = running.ContinueWith(
+            completed => OnLiveProbeCompleted(probeId, completed),
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
+    /// <summary>
+    /// 보관한 실행이 끝나면 사전에서 제거하고 결과를 기록한다(실패는 형식 이름만, 예외를 관측해 미관측 예외로 남기지 않음).
+    /// </summary>
+    private void OnLiveProbeCompleted(string probeId, Task completed)
+    {
+        _liveProbes.TryRemove(KeyValuePair.Create(probeId, completed));
+        if (completed.Exception is { } failure)
+        {
+            _logger.Warn(LOG_CATEGORY, $"SpecProbeLateFailure probe={probeId} type={failure.GetBaseException().GetType().Name}");
+            return;
+        }
+
+        _logger.Info(LOG_CATEGORY, $"SpecProbeDrained probe={probeId}");
+    }
+
+    /// <summary>
+    /// 아직 끝나지 않은 보관 실행 목록(완료됐지만 제거 전인 항목은 제외).
+    /// </summary>
+    private Task[] LiveTasks()
+    {
+        return [.. _liveProbes.Values.Where(task => !task.IsCompleted)];
     }
 
     /// <summary>

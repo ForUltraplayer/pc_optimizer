@@ -223,9 +223,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool CacheToolsAvailable { get; }
 
     /// <summary>
-    /// 보호 위치에 도구가 있고, 진단·사양 읽기가 끝났으며, 이 계정의 사용자 범위를 다룰 수 있을 때(SystemOnly 아님)만 정리 도구를 엽니다.
+    /// 보호 위치에 도구가 있고, 진단·사양 읽기와 양쪽의 프로브 종료 대기가 끝났으며, 이 계정의 사용자 범위를 다룰 수 있을 때(SystemOnly 아님)만 정리 도구를 엽니다.
     /// </summary>
-    public bool CanOpenCacheTools => CacheToolsAvailable && !IsScanning && !HasDrainingNote && !IsSystemOnly && !Spec.IsLoading;
+    public bool CanOpenCacheTools => CacheToolsAvailable && !IsScanning && !HasDrainingNote && !IsSystemOnly && !Spec.IsLoading && !Spec.IsDraining;
 
     /// <summary>상태 문자열("상태: …").</summary>
     public string StateText => DisplayText.Format(Strings.State_Format, DisplayText.State(State));
@@ -401,28 +401,44 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>검사를 시작할 수 있는지 여부(사양을 읽는 중에도 프로브 공유를 피하려고 막음).</summary>
-    private bool CanStartScan() => State != ScanState.Scanning && !Spec.IsLoading;
+    /// <summary>검사를 시작할 수 있는지 여부(사양을 읽는 중이거나 사양 프로브가 아직 종료 중이면 프로브 공유를 피하려고 막음, REV-017).</summary>
+    private bool CanStartScan() => State != ScanState.Scanning && !Spec.IsLoading && !Spec.IsDraining;
 
     /// <summary>
     /// 검사 상태가 바뀌면 사양 새로 고침 가능 여부를 맞춘다(프로브 공유). 검사 중에 사양 화면을 열어 읽지 못했다면 검사가 끝날 때 읽는다.
     /// </summary>
     partial void OnStateChanged(ScanState oldValue, ScanState newValue)
     {
-        var scanning = newValue == ScanState.Scanning;
-        Spec.SetBusy(scanning);
-        if (!scanning)
+        SyncSpecBusy();
+    }
+
+    /// <summary>
+    /// 검사 프로브의 종료 중 안내가 바뀌면 사양 새로 고침 가능 여부를 맞춘다(검사 종료 중 → 사양 재진입 차단, REV-017).
+    /// </summary>
+    partial void OnDrainingNoteChanged(string? value)
+    {
+        SyncSpecBusy();
+    }
+
+    /// <summary>
+    /// 검사가 진행 중이거나 검사 프로브가 아직 종료 중이면 사양 새로 고침을 막고, 둘 다 끝나면 풀어 준다.
+    /// 풀린 뒤 사양 화면이 보이고 아직 읽은 사양이 없으면 읽기를 시작한다.
+    /// </summary>
+    private void SyncSpecBusy()
+    {
+        Spec.SetBusy(IsScanning || HasDrainingNote);
+        if (!Spec.IsScanBusy)
         {
             EnsureSpecLoaded();
         }
     }
 
     /// <summary>
-    /// 사양을 읽는 중인지가 바뀌면 검사 시작·정리 창 진입 가능 여부를 다시 계산한다.
+    /// 사양을 읽는 중인지·사양 프로브 종료 대기 중인지가 바뀌면 검사 시작·정리 창 진입 가능 여부를 다시 계산한다.
     /// </summary>
     private void OnSpecPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(PcSpecViewModel.IsLoading))
+        if (e.PropertyName is nameof(PcSpecViewModel.IsLoading) or nameof(PcSpecViewModel.IsDraining))
         {
             StartScanCommand.NotifyCanExecuteChanged();
             OnPropertyChanged(nameof(CanOpenCacheTools));

@@ -1,7 +1,7 @@
 /**
  * @file    : AppTestDoubles.cs
  * @author  : rudals252
- * @brief   : 뷰모델 테스트용 대역(즉시 실행 UI 마샬러, 고정 경로 선택기, 메모리·시스템 상세 fixture 프로브, 풀어 줄 때까지 기다리는 시스템 상세 프로브, 첫 호출만 취소를 기다리는 프로브, 고정 권한 상태, 고정 앱 내 실행 판정, 기록 클립보드, 일반 검사 컨텍스트, 사양 뷰모델 생성기)
+ * @brief   : 뷰모델 테스트용 대역(즉시 실행 UI 마샬러, 고정 경로 선택기, 메모리·시스템 상세 fixture 프로브, 풀어 줄 때까지 기다리는 시스템 상세 프로브, 취소를 무시하고 짧은 제한 시간을 넘기는 공유 사양 프로브, 첫 호출만 취소를 기다리는 프로브, 고정 권한 상태, 고정 앱 내 실행 판정, 기록 클립보드, 일반 검사 컨텍스트, 사양 뷰모델 생성기)
  */
 
 // 기본 패키지
@@ -267,6 +267,50 @@ internal sealed class GatedSystemDetailsProbe : IProbe
         _started.TrySetResult();
         await _gate.Task.WaitAsync(ct);
         return new ProbeResult(Id, ProbeStatus.Success, [], [], context.StartedAtUtc, TimeSpan.Zero, context.UserContext);
+    }
+}
+
+/// <summary>
+/// 취소 토큰을 무시하고 <see cref="Release"/>가 완료될 때까지 끝나지 않는 시스템 상세 프로브입니다(REV-017 재현).
+/// 제한 시간이 짧아 사양 수집은 타임아웃으로 넘어가지만 실제 실행은 살아 있습니다.
+/// </summary>
+internal sealed class NonCooperativeSpecProbe : IProbe
+{
+    /// <summary>사양 수집이 기다리는 제한 시간(밀리초).</summary>
+    public const int TIMEOUT_MILLISECONDS = 40;
+
+    private int _calls;
+
+    /// <summary>완료하면 살아 있는 실행이 끝나는 작업 원본.</summary>
+    public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>RunAsync 호출 횟수.</summary>
+    public int Calls => Volatile.Read(ref _calls);
+
+    /// <inheritdoc />
+    public string Id => SystemDetailsProbeContract.PROBE_ID;
+
+    /// <inheritdoc />
+    public FindingCategory Category => FindingCategory.Driver;
+
+    /// <inheritdoc />
+    public bool RequiresElevation => false;
+
+    /// <inheritdoc />
+    public bool RequiresNetwork => false;
+
+    /// <inheritdoc />
+    public ProbeScope Scope => ProbeScope.System;
+
+    /// <inheritdoc />
+    public TimeSpan DefaultTimeout => TimeSpan.FromMilliseconds(TIMEOUT_MILLISECONDS);
+
+    /// <inheritdoc />
+    public async Task<ProbeResult> RunAsync(ScanContext context, CancellationToken ct)
+    {
+        Interlocked.Increment(ref _calls);
+        await Release.Task;
+        return new(Id, ProbeStatus.Success, [], [], context.StartedAtUtc, TimeSpan.Zero, context.UserContext);
     }
 }
 
