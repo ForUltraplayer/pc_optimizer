@@ -30,7 +30,7 @@
 | REV-015 | 제품 범위 | 수정됨·재검증 대기 | 개요 화면 | SP4 Task 5: 제안 1·2항(요약 타일 '바로 할 수 있는 것/직접 해야 하는 것', 0이면 숨김, 정리 창은 보호 위치 도구 있을 때만) 구현. 3·4항은 후속 단계 |
 | REV-016 | P1(Task 10 선행) | 수정됨·재검증 대기 | Task 9→10 사용자 범위 | SP4 Task 10 `0c80a8b`: UI `CanOpenCacheTools`에 !IsSystemOnly, `SystemCacheToolBackend(limitToSystemScope)`가 Locate·Inspect·Clear를 관측 전 `UserScopeExcluded`로 거절. 승격 거절 제거는 이후 `34670c5` |
 | REV-017 | P2 | 수정됨·재검증 대기 | SP4 사양 수집 | SP4 Task 13 `3d286be`: 살아 있는 사양 프로브 Task를 probeId별 보관·재호출 차단, `Spec.IsDraining`으로 검사·정리 차단, 검사 종료 중(HasDrainingNote)엔 사양 새로 고침 차단 |
-| REV-018 | P2 | 수정됨·재검증 대기 | SP4 실행 상호 배제 | SP4 Task 10 `0c80a8b`: `CanOpenCacheTools`에 !Spec.IsLoading, IsLoading 변경 시 CanOpenCacheTools 알림. 종료 대기(IsDraining) 관문은 Task 13 |
+| REV-018 | P2 | 수정됨·재검증 대기 | SP4 실행 상호 배제 | SP4 Task 10 `0c80a8b`: `CanOpenCacheTools`에 !Spec.IsLoading, IsLoading 변경 시 CanOpenCacheTools 알림. SP4 Task 13 `3d286be`: `CanOpenCacheTools`·`CanStartScan`에 `!Spec.IsDraining` 관문·변경 알림 추가 |
 
 ## REV-001 — 보호 경로와 스캔 경로의 검증 정책을 분리
 
@@ -445,6 +445,7 @@
   - 테스트: `PcSpecTests.TimedOutSpecMustNotReenterLiveSharedProbe`(재현 소스 이름·단언 보존), `LiveProbeIsSkippedUntilItFinishesThenRunsAgain`(건너뜀 경고·종료 후 재호출), `WaitForDrainIsCancellableAndCompletesWhenNothingLive`, `ViewModelKeepsDrainingUntilLiveProbeFinishes`, `MainViewModelTests.사양_종료_대기_중에는_검사와_정리를_시작하지_않는다`(차단 후 늦은 종료 시 복구), `검사_종료_대기_중에는_사양_새로_고침을_하지_않는다`(차단 후 늦은 종료 시 복구). RED: 수정 전 `Assert.Equal() Failure: Expected: 1 Actual: 2`(원장 기록과 동일), MainViewModel 두 건은 수정 전 게이트로 `Assert.False() Failure … Actual: True`.
   - 검증(Release, `3d286be` 작업 트리): 빌드 경고 0·오류 0, 기본 필터 1245/1245, Smoke 22/22, 대상 3개 클래스 61/61 5회 반복 통과. Online/ToolSmoke·앱 GUI 미실행.
   - 남은 제한: 끝나지 않는 프로브는 영원히 IsDraining=true로 남아 검사·정리·사양 새로 고침이 앱 재시작까지 막힌다(HasDrainingNote와 같은 의미, 컨트롤러 결정). 검사 종료 중 사양 화면에는 기존 `Spec_BusyScanning`("검사 중에는…") 문구가 보인다. 검사 측이 사양 측 보관 Task를 직접 보지는 않고 UI 관문(`CanStartScan`)으로만 막는다 — UI 밖에서 `ScanService`를 직접 부르는 경로는 없음(App.xaml.cs 확인). 동시 `CaptureAsync` 두 개가 같은 프로브를 동시에 보관하는 경합은 뷰모델의 IsLoading 관문으로만 배제된다. 독립 재검증 필요.
+  - 수정 라운드 1 (Task 13 리뷰 발견 1·2·4·6): 결과 화면 개요 카드에 `MainViewModel.HasSpecDrainingNote`(=`Spec.IsDraining`, 변경 알림) 바인딩 `Spec_DrainingNote` 안내(`SpecDrainingNoteMain`) — 검사 시작·정리 버튼 비활성 사유 표시. `TrackIfLive`가 대기 직후 이미 실패로 끝난 Task의 예외도 관측(`SpecProbeLateFailure`). 테스트 `MainWindowLayoutTests.SpecDrainingNoteShowsOnResultsOverview`(RED: XAML 원복 시 `Assert.Single() Failure`), `MainViewModelTests.SpecDrainingNotifiesScanGateAndMainNote`(IsDraining 전이마다 StartScan CanExecuteChanged false→true·HasSpecDrainingNote 알림), 기존 `사양_종료_대기_중에는_…`에 HasSpecDrainingNote 단언. 기본 1247/1247, Smoke 22/22, 빌드 0/0. 리뷰 발견 3(검사 종료 중 사양 화면 문구)·5(서비스 계층 상호 배제)는 이월. 상태 유지 `수정됨·재검증 대기`.
 
 ## REV-018 — 사양 읽기 중 정리 창 진입 가드 누락
 
