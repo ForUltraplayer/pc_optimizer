@@ -1,7 +1,7 @@
 /**
  * @file    : FindingCardViewModel.cs
  * @author  : rudals252
- * @brief   : Finding 카드 표시 모델(제목·측정값·근거·판정 배지·권장/조건·영향·확인 불가 사유)과 자세히 보기·설정 열기·허용된 공식 링크 열기·유지·비활성 적용 동작
+ * @brief   : Finding 카드 표시 모델(제목·설명 3줄·안전/판정 배지·측정값·근거·권장/조건·영향·확인 불가 사유)과 자세히 보기·설정 열기·허용된 공식 링크 열기·유지·비활성 적용 동작
  */
 
 // 서드파티 패키지
@@ -19,6 +19,8 @@ namespace PcOptimizer.App.ViewModels;
 /// Finding 카드 하나의 표시 모델입니다.
 /// <list type="bullet">
 /// <item>판정은 색이 아니라 배지 텍스트(<see cref="VerdictText"/>)로도 읽을 수 있습니다.</item>
+/// <item>안전 수준도 색과 함께 항상 배지 텍스트(<see cref="SafetyText"/>)로 보여 줍니다.</item>
+/// <item>원시 근거·부작용 문장은 카드 본문이 아니라 자세히 보기 패널에서만 보여 줍니다.</item>
 /// <item>[설정 열기]는 허용 목록에 있는 설정 URI가 있을 때만 제공하고, 없으면 수동 경로 안내를 보여 줍니다.</item>
 /// <item>공식 링크 버튼은 링크 정책(<see cref="LinkPolicy"/>)을 통과한 OpenLink만 보여 주며, 누를 때 다시 확인한 뒤 엽니다(자동으로 열지 않음).</item>
 /// <item>[유지]는 현재 검사에서 카드를 접는 UI 동작일 뿐이며 설정 변경·영구 제외가 아닙니다(다음 검사에서 새 카드가 만들어짐).</item>
@@ -75,7 +77,7 @@ public sealed partial class FindingCardViewModel : ObservableObject
         HiddenLinkCount = linkActions.Length - Links.Count;
         HasKeepAction = finding.Actions.Any(action => action is KeepAction);
         HasApplyAction = finding.Actions.Any(action => action is ApplyAction);
-        CanShowDetails = HasEvidence || HasDetail || Measurements.Count > 0 || finding.Actions.Any(action => action is ShowDetailsAction);
+        CanShowDetails = HasEvidence || HasDetail || HasImpact || Measurements.Count > 0 || finding.Actions.Any(action => action is ShowDetailsAction);
     }
 
     /// <summary>원본 Finding.</summary>
@@ -95,6 +97,33 @@ public sealed partial class FindingCardViewModel : ObservableObject
 
     /// <summary>분류 이름.</summary>
     public string CategoryText { get; }
+
+    /// <summary>설명 3줄이 있는지 여부.</summary>
+    public bool HasExplanation => Finding.Explanation is not null;
+
+    /// <summary>"이게 뭔가요" 한 줄.</summary>
+    public string? ExplainWhat => Finding.Explanation?.What;
+
+    /// <summary>효과 한 줄.</summary>
+    public string? ExplainEffect => Finding.Explanation?.Effect;
+
+    /// <summary>주의 한 줄.</summary>
+    public string? ExplainCaution => Finding.Explanation?.Caution;
+
+    /// <summary>안전 수준(없으면 null).</summary>
+    public SafetyLevel? Safety => Finding.Safety;
+
+    /// <summary>안전 배지가 있는지 여부.</summary>
+    public bool HasSafety => Finding.Safety is not null;
+
+    /// <summary>안전 배지 텍스트(색과 무관하게 항상 표시).</summary>
+    public string? SafetyText => Finding.Safety switch
+    {
+        SafetyLevel.Safe => Strings.Safety_Safe,
+        SafetyLevel.Caution => Strings.Safety_Caution,
+        SafetyLevel.Irreversible => Strings.Safety_Irreversible,
+        _ => null,
+    };
 
     /// <summary>측정값 목록.</summary>
     public IReadOnlyList<MeasurementItemViewModel> Measurements { get; }
@@ -136,7 +165,7 @@ public sealed partial class FindingCardViewModel : ObservableObject
     /// <summary>기대 효과 문장.</summary>
     public string? BenefitText => Finding.Impact is { } impact ? DisplayText.Format(Strings.Card_BenefitFormat, impact.Benefit) : null;
 
-    /// <summary>부작용 문장.</summary>
+    /// <summary>부작용 문장(자세히 보기 패널에서만 표시).</summary>
     public string? SideEffectText => Finding.Impact is { } impact ? DisplayText.Format(Strings.Card_SideEffectFormat, impact.SideEffect) : null;
 
     /// <summary>영향이 있는지 여부.</summary>

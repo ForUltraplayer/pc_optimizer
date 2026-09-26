@@ -1,7 +1,7 @@
 /**
  * @file    : FindingCardViewModelTests.cs
  * @author  : rudals252
- * @brief   : 카드 모델의 판정 배지 텍스트·자세히 보기 토글·허용 URI 설정 열기/수동 경로 안내·비활성 적용 설명 단위 테스트
+ * @brief   : 카드 모델의 판정 배지 텍스트·자세히 보기 토글·허용 URI 설정 열기/수동 경로 안내·비활성 적용 설명·설명 3줄·안전 배지 텍스트 단위 테스트
  */
 
 // 사용자 패키지
@@ -133,5 +133,27 @@ public sealed class FindingCardViewModelTests
 
         Assert.True(card.HasReason);
         Assert.Equal(DisplayText.Reason(CannotVerifyReason.Timeout), card.ReasonText);
+    }
+
+    /// <summary>설명 3줄과 안전 배지 텍스트를 노출하고, 없는 Finding은 숨긴다.</summary>
+    [Fact]
+    public void ExposesExplanationAndSafetyBadge()
+    {
+        var finding = new Finding("card.explain", FindingCategory.Power, "제목", [], "근거", Verdict.Candidate, null, null,
+            new Recommendation("권고", "조건"), null, [],
+            new Explanation("이게 뭔가요 줄", "효과 줄", "주의 줄"), SafetyLevel.Caution);
+        var vm = new FindingCardViewModel(finding, new SettingsUriPolicy(NullAppLogger.Instance), new LinkPolicy(null, NullAppLogger.Instance));
+
+        Assert.True(vm.HasExplanation);
+        Assert.Equal("이게 뭔가요 줄", vm.ExplainWhat);
+        Assert.Equal("효과 줄", vm.ExplainEffect);
+        Assert.Equal("주의 줄", vm.ExplainCaution);
+        Assert.True(vm.HasSafety);
+        Assert.Equal(Strings.Safety_Caution, vm.SafetyText);
+
+        var info = new Finding("card.info", FindingCategory.Power, "제목", [], "근거", Verdict.Info, null, null, null, null, []);
+        var infoVm = new FindingCardViewModel(info, new SettingsUriPolicy(NullAppLogger.Instance), new LinkPolicy(null, NullAppLogger.Instance));
+        Assert.False(infoVm.HasExplanation);
+        Assert.False(infoVm.HasSafety);
     }
 }

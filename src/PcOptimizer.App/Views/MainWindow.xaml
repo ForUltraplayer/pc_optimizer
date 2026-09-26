@@ -65,12 +65,22 @@
                 <DataTrigger Binding="{Binding Verdict}" Value="{x:Static models:Verdict.Ok}"><Setter Property="Background" Value="#DDF3E8" /></DataTrigger>
             </Style.Triggers>
         </Style>
+        <Style x:Key="SafetyBadge" TargetType="Border">
+            <Setter Property="Background" Value="#DDF3E8" /><Setter Property="CornerRadius" Value="5" /><Setter Property="Padding" Value="8,3" /><Setter Property="Margin" Value="0,0,6,0" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Safety}" Value="{x:Static models:SafetyLevel.Caution}"><Setter Property="Background" Value="#FFF0CC" /></DataTrigger>
+                <DataTrigger Binding="{Binding Safety}" Value="{x:Static models:SafetyLevel.Irreversible}"><Setter Property="Background" Value="#FFD9D9" /></DataTrigger>
+            </Style.Triggers>
+        </Style>
         <DataTemplate DataType="{x:Type vm:FindingCardViewModel}">
             <Border Style="{StaticResource Tile}" Margin="0,0,0,12" Padding="22,18">
                 <StackPanel>
                     <DockPanel Margin="0,0,0,10">
                         <Border DockPanel.Dock="Right" Style="{StaticResource VerdictBadge}">
                             <TextBlock TextWrapping="Wrap" Text="{Binding VerdictText}" Foreground="#263650" FontSize="12" />
+                        </Border>
+                        <Border DockPanel.Dock="Right" Style="{StaticResource SafetyBadge}" Visibility="{Binding HasSafety, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock TextWrapping="Wrap" Text="{Binding SafetyText}" Foreground="#263650" FontSize="12" AutomationProperties.Name="{Binding SafetyText}" />
                         </Border>
                         <TextBlock TextWrapping="Wrap" Text="{Binding CategoryText}" Style="{StaticResource Muted}" FontSize="12" VerticalAlignment="Center" />
                     </DockPanel>
@@ -80,6 +90,16 @@
                         <Button Content="{x:Static res:Strings.Button_Unkeep}" Command="{Binding UnkeepCommand}" Margin="8,0,0,0" />
                     </WrapPanel>
                     <StackPanel Visibility="{Binding IsBodyVisible, Converter={StaticResource BoolToVisibility}}">
+                        <Grid Margin="0,10,0,0" Visibility="{Binding HasExplanation, Converter={StaticResource BoolToVisibility}}">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition /><RowDefinition /><RowDefinition /></Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="{x:Static res:Strings.Card_ExplainWhatHeader}" Style="{StaticResource Muted}" FontSize="12" Margin="0,0,10,2" />
+                            <TextBlock Grid.Row="0" Grid.Column="1" TextWrapping="Wrap" Text="{Binding ExplainWhat}" FontSize="14" />
+                            <TextBlock Grid.Row="1" Text="{x:Static res:Strings.Card_ExplainEffectHeader}" Style="{StaticResource Muted}" FontSize="12" Margin="0,0,10,2" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" TextWrapping="Wrap" Text="{Binding ExplainEffect}" FontSize="14" />
+                            <TextBlock Grid.Row="2" Text="{x:Static res:Strings.Card_ExplainCautionHeader}" Style="{StaticResource Muted}" FontSize="12" Margin="0,0,10,2" />
+                            <TextBlock Grid.Row="2" Grid.Column="1" TextWrapping="Wrap" Text="{Binding ExplainCaution}" FontSize="14" />
+                        </Grid>
                         <Border Background="#EDF4FF" CornerRadius="6" Padding="12,10" Margin="0,12,0,0"
                                 Visibility="{Binding HasCandidateBenefit, Converter={StaticResource BoolToVisibility}}">
                             <StackPanel>
@@ -87,16 +107,12 @@
                                 <TextBlock TextWrapping="Wrap" Text="{Binding CandidateBenefit}" Foreground="#193F82" Margin="0,3,0,0" FontSize="15" />
                             </StackPanel>
                         </Border>
-                        <TextBlock TextWrapping="Wrap" Text="{Binding Evidence}" Style="{StaticResource Muted}" Margin="0,10,0,0"
-                                   Visibility="{Binding IsCandidate, Converter={StaticResource BoolToVisibility}}" />
                         <TextBlock TextWrapping="Wrap" Text="{Binding ReasonText}" FontWeight="SemiBold" Margin="0,10,0,0" Visibility="{Binding HasReason, Converter={StaticResource BoolToVisibility}}" />
                         <TextBlock TextWrapping="Wrap" Text="{Binding Detail}" Style="{StaticResource Muted}" Margin="0,4,0,0" Visibility="{Binding HasReason, Converter={StaticResource BoolToVisibility}}" />
                         <StackPanel Margin="0,12,0,0" Visibility="{Binding HasRecommendation, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock TextWrapping="Wrap" Text="{Binding RecommendationText}" FontSize="14" />
                             <TextBlock TextWrapping="Wrap" Text="{Binding ConditionText}" Style="{StaticResource Muted}" Margin="0,4,0,0" FontSize="12" />
                         </StackPanel>
-                        <TextBlock TextWrapping="Wrap" Text="{Binding SideEffectText}" Style="{StaticResource Muted}" Margin="0,6,0,0" FontSize="12"
-                                   Visibility="{Binding HasImpact, Converter={StaticResource BoolToVisibility}}" />
                         <TextBlock TextWrapping="Wrap" Text="{Binding ActionModeText}" Style="{StaticResource Muted}" Margin="0,12,0,0" FontSize="12"
                                    Visibility="{Binding ShowManualPathHint, Converter={StaticResource BoolToVisibility}}" />
                         <WrapPanel>
@@ -126,6 +142,7 @@
                                 </ItemsControl>
                                 <TextBlock TextWrapping="Wrap" Text="{Binding Detail}" Margin="0,6,0,0" Visibility="{Binding HasDetail, Converter={StaticResource BoolToVisibility}}" />
                                 <TextBlock TextWrapping="Wrap" Text="{Binding BenefitText}" Margin="0,6,0,0" Visibility="{Binding HasImpact, Converter={StaticResource BoolToVisibility}}" />
+                                <TextBlock TextWrapping="Wrap" Text="{Binding SideEffectText}" Margin="0,6,0,0" Visibility="{Binding HasImpact, Converter={StaticResource BoolToVisibility}}" />
                             </StackPanel>
                         </Border>
                     </StackPanel>

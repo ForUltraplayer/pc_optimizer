@@ -1,7 +1,7 @@
 /**
  * @file    : MainWindowLayoutTests.cs
  * @author  : rudals252
- * @brief   : 메인 창을 화면에 띄우지 않고 고정 폭으로 배치해, 긴 경로가 든 카드 문장이 가로로 넘치지 않고 줄바꿈되는지, 판정 배지 텍스트, 관리자 권한 재검사 버튼 활성·배너 표시, 공식 링크 버튼 표시를 검증
+ * @brief   : 메인 창을 화면에 띄우지 않고 고정 폭으로 배치해, 긴 경로가 든 카드 문장이 가로로 넘치지 않고 줄바꿈되는지, 판정 배지 텍스트, 관리자 권한 재검사 버튼 활성·배너 표시, 공식 링크 버튼 표시, 카드의 안전 배지·설명 3줄 렌더를 검증
  */
 
 // 기본 패키지
@@ -18,6 +18,7 @@ using PcOptimizer.App.Services;
 using PcOptimizer.App.ViewModels;
 using PcOptimizer.App.Views;
 using PcOptimizer.Core.Abstractions;
+using PcOptimizer.Core.Engine;
 using PcOptimizer.Core.Models;
 using PcOptimizer.Tests.Unit.App.Fakes;
 using PcOptimizer.Tests.Unit.Engine.Fakes;
@@ -83,6 +84,9 @@ public sealed class MainWindowLayoutTests
     private const double LAYOUT_HEIGHT = 2000;
     private const int PATH_SEGMENTS = 40;
     private const int MIN_WRAPPED_LINES = 2;
+    private const double CARD_LAYOUT_WIDTH = 720;
+    private const double CARD_LAYOUT_HEIGHT = 800;
+    private const int EXPLANATION_LINES = 3;
 
     private const string LINK_URL = "https://www.nvidia.com/en-us/drivers/details/279803/";
     private const string LINK_LABEL = "공식 배포 설명";
@@ -116,7 +120,13 @@ public sealed class MainWindowLayoutTests
             elevation,
             new ElevationRelauncher(new RecordingProcessStarter(), elevation, () => null, NullAppLogger.Instance),
             launchMode);
-        if (scan) { vm.StartScanCommand.ExecuteAsync(null).GetAwaiter().GetResult(); }
+        if (scan)
+        {
+            vm.StartScanCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+            // 고정 규칙이 예외(예: Candidate 불변식 위반)로 조용히 실패하면 카드가 빠진 채 통과할 수 있으므로 막는다.
+            var findings = vm.LastResult?.Report.Findings ?? [];
+            Assert.DoesNotContain(findings, f => f.Id.StartsWith(RuleEvaluator.RULE_FAILURE_FINDING_ID_PREFIX, StringComparison.Ordinal));
+        }
         vm.ShowAllResults = !overview;
         return vm;
     }
@@ -141,6 +151,11 @@ public sealed class MainWindowLayoutTests
             }
         }
     }
+
+    /// <summary>
+    /// 시각 트리의 모든 <see cref="TextBlock"/>을 찾는다.
+    /// </summary>
+    private static IEnumerable<TextBlock> FindTextBlocks(DependencyObject root) => Descendants<TextBlock>(root);
 
     /// <summary>
     /// STA 스레드에서 작업을 실행하고 예외를 호출자에게 다시 던진다.
@@ -190,6 +205,32 @@ public sealed class MainWindowLayoutTests
             Assert.True(evidence.ActualHeight >= singleLine * MIN_WRAPPED_LINES, $"높이 {evidence.ActualHeight}");
 
             Assert.Contains(texts, t => t.Text == DisplayText.Verdict(Verdict.CannotVerify));
+            window.Close();
+        });
+    }
+
+    /// <summary>카드에 안전 배지 텍스트와 설명 3줄이 렌더되고 가로로 넘치지 않는다.</summary>
+    [Fact]
+    public void CardRendersSafetyBadgeAndExplanationLines()
+    {
+        RunOnSta(() =>
+        {
+            var model = CreateScannedViewModel(overview: true, rule: new ImprovementRule());
+            var explainedCards = model.VisibleCards.Count(c => c.HasExplanation);
+            Assert.True(explainedCards > 0);
+            var window = new MainWindow(model);
+            var root = (FrameworkElement)window.Content;
+            root.Measure(new Size(CARD_LAYOUT_WIDTH, CARD_LAYOUT_HEIGHT));
+            root.Arrange(new Rect(0, 0, CARD_LAYOUT_WIDTH, CARD_LAYOUT_HEIGHT));
+            root.UpdateLayout();
+            var badge = FindTextBlocks(root).First(t => t.Text == Strings.Safety_Safe);
+            Assert.True(badge.ActualWidth > 0);
+            var lines = FindTextBlocks(root).Where(t => t.Text is "테스트 설명" or "테스트 효과" or "테스트 주의").ToList();
+            // 고정 규칙의 Candidate 카드마다 같은 설명 3줄을 쓰므로 카드 수 × 3줄이 렌더되어야 한다.
+            Assert.Equal(EXPLANATION_LINES * explainedCards, lines.Count);
+            Assert.Equal(EXPLANATION_LINES, lines.Select(t => t.Text).Distinct().Count());
+            Assert.All(lines, t => Assert.Equal(TextWrapping.Wrap, t.TextWrapping));
+            Assert.All(lines, t => Assert.True(t.ActualWidth > 0 && t.ActualWidth <= CARD_LAYOUT_WIDTH, $"폭 {t.ActualWidth}"));
             window.Close();
         });
     }

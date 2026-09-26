@@ -1,7 +1,7 @@
 /**
  * @file    : Finding.cs
  * @author  : rudals252
- * @brief   : 모든 검사 결과를 표현하는 Finding 모델과 생성 시 불변식 검증. 초보자용 설명 3줄과 안전 수준을 선택적으로 담는다
+ * @brief   : 모든 검사 결과를 표현하는 Finding 모델과 생성 시 불변식 검증. 초보자용 설명 3줄과 안전 수준을 담으며, Candidate에는 둘 다 필수이고 그 외 판정에서는 선택이다
  */
 
 namespace PcOptimizer.Core.Models;
