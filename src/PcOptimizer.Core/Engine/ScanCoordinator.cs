@@ -22,8 +22,9 @@ namespace PcOptimizer.Core.Engine;
 /// <item>프로브 예외·타임아웃·취소는 ProbeResult(Failed/Cancelled)로 흡수하고 다른 프로브에 전파하지 않습니다.</item>
 /// <item>타임아웃된 호출은 끝날 때까지 "종료 중"으로 추적하고, 나중에 끝나도 결과를 합치지 않고 로그만 남깁니다.
 /// 종료 중인 프로브는 다음 검사에서 다시 실행하지 않습니다.</item>
-/// <item>사용자 취소 시 새 프로브를 시작하지 않습니다. 실행 중인 호출은 끝나거나 타임아웃될 때까지 기다리며,
-/// 끝나지 않은 호출은 취소 완료가 아니라 "종료 중"(<see cref="ProbeSummary.IsStillRunning"/>)으로 표시합니다.</item>
+/// <item>사용자 취소 시 새 프로브를 시작하지 않고 곧바로 돌아옵니다. 취소에 협조하는 호출은 짧은 유예 시간 안에 끝나 Cancelled가 되고,
+/// 취소를 무시하는 호출은 기다리지 않고 취소 완료가 아니라 "종료 중"(<see cref="ProbeSummary.IsStillRunning"/>, <see cref="DrainingProbeIds"/>)으로
+/// 표시합니다. 이미 끝난 결과는 유지합니다.</item>
 /// <item>동시에 두 검사를 실행하지 않습니다.</item>
 /// </list>
 /// 실제 스케줄러·OS 작업은 Core 밖(App/Probes)에 있습니다.
@@ -78,6 +79,7 @@ public sealed class ScanCoordinator
         ArgumentNullException.ThrowIfNull(clock);
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentOutOfRangeException.ThrowIfLessThan(options.MaxParallelism, 1, nameof(options));
+        ArgumentOutOfRangeException.ThrowIfLessThan(options.CancellationGracePeriod, TimeSpan.Zero, nameof(options));
 
         IProbe[] probeList = [.. probes];
         var categories = new Dictionary<string, FindingCategory>(StringComparer.Ordinal);
@@ -100,7 +102,7 @@ public sealed class ScanCoordinator
         _probeCategories = categories.ToFrozenDictionary(StringComparer.Ordinal);
         _probeTimeouts = timeouts.ToFrozenDictionary(StringComparer.Ordinal);
         _ruleEvaluator = new RuleEvaluator(rules, logger);
-        _executor = new ProbeExecutor(clock, logger);
+        _executor = new ProbeExecutor(clock, logger, options.CancellationGracePeriod);
         _options = options;
         _versions = versions;
         _clock = clock;
@@ -210,18 +212,26 @@ public sealed class ScanCoordinator
 
     /// <summary>
     /// 병렬도 제한 슬롯을 얻는다. 사용자가 취소하면 false.
+    /// 취소와 동시에 다른 프로브가 슬롯을 돌려줘 대기가 성공한 경우에도, 취소가 요청됐으면 슬롯을 돌려주고 false를 반환한다.
     /// </summary>
     private static async Task<bool> TryEnterGateAsync(SemaphoreSlim gate, CancellationToken cancellationToken)
     {
         try
         {
             await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
-            return true;
         }
         catch (OperationCanceledException)
         {
             return false;
         }
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            gate.Release();
+            return false;
+        }
+
+        return true;
     }
 
     /// <summary>

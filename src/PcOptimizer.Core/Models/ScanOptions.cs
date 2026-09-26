@@ -1,7 +1,7 @@
 /**
  * @file    : ScanOptions.cs
  * @author  : rudals252
- * @brief   : 검사 실행 설정(최대 병렬도, 프로브별 타임아웃 재정의)과 기본 타임아웃 상수
+ * @brief   : 검사 실행 설정(최대 병렬도, 프로브별 타임아웃 재정의, 취소 유예 시간)과 기본 타임아웃 상수
  */
 
 namespace PcOptimizer.Core.Models;
@@ -26,6 +26,9 @@ public sealed record ScanOptions
     /// <summary>볼륨당 파일 순회 기본 타임아웃.</summary>
     public static readonly TimeSpan DEFAULT_FILE_SCAN_TIMEOUT_PER_VOLUME = TimeSpan.FromSeconds(120);
 
+    /// <summary>사용자 취소 뒤 취소에 협조하는 프로브가 끝나기를 기다리는 기본 유예 시간.</summary>
+    public static readonly TimeSpan DEFAULT_CANCELLATION_GRACE_PERIOD = TimeSpan.FromMilliseconds(250);
+
     /// <summary>
     /// 최대 동시 실행 프로브 수(1 이상).
     /// </summary>
@@ -36,4 +39,10 @@ public sealed record ScanOptions
     /// </summary>
     public IReadOnlyDictionary<string, TimeSpan> ProbeTimeoutOverrides { get; init; } =
         new Dictionary<string, TimeSpan>(StringComparer.Ordinal);
+
+    /// <summary>
+    /// 사용자 취소 뒤 실행 중인 프로브가 취소에 응해 끝나기를 기다리는 유예 시간(0 이상).
+    /// 이 시간 안에 끝나지 않은 호출은 기다리지 않고 "종료 중"으로 표시합니다.
+    /// </summary>
+    public TimeSpan CancellationGracePeriod { get; init; } = DEFAULT_CANCELLATION_GRACE_PERIOD;
 }

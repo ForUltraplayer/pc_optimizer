@@ -1,7 +1,7 @@
 /**
  * @file    : ProbeExecutor.cs
  * @author  : rudals252
- * @brief   : 프로브 한 번의 격리 실행(타임아웃·취소·예외 흡수, 결과 검증)과 끝나지 않은 호출의 종료 중 추적·늦은 결과 폐기
+ * @brief   : 프로브 한 번의 격리 실행(타임아웃·취소 즉시 반환·예외 흡수, 결과 검증)과 끝나지 않은 호출의 종료 중 추적·늦은 결과 폐기
  */
 
 // 기본 패키지
@@ -16,7 +16,8 @@ namespace PcOptimizer.Core.Engine;
 
 /// <summary>
 /// 프로브 한 번을 격리해 실행합니다. 예외·타임아웃·취소를 ProbeResult로 흡수하며 예외를 던지지 않습니다.
-/// 제한 시간 안에 끝나지 않은 호출은 기다림을 멈추고 "종료 중"으로 추적하며, 나중에 끝나면 결과를 버리고 로그만 남깁니다.
+/// 제한 시간 안에 끝나지 않았거나 사용자 취소 뒤 짧은 유예 시간 안에 끝나지 않은 호출은 기다림을 멈추고 "종료 중"으로 추적하며,
+/// 나중에 끝나면 결과를 버리고 로그만 남깁니다.
 /// </summary>
 internal sealed class ProbeExecutor
 {
@@ -24,12 +25,13 @@ internal sealed class ProbeExecutor
 
     private const string TIMEOUT_SUMMARY = "제한 시간 안에 끝나지 않았어요";
     private const string CANCELLED_SUMMARY = "사용자가 검사를 취소했어요";
-    private const string CANCELLED_STILL_RUNNING_SUMMARY = "취소를 요청했지만 호출이 아직 끝나지 않았어요";
+    private const string CANCELLED_STILL_RUNNING_SUMMARY = "취소 후에도 아직 종료 중이에요 (still finishing after cancel)";
     private const string NULL_RESULT_SUMMARY = "프로브가 결과를 돌려주지 않았어요";
     private const string MISMATCHED_ID_SUMMARY = "프로브가 다른 ID의 결과를 돌려줬어요";
 
     private readonly IClock _clock;
     private readonly IAppLogger _logger;
+    private readonly TimeSpan _cancellationGracePeriod;
 
     /// <summary>끝나지 않은 호출: 프로브 ID → 그 호출을 시작한 검사 ID.</summary>
     private readonly ConcurrentDictionary<string, Guid> _draining = new(StringComparer.Ordinal);
@@ -39,10 +41,12 @@ internal sealed class ProbeExecutor
     /// </summary>
     /// <param name="clock">UTC 시계.</param>
     /// <param name="logger">공용 로거.</param>
-    public ProbeExecutor(IClock clock, IAppLogger logger)
+    /// <param name="cancellationGracePeriod">사용자 취소 뒤 협조하는 프로브가 끝나기를 기다리는 짧은 유예 시간.</param>
+    public ProbeExecutor(IClock clock, IAppLogger logger, TimeSpan cancellationGracePeriod)
     {
         _clock = clock;
         _logger = logger;
+        _cancellationGracePeriod = cancellationGracePeriod;
     }
 
     /// <summary>
@@ -91,6 +95,8 @@ internal sealed class ProbeExecutor
         var timeoutCts = new CancellationTokenSource();
         var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(userToken, timeoutCts.Token);
         var tokenSourcesHandedOff = false;
+        var userCancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var userCancelRegistration = userToken.Register(() => userCancelled.TrySetResult());
 
         try
         {
@@ -102,7 +108,14 @@ internal sealed class ProbeExecutor
 
             using var deadlineCts = new CancellationTokenSource();
             var deadline = Task.Delay(timeout, deadlineCts.Token);
-            var first = await Task.WhenAny(probeTask, deadline).ConfigureAwait(false);
+            var first = await Task.WhenAny(probeTask, deadline, userCancelled.Task).ConfigureAwait(false);
+
+            if (first == userCancelled.Task)
+            {
+                // 사용자 취소: 취소 토큰에 협조하는 프로브가 끝날 짧은 유예만 주고, 무시하는 프로브는 기다리지 않는다.
+                var grace = Task.Delay(_cancellationGracePeriod, deadlineCts.Token);
+                first = await Task.WhenAny(probeTask, deadline, grace).ConfigureAwait(false);
+            }
 
             if (first != probeTask)
             {
@@ -186,10 +199,10 @@ internal sealed class ProbeExecutor
         }
         catch (Exception ex)
         {
-            // 예외는 Issue 요약(형식 이름 + 메시지, 스택 추적 제외)으로만 담고, 로그에는 형식 이름만 남긴다.
+            // 예외 원문 메시지에는 개인 경로가 들어갈 수 있으므로 모델과 로그 어디에도 담지 않고 형식 이름만 남긴다.
             _logger.Warn(LOG_CATEGORY, $"{ScanLogEvents.PROBE_FAILED} probe={probe.Id} scan={context.ScanId} error={ex.GetType().Name}");
             return CreateIssueResult(
-                probe.Id, context, ProbeStatus.Failed, CannotVerifyReason.ProbeError, $"{ex.GetType().Name}: {ex.Message}", startedAt, stopwatch.Elapsed);
+                probe.Id, context, ProbeStatus.Failed, CannotVerifyReason.ProbeError, ex.GetType().Name, startedAt, stopwatch.Elapsed);
         }
     }
 
@@ -222,7 +235,7 @@ internal sealed class ProbeExecutor
     }
 
     /// <summary>
-    /// 제한 시간 안에 끝나지 않은 호출의 결과를 만든다. 사용자 취소 뒤라면 Cancelled(아직 종료 중), 아니면 Failed/Timeout.
+    /// 기다림을 멈춘 시점에 끝나지 않은 호출의 결과를 만든다. 사용자 취소 뒤라면 Cancelled(아직 종료 중), 아니면 Failed/Timeout.
     /// </summary>
     private ProbeResult CreateUnfinishedResult(
         IProbe probe,
