@@ -94,7 +94,12 @@ public sealed class ScanServiceSmokeTests(ITestOutputHelper output)
 
         // 장치 내부 ID(모니터 장치 경로·PnP 인스턴스/하드웨어 ID·볼륨 경로·중괄호 GUID)는 토큰으로 바뀌어 원문이 남지 않는다.
         Assert.DoesNotMatch(new Regex(@"VEN_|DISPLAY#|Volume\{|(?<![A-Za-z0-9_])(?:PCI|ROOT|DISPLAY|USB|SWD)\\\\|\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1)), json);
-        Assert.Contains(DisplayRefreshRule.FINDING_ID_PREFIX + "display-1", json, StringComparison.Ordinal);
+        // 디스플레이 대상 식별자는 장치 경로(모니터)나 토큰화된 어댑터·타깃 조합(폴백)일 수 있다. 접두만 있으면 되고, 원문 raw 식별자는 없어야 한다.
+        Assert.Contains(document.RootElement.GetProperty("findings").EnumerateArray(),
+            f => f.GetProperty("id").GetString()!.StartsWith(DisplayRefreshRule.FINDING_ID_PREFIX, StringComparison.Ordinal));
+        Assert.DoesNotContain("VEN_", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("DISPLAY#", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(@"\\?\", json, StringComparison.Ordinal);
         Assert.Contains(InstalledDriverRule.FINDING_ID_PREFIX + "pnp-", json, StringComparison.Ordinal);
         Assert.Contains(DiskHealthRule.FINDING_ID_PREFIX + "guid-", json, StringComparison.Ordinal);
 
