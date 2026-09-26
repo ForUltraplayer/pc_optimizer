@@ -179,6 +179,7 @@
 - P5 fix round 1 구현 보고(2026-09-26, 구현 세션): 커밋 `99c1804`. 8건별 변경 파일·RED/GREEN 테스트·남은 한계 표는 `.superpowers/sdd/2026-09-26-pc-optimizer-implementation-plan/task-P5-report.md` 10장. 구현 세션 자체 실행 결과(빌드 0/0, 기본 782/782, Smoke 18/18)이며 독립 검증이 아니다. REV 상태 변경 없음.
 - P5 fix round 2 구현 보고(2026-09-26, 구현 세션): 커밋 `aff581b`. Finding 4(Section= 기준 앱 카드)와 신규 결함 1~3의 변경 파일·RED/GREEN·남은 한계 표는 `.superpowers/sdd/2026-09-26-pc-optimizer-implementation-plan/task-P5-report.md` 11장. 구현 세션 자체 실행 결과(빌드 0/0, 기본 797/797, Smoke 18/18)이며 독립 검증이 아니다. REV 상태 변경 없음.
 - 관련 수정(P4 코드, 신규 결함 3): `FileScanService`가 보호 정책 `rules\protect.json`을 출력 폴더(`AppContext.BaseDirectory`)에서 읽던 것을 Probes 어셈블리 포함 리소스로만 읽게 바꾸고 앱 출력 복사를 없앴다(`aff581b`). REV-001·REV-002 상태는 바꾸지 않았다.
+- P5 fix round 3 구현 보고(2026-09-26, 구현 세션): 커밋 `18ea323`. 범주 Section(Games·Adobe)·공유 100개 초과 Section을 앱 묶음에서 제외(AppGroupResolver), protect.json 문구·측정 출처를 포함 리소스 이름으로, 공유 출력 폴더에 쓰던 테스트 제거. 표는 `.superpowers/sdd/2026-09-26-pc-optimizer-implementation-plan/task-P5-report.md` 12장. 구현 세션 자체 실행 결과(빌드 0/0, 기본 803/803, Smoke 18/18, 내보내기 `C:\Users\`·`VEN_` 0건)이며 독립 검증이 아니다. REV 상태 변경 없음.
 
 ### 실행 이력
 
