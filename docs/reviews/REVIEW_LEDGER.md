@@ -20,13 +20,13 @@
 | REV-005 | P2 | 검증 완료(장치 ID 범위) | P3a 내보내기 | 장치 내부 ID 원문 노출 보완 확인 |
 | REV-006 | P2 | 수정됨·재검증 대기 | P5 앱 설정 읽기 | 사전 메타데이터 검사·본문 읽기 공급자 경계, 실제 링크 fixture 통과 |
 | REV-007 | P2 | 수정됨·재검증 대기 | P5 앱 설정 읽기 | 읽기 실패 보존 및 기본 캐시 미탐지 시 최종 사유 카드 회귀 통과 |
-| REV-008 | P1 | 수정됨·재검증 대기 | P7 정리 실행기 | 도구 보고 캐시 경로를 8.3 별칭 정규화 없이 접두 비교 — 보호 우회 가능 |
-| REV-009 | P2 | 수정됨·재검증 대기 | P7 정리 실행기 | `Inspect` 관문 7종에 직접 테스트 없음(실제 OS 의존 private) |
-| REV-010 | P2 | 수정됨·재검증 대기 | P7 정리 실행기 | Kill 실패 시 무기록·기능 영구 비활성·'도구 미설치' 오진 |
-| REV-011 | P2 | 수정됨·재검증 대기 | UI 커밋 | 필수 파일 헤더 누락/삭제(ad06cca 3파일 + 4e8a5bc 3파일), 공개 멤버 한글 XML 주석 누락 |
-| REV-012 | P3 | 수정됨·재검증 대기 | P7 정리 실행기 | pip·dotnet 인자가 사용자 승인 스펙 문구보다 2개 많음 |
-| REV-013 | P2 | 수정됨·재검증 대기 | UI 정리 결과 | 도구 실행 전 거절(Busy·만료·대상 변경·차단)이 '일부만 정리됐을 수 있음' 실패로 표시·잔존 |
-| REV-014 | P2 | 수정됨·재검증 대기 | UI 개요 | 드라이버 타일이 온라인 '요청' 여부로 '후보 0개' 표시 — 취소·실패·미비교와 비교 완료를 구분 못 함 |
+| REV-008 | P1 | 검증 완료 | P7 정리 실행기 | 8.3 별칭 정규화(CanonicalPath) 및 별칭 fixture 거절 테스트 독립 확인 |
+| REV-009 | P2 | 검증 완료 | P7 정리 실행기 | CachePathInspector 주입·관문 7종 테스트 독립 확인(ProfileList SID 분기·루프 내 ProtectedOrLinkedChild는 간접 커버) |
+| REV-010 | P2 | 부분 수정·재현 미완 | P7 정리 실행기 | 가드·전용 코드·문구는 됐으나 Kill(entireProcessTree)의 AggregateException이 가드를 우회 — 영구 차단·'실행하지 않음' 오표시 경로 남음 |
+| REV-011 | P2 | 검증 완료 | UI 커밋 | 헤더 6파일·공개 멤버 한글 주석·테스트 summary 독립 확인 |
+| REV-012 | P3 | 검증 완료 | P7 정리 실행기 | 인자 2개 제거로 스펙 문구와 일치, 고정 인자 테스트 일치, NuGet --list 파싱 ko/ja/en 무관 확인 |
+| REV-013 | P2 | 검증 완료 | UI 정리 결과 | Started 플래그로 미실행 코드 분리·Outcome 미생성·메인 화면 미잔존 독립 확인 |
+| REV-014 | P2 | 부분 수정·재현 미완 | UI 개요 | '온라인 확인 불가' 상태는 생겼으나 Driver 분류의 모든 CannotVerify(AMD/Intel 링크·OEM 미확인 등 로컬 사유)를 미완료로 계산 — 흔한 PC에서 항상 미완료 표시 |
 | REV-015 | 제품 범위 | 범위 결정 필요 | 개요 화면 | 일반인 대상인데 '공간 확보' 묶음의 자동 조치가 개발 도구 캐시뿐 — 기대 오해 방지 재설계 제안 |
 
 ## REV-001 — 보호 경로와 스캔 경로의 검증 정책을 분리
@@ -282,6 +282,15 @@
   4. 크기 숫자 옆에 행동 가능성 라벨을 고정한다: "앱에서 정리 가능" / "Windows 설정에서 정리" / "확인만 가능". 세 번째는 요약 합계에서 제외한다.
 - 완료 근거: 개발 도구 없는 가짜 환경에서 개요에 자동 정리 묶음이 없고 Windows 정리 연결이 보이는 테스트; 도구 있는 환경에서 기존 카드 유지; "확보 가능" 표현 부재 회귀 유지.
 - 대응 기록: 아직 없음. 사용자 확정 후 구현.
+
+## 2026-09-27 독립 재검증 (Claude 세션, 커밋 `4c1e93d`, 원장 `6bbd4a8`)
+
+컨트롤러 실행: Release 빌드 경고 0/오류 0, 기본 1169/1169, Smoke 22/22(ToolSmoke 미실행). 재리뷰는 diff·원장·1회 읽기 전용 명령(`dotnet nuget locals http-cache --list`를 ko-KR/ja-JP/en-US로 실행해 `http-cache:` 접두 확인)으로 수행.
+
+- REV-008·009·011·012·013 → `검증 완료`. 관문 순서·범위는 이전 `Inspect`와 동등 이상(예산 비교 `>`→`>=`, 종료 시 예산 검사 추가), 계획 수명·허용 목록·승격·지문 재검사 불변.
+- REV-010 → `부분 수정·재현 미완`: `CacheToolProcess.cs:78` `process.Kill(entireProcessTree: true)`는 실패 시 **AggregateException**을 던지는데 `CacheProcessGuard.cs:42,51`은 InvalidOperationException/Win32Exception만 잡는다(테스트 람다는 Win32Exception을 직접 던져 통과). 결과: `_hasExited`/`_dispose` 선설정 후 StopAsync 예외 → `CacheToolProcess.cs:85` 필터 불일치 → `:92`에서 프로세스 Dispose → 이후 `CanRun`의 `HasExited`가 InvalidOperationException → 앱 재시작까지 ProcessStillRunning(영구 차단), 그리고 진행 중이던 실행은 `CacheCleanupService.cs:104-108`에서 `execution == null`로 PreflightFailed/Started=false → "정리를 실행하지 않았습니다"(도구는 최대 2분 실행됨). 완료 근거: AggregateException(내부 Win32Exception)을 던지는 가짜 Kill로 (a) 가드가 차단 유지·프로세스 미Dispose, (b) 해당 실행이 Started=true·ToolFailed/ProcessStillRunning으로 보고되는 테스트.
+- REV-014 → `부분 수정·재현 미완`: `MainViewModel.Overview.cs:80` `OnlineComparisonComplete`가 Driver 분류의 모든 CannotVerify를 미완료로 취급. `GpuVendorLinkRule.cs:98-106`(AMD/Intel 항상 Unsupported), `OemSupportRule.cs:76,95,104`, `SystemInfoRule.cs:60`, `InstalledDriverRule.cs:79`, `ProbeResultConverter`의 InstalledGpu/SystemInfo Skipped/Failed/Partial이 모두 해당 → Intel iGPU·AMD GPU·OEM 미확인 PC에서는 NVIDIA·WUA가 성공해도 항상 "온라인 확인 불가"이고 마지막 온라인 확인 시각이 표시되지 않는다. 테스트 `DriverTileRequiresActualSuccessfulOnlineResults`는 GPU/SystemInfo 프로브 없는 fixture라 통과. 완료 근거: 온라인 규칙(DriverUpdateRule, WindowsUpdateDriverRule)과 두 온라인 프로브의 상태만으로 완료 판정, Intel iGPU + NVIDIA 성공 fixture에서 "비교 완료" 표시 테스트.
+- 새 Minor(작업 목록 D에 추가): ObservationFailed 코드가 `Cleanup_Blocked` 문구로 표시(실행됐는데 "허용되지 않음"), 타임아웃 후 가드 보존 시 Started=true 실행에 "이전 도구가 아직…" 문구, CleanupStarted 로그가 실행 후 CleanupExecuted로만 남아 중간 크래시 시 무기록, 보호 루트/프로필 이름에 `~` 포함 시 전부 InspectionFailed(fail-safe), LocateAsync에서 CanonicalPath ArgumentException이 다음 후보 탐색 중단, `MainViewModel.cs:45-46` `_showCommunityDetails` summary 없음, XAML 헤더 들여쓰기 불일치, 8.3 별칭 네이티브 스모크가 이 볼륨에서 별칭을 실제로 만들지 못함.
 
 ## 독립 검증 기록
 
