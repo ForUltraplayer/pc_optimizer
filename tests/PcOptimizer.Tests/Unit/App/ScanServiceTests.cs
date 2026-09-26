@@ -8,6 +8,7 @@
 using PcOptimizer.App.Services;
 using PcOptimizer.Core.Abstractions;
 using PcOptimizer.Core.Models;
+using PcOptimizer.Core.Rules;
 using PcOptimizer.Tests.Unit.Engine.Fakes;
 
 namespace PcOptimizer.Tests.Unit.App;
@@ -116,14 +117,26 @@ public sealed class ScanServiceTests
         Assert.Equal([FindingCategory.Memory, FindingCategory.Power], service.Categories);
     }
 
-    /// <summary>기본 구성은 메모리·전원 프로브와 두 규칙만 등록하고 네트워크·관리자 권한 프로브는 없다.</summary>
+    /// <summary>기본 구성은 P3a까지의 로컬 프로브를 등록하고, 네트워크 프로브는 없으며 관리자 권한 프로브는 TRIM 정책 하나뿐이다.</summary>
     [Fact]
-    public void 기본_구성은_메모리와_전원만_등록한다()
+    public void 기본_구성은_로컬_프로브만_등록한다()
     {
         var service = ScanService.CreateDefault(NullAppLogger.Instance);
 
-        Assert.Equal([FindingCategory.Memory, FindingCategory.Power], service.Categories);
+        Assert.Equal(
+            [
+                FindingCategory.Memory,
+                FindingCategory.Power,
+                FindingCategory.Display,
+                FindingCategory.Driver,
+                FindingCategory.Graphics,
+                FindingCategory.Security,
+                FindingCategory.Storage,
+            ],
+            service.Categories);
         Assert.All(service.Probes, probe => Assert.False(probe.RequiresNetwork));
-        Assert.All(service.Probes, probe => Assert.False(probe.RequiresElevation));
+        var elevated = Assert.Single(service.Probes, probe => probe.RequiresElevation);
+        Assert.Equal(TrimPolicyProbeContract.PROBE_ID, elevated.Id);
+        Assert.Equal(service.Probes.Count, service.Probes.Select(probe => probe.Id).Distinct(StringComparer.Ordinal).Count());
     }
 }

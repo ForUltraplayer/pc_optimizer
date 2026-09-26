@@ -25,6 +25,15 @@ public sealed class SettingsUriPolicy
     /// <summary>전원 및 절전 설정 URI.</summary>
     public const string POWER_SLEEP_SETTINGS_URI = "ms-settings:powersleep";
 
+    /// <summary>그래픽 고급 설정(하드웨어 가속 GPU 예약) URI.</summary>
+    public const string ADVANCED_GRAPHICS_SETTINGS_URI = "ms-settings:display-advancedgraphics";
+
+    /// <summary>게임 모드 설정 URI.</summary>
+    public const string GAME_MODE_SETTINGS_URI = "ms-settings:gaming-gamemode";
+
+    /// <summary>저장소(저장 공간 센스) 설정 URI.</summary>
+    public const string STORAGE_SENSE_SETTINGS_URI = "ms-settings:storagesense";
+
     private const string LOG_CATEGORY = nameof(SettingsUriPolicy);
 
     /// <summary>허용 목록(키: 비교용, 값: 실행할 정식 표기).</summary>
@@ -32,6 +41,9 @@ public sealed class SettingsUriPolicy
     {
         [DISPLAY_SETTINGS_URI] = DISPLAY_SETTINGS_URI,
         [POWER_SLEEP_SETTINGS_URI] = POWER_SLEEP_SETTINGS_URI,
+        [ADVANCED_GRAPHICS_SETTINGS_URI] = ADVANCED_GRAPHICS_SETTINGS_URI,
+        [GAME_MODE_SETTINGS_URI] = GAME_MODE_SETTINGS_URI,
+        [STORAGE_SENSE_SETTINGS_URI] = STORAGE_SENSE_SETTINGS_URI,
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     private readonly IAppLogger _logger;

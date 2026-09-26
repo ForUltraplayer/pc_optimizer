@@ -38,38 +38,12 @@ public sealed class PowerPlanRule : IRule
     /// <summary>Windows 전원 및 절전 설정 URI.</summary>
     public const string POWER_SETTINGS_URI = "ms-settings:powersleep";
 
-    /// <summary>노트북형 섀시 코드(SMBIOS: Portable, Laptop, Notebook, Hand Held, Sub Notebook, Tablet, Convertible, Detachable).</summary>
-    private static readonly HashSet<int> LAPTOP_CHASSIS_CODES = [8, 9, 10, 11, 14, 30, 31, 32];
-
-    /// <summary>데스크톱형 섀시 코드(SMBIOS: Desktop, Low Profile, Pizza Box, Mini Tower, Tower, All in One, Space-saving, Lunch Box, Mini PC, Stick PC).</summary>
-    private static readonly HashSet<int> DESKTOP_CHASSIS_CODES = [3, 4, 5, 6, 7, 13, 15, 16, 35, 36];
-
-    /// <summary>불명 섀시 코드(SMBIOS: Other, Unknown).</summary>
-    private static readonly HashSet<int> UNKNOWN_CHASSIS_CODES = [1, 2];
-
     /// <summary>고성능 계열로 보는 기본 제공 계획 GUID.</summary>
     private static readonly HashSet<string> HIGH_PERFORMANCE_SCHEME_GUIDS = new(StringComparer.OrdinalIgnoreCase)
     {
         PowerProbeContract.HIGH_PERFORMANCE_SCHEME_GUID,
         PowerProbeContract.ULTIMATE_PERFORMANCE_SCHEME_GUID,
     };
-
-    /// <summary>섀시 분류 결과.</summary>
-    private enum ChassisKind
-    {
-        Unknown,
-        Laptop,
-        Desktop,
-        Other,
-    }
-
-    /// <summary>전원 공급 상태.</summary>
-    private enum SupplyKind
-    {
-        Unknown,
-        Ac,
-        Battery,
-    }
 
     /// <inheritdoc />
     public string Id => RULE_ID;
@@ -87,10 +61,10 @@ public sealed class PowerPlanRule : IRule
 
         var schemeGuid = TextOf(snapshot, PowerProbeContract.ACTIVE_SCHEME_GUID);
         var schemeName = TextOf(snapshot, PowerProbeContract.ACTIVE_SCHEME_NAME);
-        var chassis = ClassifyChassis(snapshot.GetMeasurement(PowerProbeContract.PROBE_ID, PowerProbeContract.CHASSIS_TYPES));
-        var supply = ClassifySupply(IntegerOf(snapshot, PowerProbeContract.AC_LINE_STATUS));
-        var chassisText = ChassisText(chassis);
-        var supplyText = SupplyText(supply);
+        var chassis = ChassisClassifier.Classify(snapshot.GetMeasurement(PowerProbeContract.PROBE_ID, PowerProbeContract.CHASSIS_TYPES));
+        var supply = PowerSupplyClassifier.Classify(IntegerOf(snapshot, PowerProbeContract.AC_LINE_STATUS));
+        var chassisText = ChassisClassifier.DisplayName(chassis);
+        var supplyText = PowerSupplyClassifier.DisplayName(supply);
         Measurement[] measured = [.. result.Measurements];
 
         if (schemeGuid is null)
@@ -130,7 +104,7 @@ public sealed class PowerPlanRule : IRule
         };
 
         if (chassis == ChassisKind.Laptop
-            && supply == SupplyKind.Battery
+            && supply == PowerSupplyKind.Battery
             && HasSystemBattery(IntegerOf(snapshot, PowerProbeContract.BATTERY_FLAG))
             && HIGH_PERFORMANCE_SCHEME_GUIDS.Contains(schemeGuid))
         {
@@ -152,53 +126,6 @@ public sealed class PowerPlanRule : IRule
     }
 
     /// <summary>
-    /// 섀시 코드 목록을 분류한다. 노트북형과 데스크톱형이 섞이거나 불명 코드만 있으면 Unknown이다.
-    /// </summary>
-    private static ChassisKind ClassifyChassis(Measurement? measurement)
-    {
-        if (measurement?.Value is not TextListValue list)
-        {
-            return ChassisKind.Unknown;
-        }
-
-        var codes = new List<int>();
-        foreach (var raw in list.Values)
-        {
-            if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var code))
-            {
-                return ChassisKind.Unknown;
-            }
-
-            codes.Add(code);
-        }
-
-        var hasLaptop = codes.Exists(LAPTOP_CHASSIS_CODES.Contains);
-        var hasDesktop = codes.Exists(DESKTOP_CHASSIS_CODES.Contains);
-        var known = codes.Where(code => !UNKNOWN_CHASSIS_CODES.Contains(code)).ToList();
-
-        return (hasLaptop, hasDesktop) switch
-        {
-            (true, false) => ChassisKind.Laptop,
-            (false, true) => ChassisKind.Desktop,
-            (true, true) => ChassisKind.Unknown,
-            _ => known.Count > 0 ? ChassisKind.Other : ChassisKind.Unknown,
-        };
-    }
-
-    /// <summary>
-    /// ACLineStatus 원시 값을 분류한다. 값이 없거나 알 수 없음(255 등)이면 Unknown.
-    /// </summary>
-    private static SupplyKind ClassifySupply(long? acLineStatus)
-    {
-        return acLineStatus switch
-        {
-            PowerProbeContract.AC_LINE_ONLINE => SupplyKind.Ac,
-            PowerProbeContract.AC_LINE_OFFLINE => SupplyKind.Battery,
-            _ => SupplyKind.Unknown,
-        };
-    }
-
-    /// <summary>
     /// BatteryFlag 원시 값으로 시스템 배터리가 있는지 판단한다. 값이 없거나 "배터리 없음"·"알 수 없음"이면 false.
     /// </summary>
     private static bool HasSystemBattery(long? batteryFlag)
@@ -206,33 +133,6 @@ public sealed class PowerPlanRule : IRule
         return batteryFlag is { } flag
             && flag != PowerProbeContract.BATTERY_FLAG_NO_SYSTEM_BATTERY
             && flag != PowerProbeContract.BATTERY_FLAG_UNKNOWN;
-    }
-
-    /// <summary>
-    /// 섀시 분류의 표시 문자열.
-    /// </summary>
-    private static string ChassisText(ChassisKind kind)
-    {
-        return kind switch
-        {
-            ChassisKind.Laptop => CoreStrings.Power_Chassis_Laptop,
-            ChassisKind.Desktop => CoreStrings.Power_Chassis_Desktop,
-            ChassisKind.Other => CoreStrings.Power_Chassis_Other,
-            _ => CoreStrings.Power_Chassis_Unknown,
-        };
-    }
-
-    /// <summary>
-    /// 전원 공급 상태의 표시 문자열.
-    /// </summary>
-    private static string SupplyText(SupplyKind kind)
-    {
-        return kind switch
-        {
-            SupplyKind.Ac => CoreStrings.Power_Supply_Ac,
-            SupplyKind.Battery => CoreStrings.Power_Supply_Battery,
-            _ => CoreStrings.Power_Supply_Unknown,
-        };
     }
 
     /// <summary>

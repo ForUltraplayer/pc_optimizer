@@ -23,20 +23,16 @@ namespace PcOptimizer.Probes.Hardware;
 public sealed class PowerProbe : IProbe
 {
     /// <summary>섀시 정보 WMI 클래스.</summary>
-    public const string SYSTEM_ENCLOSURE_CLASS = "Win32_SystemEnclosure";
+    public const string SYSTEM_ENCLOSURE_CLASS = ChassisTypesReader.SYSTEM_ENCLOSURE_CLASS;
 
     /// <summary>WMI 제공자 타임아웃. 프로브 기본 타임아웃보다 짧게 두어 호출이 스스로 끝나게 한다.</summary>
     public static readonly TimeSpan WMI_PROVIDER_TIMEOUT = TimeSpan.FromSeconds(10);
 
-    private const string PROPERTY_CHASSIS_TYPES = "ChassisTypes";
     private const string GUID_FORMAT = "D";
     private const string PERCENT_UNIT = "%";
     private const string SOURCE_ACTIVE_SCHEME = "powrprof PowerGetActiveScheme";
     private const string SOURCE_FRIENDLY_NAME = "powrprof PowerReadFriendlyName";
-    private const string SOURCE_CHASSIS = "WMI " + SYSTEM_ENCLOSURE_CLASS + "." + PROPERTY_CHASSIS_TYPES;
     private const string SOURCE_POWER_STATUS = "kernel32 GetSystemPowerStatus";
-
-    private static readonly string[] ENCLOSURE_PROPERTIES = [PROPERTY_CHASSIS_TYPES];
 
     private readonly IPowerPlatform _power;
     private readonly IWmiClient _wmi;
@@ -139,22 +135,14 @@ public sealed class PowerProbe : IProbe
     /// </summary>
     private void ReadChassis(List<Measurement> measurements, List<Issue> issues, DateTimeOffset observedAt, CancellationToken ct)
     {
-        var result = _wmi.Query(SYSTEM_ENCLOSURE_CLASS, ENCLOSURE_PROPERTIES, WMI_PROVIDER_TIMEOUT, ct);
-        if (result.Status != WmiQueryStatus.Success)
+        if (!ChassisTypesReader.TryRead(_wmi, WMI_PROVIDER_TIMEOUT, ct, out var codes, out var issue))
         {
-            issues.Add(WmiResultInterpreter.ToIssue(SYSTEM_ENCLOSURE_CLASS, result));
-            return;
-        }
-
-        string[] codes = [.. result.Rows.SelectMany(row => WmiResultInterpreter.GetUInt16ArrayAsText(row, PROPERTY_CHASSIS_TYPES) ?? [])];
-        if (codes.Length == 0)
-        {
-            issues.Add(WmiResultInterpreter.EmptyIssue(SYSTEM_ENCLOSURE_CLASS));
+            issues.Add(issue);
             return;
         }
 
         measurements.Add(new Measurement(
-            PowerProbeContract.CHASSIS_TYPES, new TextListValue(codes), null, SOURCE_CHASSIS, observedAt, MeasurementQuality.Reported));
+            PowerProbeContract.CHASSIS_TYPES, new TextListValue(codes), null, ChassisTypesReader.SOURCE, observedAt, MeasurementQuality.Reported));
     }
 
     /// <summary>
