@@ -63,3 +63,35 @@ Ruling: 커밋 트레일러는 실제 작성 모델을 기록(sdd-global-constra
 Task 8: fix round 1/5 (4 addressed, 0 open; commits fb16e3f..1d24cbf)
 Task 8: complete (commits 6aa8629..1d24cbf, review clean after round 1)
 SESSION PAUSE 2026-09-27: 사용량 한도. 다음: Task 9(항상 관리자 권한 전환) → 10 → 11 → 12. 파견 전 git status 확인.
+SESSION RESUME 2026-09-27: 상태 변화 없음(HEAD b9687af). Task 9 dispatched (opus, base b9687af)
+Task 9: implementer DONE_WITH_CONCERNS (commit c9ba0d7, 1196/1196, smoke 22/22, exe scope=Full). IProcessStarter/ShellProcessStarter 삭제, CoreStrings.ProbeIssue_UserScopeExcluded 문구 갱신. 미검증: 일반 셸 UAC, 표준 계정+타 관리자 승격(SystemOnly). 노트: Task 10 전까지 앱 내 캐시 정리는 항상 NormalUserRequired로 거절됨. 제약 문서 asInvoker 문구 정정 커밋.
+Task 9: review FIX_REQUIRED (1 Important: Overview_Options 문구에 '관리자 재검사' 잔존; Minor 2: TryQuery P/Invoke try 밖, SessionOnly 원인 구분 로그). Ruling: Minor 2건도 같은 라운드에 포함(비용 작음). 이월: README/first-release-actions 낡은 설명, IsElevated 미사용, UserScope/LimitsToSystemScope 이중 입력. Fix round 1 dispatched (sonnet, base c9ba0d7→현재 HEAD 1463afe 문서 커밋 포함)
+Task 9: fix round 1/5 (3 addressed, 0 open; commit 512a82e; re-review CLEAN)
+Task 9: complete (commits c9ba0d7..512a82e). Codex 독립 리뷰(66cd7cb 기준)로 REV-016(P1)·017·018 등록됨(원장 미커밋 상태로 발견). Ruling: REV-016·018은 Task 10 필수 선행 범위로 편입(승격 거절 제거 전 UI·실행기 양쪽 SystemOnly 거절), REV-017·REV-010 잔여는 신규 Task 13(실행 수명·종료 견고성)으로 등록하고 실행 순서 10 → 13 → 11 → 12. 근거: 스펙 §0 '표준 계정 승격 시 시스템 범위만' 계약이 조치 경로까지 적용돼야 함. 틀렸을 때 비용: Task 13 재설계(1 task).
+Task 10 dispatched (opus, base 1225626)
+Task 10: implementer DONE_WITH_CONCERNS (commits 0c80a8b,34670c5,7e39311; 기본 1225/1225, Smoke 22/22). 이탈: 보호 위치를 환경 변수 대신 시스템 폴더 API로 읽음(환경 변수 조작 방지, 타당). 우려: AnyToolInProtectedLocation이 nodejs/dotnet만 확인(Python·x86 누락), Cleanup_ToolUserWritable 백틱 노출. 리뷰어 파견(opus)
+Task 10: review FIX_REQUIRED (Critical: ToolWork 사용자 쓰기 가능 작업 폴더로 global.json/sys.path/.npmrc 경유 사용자 코드 관리자 실행 가능; Important: 버튼 노출 판정 nodejs/dotnet만; Minor: 백틱, PATH 후보 3개 상한이 보호 위치 필터보다 앞). Ruling: 작업 폴더는 System32로 고정(세 도구 공통). 이월: 스펙 §0 '원래 계정으로 로그인' 문구, Program Files 하위 사용자 쓰기 권한 검사, 헬퍼 summary. Fix round 1/5 dispatched (resume opus implementer, base 5a954dc)
+Task 10: fix round 1 implementer DONE_WITH_CONCERNS (68003d9, f432d5a; 기본 1236/1236, Smoke 22/22). Ruling: NUGET_/NPM_CONFIG_/PIP_ 환경 변수 제거는 하지 않음 — 승격 프로세스 환경은 승격 계정 자신의 것이며 Full 범위에서는 자기 캐시 위치를 따르는 것이 진단과 일치. npm 상위 탐색(C:\node_modules)은 파일 생성 불가로 저위험, 이월. 재검토 파견(sonnet)
+Task 10: fix round 1/5 (4 addressed, 0 open; commits 68003d9..f432d5a; re-review CLEAN)
+Task 10: complete (commits 0c80a8b..f432d5a). 이월 minor: Cleanup_ToolUserWritable 조사 결합('다음 명령을 직접 실행하세요: {0}'로 Task 11에서 정정), npm C:\node_modules 루트 탐색(--userconfig 고정 검토), NUGET_/NPM_CONFIG_/PIP_ 환경 변수 유지 룰링.
+Task 13 dispatched (opus, base f432d5a)
+Task 13: implementer DONE_WITH_CONCERNS (3d286be, 2d140d7; 기본 1245/1245, Smoke 22/22, 대상 61건 5회 반복 통과). 우려: IsDraining 영구 잔류 시 메인 화면에 이유 문구 없음, 검사 종료 대기 중 사양 화면 문구가 Spec_BusyScanning으로 부정확. 리뷰어 파견(opus)
+Task 13: review FIX_REQUIRED (Important: 사양 종료 대기 중 메인 화면 버튼 비활성 사유 미표시; Minor: 타임아웃 직후 실패 Task 예외 미관측 틈, 원장 REV-018 요약 행, CanExecuteChanged 테스트). 이월: Spec_BusyScanning 문구 부정확, 서비스 계층 상호 배제 부재. Fix round 1/5 dispatched (resume opus implementer, base 396f189)
+Task 13: fix round 1 implementer DONE (be6e99a; 기본 1247/1247, Smoke 22/22). 재검토 파견(sonnet)
+Task 13: fix round 1/5 (4 addressed, 0 open; commit be6e99a; re-review CLEAN)
+Task 13: complete (commits 3d286be..be6e99a). 이월: Spec_BusyScanning 문구, 서비스 계층 상호 배제, 늦은 실패 예외 관측 결정적 테스트 없음.
+Task 11 dispatched (sonnet, base be6e99a)
+Task 11: implementer DONE (2464503; 빌드 0/0, 기본 1247/1247, Smoke 22/22, publish OK, exe 3회 실행 ExitCode 0). 리뷰어 파견(sonnet)
+Task 11: review APPROVED (정보: 2026-09-26 구현 계획 §5 미수정, 실질 결손 아님)
+Task 11: complete (commit 2464503)
+Task 12 dispatched (opus, base 2464503)
+Task 12: implementer DONE_WITH_CONCERNS (1662459; zip 59.3MB 최상위 4개, exe 65MB, 기본 1257/1257, Smoke 22/22). Ruling: winapp2 CC-BY-SA 원문(winapp2.ini·supplement.ini)을 zip rules/에 동봉(원문 제공 의무, 최상위 수 불변). Core/Probes lock 파일 win-x64 섹션 삭제 문제는 기존 이슈로 이월. 리뷰어 파견(opus)
+Task 12: review FIX_REQUIRED (Important: winapp2 원문 zip 미동봉(R1); Minor: THIRD-PARTY-NOTICES System.Management 표현·런타임 고지 링크, HANDOFF 옛 exe 이름). 이월: TEMP 네이티브 DLL 로드(코드 서명 도입 시 재검토), PackagingTests 상대 경로, 비관리자 UAC·.NET 미설치·아이콘 육안·SmartScreen 수동 검증. Fix round 1/5 dispatched (resume opus implementer, base 1662459)
+Task 12: fix round 1 implementer DONE (888305b; zip rules/ 4파일, SHA 일치, PackagingTests 10/10, 기본 1257/1257). 재검토 파견(sonnet)
+Task 12: fix round 1/5 (3 addressed, 0 open; commit 888305b; re-review CLEAN)
+Task 12: complete (commits 1662459..888305b). 이월: TEMP 네이티브 DLL 로드 위험(코드 서명 시 재검토), PackagingTests 경로 탐색, Core/Probes lock win-x64 섹션.
+ALL TASKS COMPLETE (1~13). Final whole-branch review dispatched (opus, range e1c965c..888305b)
+FINAL REVIEW: FIX_REQUIRED (3 must-fix: LinkPolicy 관리자 권한 브라우저 실행, PcSpecService 동기 프로브 UI 스레드 차단, 검사 전 '직접 해야 하는 것 0건' 타일). Ruling: 이월 4(판정 불가 시 배너 문구)와 5(StartupHookSupport=false, 자식 프로세스 주입 환경 변수 제거)는 비용이 작고 §0 목적에 직결되어 같은 라운드에 포함. 나머지 6~12 이월. Final fix dispatched (opus, base 888305b)
+FINAL FIX: implementer DONE (ec3547e, d3d4641; 기본 1279/1279, Smoke 22/22). 우려: explorer.exe 쉼표 인자 해석, 즉시 디스패처 백그라운드 실행. 재검토 파견(opus)
+FINAL FIX: re-review CLEAN (기본 1279/1279). 잔여 이월(룰링: 병합 차단 아님, SP1 착수 시 첫 항목으로 처리): explorer.exe 위임 전 GetShellWindow()==0 검사 및 장기적으로 IShellDispatch2.ShellExecute, URL 쉼표 가드(%2C 인코딩 또는 거부), MainWindow.xaml 중복 주석, Banner_ScopeUnknown 시제, 실패 안내 AbsoluteUri 표기, NUGET_PLUGIN_PATHS·CORECLR_PROFILER 경로 문서화.
+SP4 COMPLETE 2026-09-27: HEAD d3d4641. 워크스페이스 사본 → docs/superpowers/sdd-progress-2026-09-27-sp4.md, sdd-final-review-2026-09-27-sp4.md
