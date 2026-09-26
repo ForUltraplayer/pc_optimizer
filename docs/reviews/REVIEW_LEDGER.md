@@ -22,14 +22,14 @@
 | REV-007 | P2 | 수정됨·재검증 대기 | P5 앱 설정 읽기 | 읽기 실패 보존 및 기본 캐시 미탐지 시 최종 사유 카드 회귀 통과 |
 | REV-008 | P1 | 검증 완료 | P7 정리 실행기 | 8.3 별칭 정규화(CanonicalPath) 및 별칭 fixture 거절 테스트 독립 확인 |
 | REV-009 | P2 | 검증 완료 | P7 정리 실행기 | CachePathInspector 주입·관문 7종 테스트 독립 확인(ProfileList SID 분기·루프 내 ProtectedOrLinkedChild는 간접 커버) |
-| REV-010 | P2 | 부분 수정·잔여 재현 확인 | P7 정리 실행기 | 가드·전용 코드·문구는 됐으나 Kill(entireProcessTree)의 AggregateException이 가드를 우회 — 영구 차단·'실행하지 않음' 오표시 경로 남음 |
+| REV-010 | P2 | 수정됨·재검증 대기 | P7 정리 실행기 | SP4 Task 13 `3d286be`: Kill(entireProcessTree)의 AggregateException을 Flatten해 내부가 모두 InvalidOperation/Win32(바깥은 +Timeout)이면 KillFailed/ProcessStillRunning 경로, 그 밖은 전파 |
 | REV-011 | P2 | 검증 완료 | UI 커밋 | 헤더 6파일·공개 멤버 한글 주석·테스트 summary 독립 확인 |
 | REV-012 | P3 | 검증 완료 | P7 정리 실행기 | 인자 2개 제거로 스펙 문구와 일치, 고정 인자 테스트 일치, NuGet --list 파싱 ko/ja/en 무관 확인 |
 | REV-013 | P2 | 검증 완료 | UI 정리 결과 | Started 플래그로 미실행 코드 분리·Outcome 미생성·메인 화면 미잔존 독립 확인 |
 | REV-014 | P2 | 수정됨·재검증 대기 | UI 개요 | SP4 Task 5: 드라이버 타일 제거, 온라인 완료 판정에서 로컬 Driver CannotVerify 제외(온라인 공급자·NVIDIA 비교 규칙만), 온라인 상태는 옵션 영역 `LastOnlineCheckText`만 |
 | REV-015 | 제품 범위 | 수정됨·재검증 대기 | 개요 화면 | SP4 Task 5: 제안 1·2항(요약 타일 '바로 할 수 있는 것/직접 해야 하는 것', 0이면 숨김, 정리 창은 보호 위치 도구 있을 때만) 구현. 3·4항은 후속 단계 |
 | REV-016 | P1(Task 10 선행) | 수정됨·재검증 대기 | Task 9→10 사용자 범위 | SP4 Task 10 `0c80a8b`: UI `CanOpenCacheTools`에 !IsSystemOnly, `SystemCacheToolBackend(limitToSystemScope)`가 Locate·Inspect·Clear를 관측 전 `UserScopeExcluded`로 거절. 승격 거절 제거는 이후 `34670c5` |
-| REV-017 | P2 | 미해결 | SP4 사양 수집 | WaitAsync 타임아웃 후 살아 있는 프로브 재진입 — 반복 Capture에서 호출 2회 재현 |
+| REV-017 | P2 | 수정됨·재검증 대기 | SP4 사양 수집 | SP4 Task 13 `3d286be`: 살아 있는 사양 프로브 Task를 probeId별 보관·재호출 차단, `Spec.IsDraining`으로 검사·정리 차단, 검사 종료 중(HasDrainingNote)엔 사양 새로 고침 차단 |
 | REV-018 | P2 | 수정됨·재검증 대기 | SP4 실행 상호 배제 | SP4 Task 10 `0c80a8b`: `CanOpenCacheTools`에 !Spec.IsLoading, IsLoading 변경 시 CanOpenCacheTools 알림. 종료 대기(IsDraining) 관문은 Task 13 |
 
 ## REV-001 — 보호 경로와 스캔 경로의 검증 정책을 분리
@@ -234,6 +234,10 @@
 - 기대: 실패 로그(형식 이름), 별도 코드(ProcessStillRunning)로 UI 안내, 거절 플래그는 유지(올바름).
 - 대응 기록 (2026-09-27, Codex 구현자, `4c1e93d`): `CacheProcessGuard`가 Kill/종료 관측 예외 유형만 로그에 남기고, 실제 종료 확인 전까지 실행을 막는다. 핸들을 보존해 다음 요청에서 종료를 확인한 뒤에만 차단을 해제한다. `ProcessStillRunning`을 backend→service→VM 전용 문구로 전달한다. 프로세스 전역 중복 실행은 대기열 없이 Busy로 거절한다. `CacheProcessGuardTests`의 Kill 실패+Timeout/뒤늦은 종료/익명 로그, `CacheCleanupTests.RunningToolIsNotMisdiagnosedAsUninstalled` 통과. 죽일 수 없는 실제 프로세스를 생성한 테스트는 아니다.
 - 검증 근거: [REV-008~014 수정·검증 기록](2026-09-27-rev008-014-fixes.md). 기본 1169/1169, Smoke 22/22, ToolSmoke 1/1. 구현자 자체 검증이며 독립 재검증을 대체하지 않는다.
+- 대응 기록 (2026-09-27, Claude Opus 5.5 구현자, SP4 Task 13): 상태 `수정됨·재검증 대기`(Task 9 시점 잔여 재현 `AggregateKillFailureMustNotEscapeGuard` 대응).
+  - 커밋 `3d286be`, `src/PcOptimizer.Probes/Actions/CacheProcessGuard.cs`: `kill()` 예외가 `AggregateException`이면 `Flatten()`한 내부 예외가 1개 이상이고 모두 `InvalidOperationException`/`Win32Exception`일 때 `KillFailed type=AggregateException inner=…`(형식 이름만)로 기록하고 `wait()`를 계속한다. 바깥 catch도 같은 규칙에 `TimeoutException`을 더해 `ProcessStillRunning`을 기록하고 false. 그 밖의 내부 예외(또는 빈 AggregateException)는 기존대로 전파. 시작 이력·핸들 소유권(`_hasExited`/`_dispose` 보존)·익명 로그는 그대로.
+  - 테스트(`tests/PcOptimizer.Tests/Unit/App/CacheProcessGuardTests.cs` — 기존 파일 위치 유지): `AggregateKillFailureMustNotEscapeGuard`(재현 소스 이름·단언 보존), `AggregateKillAndWaitFailureKeepsBlockerWithTypeOnlyLogs`(중첩 Aggregate+대기 Aggregate(Timeout) ⇒ false·차단 유지·핸들 미해제·메시지 비노출·실제 종료 후 복구), `AggregateWithUnexpectedInnerExceptionPropagates`(ArgumentException 섞이면 전파). RED: 수정 전 `System.AggregateException : One or more errors occurred. (fixture)`가 `StopAsync` 밖으로 전파(원장 기록과 동일).
+  - 검증: REV-017 기록과 같음(빌드 0/0, 기본 1245/1245, Smoke 22/22). 죽일 수 없는 실제 프로세스 트리로 재현한 것은 아니다(대역 예외). 독립 재검증 필요.
 
 ## REV-011 — 파일 헤더·XML 주석 누락
 
@@ -434,6 +438,13 @@
 - 요청: 두 경로의 실제 실행/종료 상태를 공유하고, 타임아웃과 실제 종료를 분리한다. 재진입 차단·늦은 종료 후 복구를 양방향으로 검증한다.
 - 근거: [Task 9 리뷰](2026-09-27-sp4-task9-review.md), [실패 재현 소스](repro/Sp4Task9ReviewTests.cs).
 - 대응 기록: 2026-09-27 Claude 컨트롤러 — SP4 신규 Task 13(실행 수명 공유·종료 견고성)에 REV-010 잔여와 함께 배정. 실행 순서 10 → 13 → 11 → 12.
+- 대응 기록 (2026-09-27, Claude Opus 5.5 구현자, SP4 Task 13): 상태 `수정됨·재검증 대기`.
+  - 커밋 `3d286be`. `PcSpecService`: `probe.RunAsync` Task를 보존하고, 대기(타임아웃·사용자 취소·예외)가 끝났는데 Task가 살아 있으면 `ConcurrentDictionary<string, Task>`에 probeId로 보관(`SpecProbeLive`), 완료 시 제거(`SpecProbeDrained`, 늦은 실패는 `SpecProbeLateFailure` 형식 이름만 — 예외 관측). `CaptureAsync`는 보관 Task가 끝나기 전 같은 프로브를 호출하지 않고 `SpecProbeStillRunning probe={id}` 경고 후 건너뜀(해당 섹션은 확인 불가). `HasLiveProbes`, `WaitForDrainAsync(CancellationToken)`(던지지 않고 완료만 기다림, 취소 가능) 추가. 기존 타임아웃 값(`IProbe.DefaultTimeout`) 재사용, 새 대기 상수 없음.
+  - 사양→검사 방향: `PcSpecViewModel.IsDraining` — Refresh 뒤 `HasLiveProbes`면 UI 디스패처에서 IsLoading 해제 전에 true, 별도 대기(`WaitForDrainAsync`, UI 스레드 비차단) 완료 시 디스패처로 false. `CanRefresh`·`RefreshAsync` 첫 줄 관문에 `!IsDraining`. `MainViewModel.CanStartScan`·`CanOpenCacheTools`에 `!Spec.IsDraining`, IsDraining 변경 시 두 값 알림. 화면 안내 `Spec_DrainingNote`("이전 사양 읽기가 끝나기를 기다리는 중이에요.", `PcSpecView.xaml`).
+  - 검사→사양 방향: `MainViewModel.SyncSpecBusy()`가 `Spec.SetBusy(IsScanning || HasDrainingNote)` — `OnStateChanged`와 `OnDrainingNoteChanged`에서 호출. 조율기 자체의 종료 중 의미는 변경하지 않음.
+  - 테스트: `PcSpecTests.TimedOutSpecMustNotReenterLiveSharedProbe`(재현 소스 이름·단언 보존), `LiveProbeIsSkippedUntilItFinishesThenRunsAgain`(건너뜀 경고·종료 후 재호출), `WaitForDrainIsCancellableAndCompletesWhenNothingLive`, `ViewModelKeepsDrainingUntilLiveProbeFinishes`, `MainViewModelTests.사양_종료_대기_중에는_검사와_정리를_시작하지_않는다`(차단 후 늦은 종료 시 복구), `검사_종료_대기_중에는_사양_새로_고침을_하지_않는다`(차단 후 늦은 종료 시 복구). RED: 수정 전 `Assert.Equal() Failure: Expected: 1 Actual: 2`(원장 기록과 동일), MainViewModel 두 건은 수정 전 게이트로 `Assert.False() Failure … Actual: True`.
+  - 검증(Release, `3d286be` 작업 트리): 빌드 경고 0·오류 0, 기본 필터 1245/1245, Smoke 22/22, 대상 3개 클래스 61/61 5회 반복 통과. Online/ToolSmoke·앱 GUI 미실행.
+  - 남은 제한: 끝나지 않는 프로브는 영원히 IsDraining=true로 남아 검사·정리·사양 새로 고침이 앱 재시작까지 막힌다(HasDrainingNote와 같은 의미, 컨트롤러 결정). 검사 종료 중 사양 화면에는 기존 `Spec_BusyScanning`("검사 중에는…") 문구가 보인다. 검사 측이 사양 측 보관 Task를 직접 보지는 않고 UI 관문(`CanStartScan`)으로만 막는다 — UI 밖에서 `ScanService`를 직접 부르는 경로는 없음(App.xaml.cs 확인). 동시 `CaptureAsync` 두 개가 같은 프로브를 동시에 보관하는 경합은 뷰모델의 IsLoading 관문으로만 배제된다. 독립 재검증 필요.
 
 ## REV-018 — 사양 읽기 중 정리 창 진입 가드 누락
 
@@ -448,6 +459,7 @@
   - 테스트: `MainViewModelTests.SpecLoadingMustBlockCacheActions`(재현 소스 이름·단언 보존), `SpecLoadingNotifiesCacheToolsGate`(읽기 시작·종료 시 CanOpenCacheTools 변경 알림 false→true). RED: 수정 전 `Assert.False() Failure … Actual: True`, 알림 목록 `[]`.
   - 검증: REV-016 기록과 같음(빌드 0/0, 기본 1225/1225, Smoke 22/22).
   - 남은 제한: 타임아웃 뒤 살아 있는 사양 프로브의 실제 종료 대기(IsDraining)는 이 관문에 없다 — REV-017과 함께 Task 13.
+  - 후속 (2026-09-27, SP4 Task 13 `3d286be`): `CanOpenCacheTools`·`CanStartScan`에 `!Spec.IsDraining` 추가(REV-017 기록 참조). 상태는 그대로 `수정됨·재검증 대기`.
 
 ## 2026-09-27 Task 9 시점 재검증 (Codex)
 
