@@ -112,11 +112,13 @@ public sealed class MainViewModelTests
                 null, null, null, new Impact("용량 확인", "다시 내려받음"), []),
             new Finding("fixture:action", FindingCategory.Display, "주사율 후보", [], "동일 모드 비교", Verdict.Candidate,
                 null, null, new Recommendation("설정 확인", "동일 해상도"), new Impact("화면 움직임", "전력 소비"),
-                [new OpenSettingsAction(SettingsUriPolicy.DISPLAY_SETTINGS_URI)]),
+                [new OpenSettingsAction(SettingsUriPolicy.DISPLAY_SETTINGS_URI)],
+                explanation: new Explanation("테스트 설명", "테스트 효과", "테스트 주의"), safety: SafetyLevel.Safe),
             new Finding("fixture:community", FindingCategory.AppCache, "커뮤니티 후보", [
                 new Measurement("cache.origin", new TextValue(AppCacheProbeContract.ORIGIN_COMMUNITY), null, "fixture",
                     DateTimeOffset.UnixEpoch, MeasurementQuality.Reported)], "커뮤니티 규칙", Verdict.Candidate,
-                null, null, new Recommendation("수동 확인", "검증 전"), null, []),
+                null, null, new Recommendation("수동 확인", "검증 전"), null, [],
+                explanation: new Explanation("테스트 설명", "테스트 효과", "테스트 주의"), safety: SafetyLevel.Safe),
         ];
     }
 
@@ -197,7 +199,8 @@ public sealed class MainViewModelTests
     {
         public string Id => "fixture.driver";
         public IReadOnlyList<Finding> Evaluate(ScanSnapshot snapshot) => [new Finding("fixture:candidate", FindingCategory.Driver,
-            "드라이버 후보", [], "fixture", Verdict.Candidate, null, null, new Recommendation("공식 도구 확인", "사용자 선택"), null, [])];
+            "드라이버 후보", [], "fixture", Verdict.Candidate, null, null, new Recommendation("공식 도구 확인", "사용자 선택"), null, [],
+            explanation: new Explanation("테스트 설명", "테스트 효과", "테스트 주의"), safety: SafetyLevel.Safe)];
     }
 
     private sealed class OnlineFixtureProbe(string id, ProbeStatus status) : IProbe

@@ -290,12 +290,14 @@ public sealed class MainWindowLayoutTests
                 "현재 2560 × 1440 · 120 Hz → 같은 해상도의 후보 130 Hz", Verdict.Candidate, null, null,
                 new Recommendation("디스플레이 설정에서 130 Hz를 선택하고 화면을 확인하세요.", "현재 해상도와 색 깊이를 유지할 때"),
                 new Impact("화면 움직임이 더 부드럽게 보일 수 있어요", "전력 소비가 늘 수 있습니다. 화면이 불안정하면 기존 값으로 되돌리세요."),
-                [new OpenSettingsAction(SettingsUriPolicy.DISPLAY_SETTINGS_URI), new KeepAction(), new ShowDetailsAction()]),
+                [new OpenSettingsAction(SettingsUriPolicy.DISPLAY_SETTINGS_URI), new KeepAction(), new ShowDetailsAction()],
+                explanation: new Explanation("테스트 설명", "테스트 효과", "테스트 주의"), safety: SafetyLevel.Safe),
             new Finding("fixture:driver", FindingCategory.Driver, "설치된 드라이버보다 새로운 버전이 있습니다", [],
                 "예시 설치 버전과 공식 배포 버전을 비교했습니다.", Verdict.Candidate, null, null,
                 new Recommendation("공식 배포 설명에서 변경 내용을 확인하세요.", "기기와 운영체제에 맞는 버전인지 확인한 뒤 설치"),
                 new Impact("새 버전의 오류 수정과 호환성 개선을 받을 수 있습니다", "업데이트 효과는 프로그램과 기기에 따라 다릅니다."),
-                [new OpenLinkAction(LINK_URL, LINK_LABEL), new KeepAction()]),
+                [new OpenLinkAction(LINK_URL, LINK_LABEL), new KeepAction()],
+                explanation: new Explanation("테스트 설명", "테스트 효과", "테스트 주의"), safety: SafetyLevel.Safe),
             new Finding("fixture:ok", FindingCategory.Storage, "TRIM이 활성화되어 있습니다", [], "OS 보고값", Verdict.Ok, null, null, null, null, []),
         ];
     }
