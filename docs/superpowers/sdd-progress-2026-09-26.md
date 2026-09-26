@@ -188,3 +188,4 @@ Independent review (Claude, fable, 9aa45b3..ad06cca): Critical 0, Important 5 �
 Controller verify @d6f926e(HEAD, Codex 4e8a5bc 포함): Release build 0/0, default 1122/1122, smoke 21/21 (Online/ToolSmoke 미실행)
 Independent review dispatched (opus) for 4e8a5bc (UI outcomes/navigation) — read-only
 Independent review 2 (opus, 4e8a5bc): 실행기 변경 없음·안전; Important 3 → REV-013(실행 전 거절을 실패로 표시), REV-014(드라이버 타일 온라인 요청=비교 완료), REV-011 확대. 원장·보고서 커밋.
+2026-09-27 01:4x: 사용자 지시 '리스트 만들어 작업 대기'. docs/reviews/2026-09-27-worklist.md 작성(A 출시 전 필수 REV-008~014, B 제품 범위 REV-015/REV-004 잔여, C 수동 검증, D 이월 minor, E 마무리 절차). REV-015 원장 등록(제안). Codex가 작업 트리에서 17파일(실행기 포함) 미커밋 수정 중 — REV-008~014 대응 추정. 대기.
