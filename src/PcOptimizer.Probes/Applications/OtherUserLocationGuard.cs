@@ -122,7 +122,8 @@ public sealed class OtherUserLocationGuard
         }
 
         var available = directory is not null && sids.Status == RegistryReadStatus.Found;
-        return new OtherUserLocationGuard(environment.GetUserProfilePath(), currentSid, roots, others, available);
+        var profile = environment.GetUserProfilePath();
+        return new OtherUserLocationGuard(profile is null ? null : environment.NormalizePath(profile), currentSid, roots, others, available);
     }
 
     /// <summary>

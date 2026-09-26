@@ -87,6 +87,7 @@ public sealed partial class FindingCardViewModel : ObservableObject
     /// <summary>판정.</summary>
     public Verdict Verdict => Finding.Verdict;
 
+    /// <summary>개선 후보 카드인지 여부.</summary>
     public bool IsCandidate => Verdict == Verdict.Candidate;
 
     /// <summary>판정 배지 텍스트.</summary>
@@ -158,9 +159,12 @@ public sealed partial class FindingCardViewModel : ObservableObject
 
     /// <summary>효과를 검증하지 않은 정보 카드에는 효과 배너를 붙이지 않습니다.</summary>
     public bool HasCandidateBenefit => Verdict == Verdict.Candidate && !string.IsNullOrWhiteSpace(Finding.Impact?.Benefit);
+    /// <summary>후보에 표시할 기대 효과 원문.</summary>
     public string? CandidateBenefit => Finding.Impact?.Benefit;
+    /// <summary>설정 변경·공식 안내·확인의 동작 종류.</summary>
     public string ActionModeText => CanOpenSettings ? Strings.Overview_ManualSetting
         : HasLinks ? Strings.Overview_OfficialGuide : Strings.Overview_ReviewFirst;
+    /// <summary>분류에 맞는 설정 버튼 문구.</summary>
     public string SettingsButtonText => Finding.Category switch
     {
         FindingCategory.Display => Strings.Overview_DisplaySettings,

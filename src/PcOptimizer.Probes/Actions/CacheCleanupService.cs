@@ -25,8 +25,21 @@ public sealed record CachePreparation(CacheCleanupPlan? Plan, string? Reason);
 /// <summary>실행 결과입니다. 성공 종료와 후속 관측을 구분합니다.</summary>
 public sealed record CacheCleanupResult(bool ToolSucceeded, long? RemainingBytes, string Code)
 {
+    /// <summary>공식 정리 프로세스가 실제로 시작됐는지 나타냅니다.</summary>
+    public bool Started { get; init; }
+
     /// <summary>미리보기 시점이 아닌 실제 명령 실행 직전의 논리 크기입니다.</summary>
     public long? BeforeBytes { get; init; }
+}
+
+/// <summary>프로세스 시작 전 거절과 시작 후 종료 실패를 구분합니다.</summary>
+public sealed record CacheToolExecution(bool Started, bool Succeeded, string Code);
+
+/// <summary>미설치와 달리 현재 도구 실행을 막는 이유를 전달합니다.</summary>
+public sealed class CacheToolUnavailableException(string code) : Exception(code)
+{
+    /// <summary>사용자 경로를 포함하지 않는 정해진 사유 코드입니다.</summary>
+    public string Code { get; } = code;
 }
 
 /// <summary>실제 OS 및 공식 도구 경계입니다. 테스트에서는 가짜 구현을 씁니다.</summary>
@@ -36,8 +49,8 @@ public interface ICacheToolBackend
     Task<CacheToolLocation?> LocateAsync(CacheTool tool, CancellationToken ct);
     /// <summary>권한·경로·보호·링크 경계와 현재 논리 크기를 확인합니다.</summary>
     Task<CacheInspection> InspectAsync(CacheToolLocation location, CancellationToken ct);
-    /// <summary>허용된 종류의 고정된 공식 정리 명령만 실행합니다.</summary>
-    Task<bool> ClearAsync(CacheToolLocation location, CancellationToken ct);
+    /// <summary>고정 명령만 실행합니다. 프로세스 시작 이후의 운영 오류는 예외 대신 Started 결과로 반환합니다.</summary>
+    Task<CacheToolExecution> ClearAsync(CacheToolLocation location, CancellationToken ct);
 }
 
 /// <summary>미리보기 없이는 실행하지 않으며 실행 중복을 막는 공식 도구 조율기입니다.</summary>
@@ -53,7 +66,9 @@ public sealed class CacheCleanupService(ICacheToolBackend backend, TimeProvider?
     public async Task<CachePreparation> PrepareAsync(CacheTool tool, CancellationToken ct)
     {
         foreach (var pair in _plans.Where(pair => _time.GetElapsedTime(pair.Value.Started) >= PLAN_LIFETIME)) { _plans.TryRemove(pair.Key, out _); }
-        var location = await backend.LocateAsync(tool, ct).ConfigureAwait(false);
+        CacheToolLocation? location;
+        try { location = await backend.LocateAsync(tool, ct).ConfigureAwait(false); }
+        catch (CacheToolUnavailableException ex) { return new(null, ex.Code); }
         if (location is null) { return new(null, "ToolUnavailable"); }
         var inspection = await backend.InspectAsync(location, ct).ConfigureAwait(false);
         if (!inspection.Allowed) { return new(null, inspection.Reason); }
@@ -67,6 +82,8 @@ public sealed class CacheCleanupService(ICacheToolBackend backend, TimeProvider?
     public async Task<CacheCleanupResult> ExecuteAsync(Guid planId, CancellationToken ct)
     {
         if (!await _gate.WaitAsync(0, ct).ConfigureAwait(false)) { return new(false, null, "Busy"); }
+        CacheToolExecution? execution = null;
+        long? before = null;
         try
         {
             if (!_plans.TryRemove(planId, out var entry) || _time.GetElapsedTime(entry.Started) >= PLAN_LIFETIME) { return new(false, null, "PlanExpired"); }
@@ -77,11 +94,19 @@ public sealed class CacheCleanupService(ICacheToolBackend backend, TimeProvider?
             if (!inspection.Allowed) { return new(false, null, inspection.Reason ?? "Blocked"); }
             if (_time.GetElapsedTime(entry.Started) >= PLAN_LIFETIME) { return new(false, null, "PlanExpired"); }
             ct.ThrowIfCancellationRequested();
-            _logger.Info(nameof(CacheCleanupService), $"CleanupStarted tool={current.Tool} plan={plan.Id}");
-            var success = await backend.ClearAsync(current, ct).ConfigureAwait(false);
+            before = inspection.Bytes;
+            execution = await backend.ClearAsync(current, ct).ConfigureAwait(false);
+            if (!execution.Started) { return new(false, null, execution.Code); }
+            _logger.Info(nameof(CacheCleanupService), $"CleanupExecuted tool={current.Tool} plan={plan.Id} success={execution.Succeeded}");
             var after = await backend.InspectAsync(current, ct).ConfigureAwait(false);
-            _logger.Info(nameof(CacheCleanupService), $"CleanupFinished tool={current.Tool} success={success} verified={after.Allowed}");
-            return new(success, after.Allowed ? after.Bytes : null, success ? "Completed" : "ToolFailed") { BeforeBytes = inspection.Bytes };
+            return new(execution.Succeeded, after.Allowed ? after.Bytes : null, execution.Code) { Started = true, BeforeBytes = before };
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            _logger.Warn(nameof(CacheCleanupService), $"CleanupObservation type={ex.GetType().Name}");
+            return new(execution?.Succeeded ?? false, null,
+                ex is CacheToolUnavailableException unavailable ? unavailable.Code : execution?.Started == true ? "ObservationFailed" : "PreflightFailed")
+                { Started = execution?.Started == true, BeforeBytes = execution?.Started == true ? before : null };
         }
         finally { _gate.Release(); }
     }

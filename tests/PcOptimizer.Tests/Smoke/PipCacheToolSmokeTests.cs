@@ -10,6 +10,8 @@ using PcOptimizer.Tests.Unit.Probes.Fakes;
 namespace PcOptimizer.Tests.Smoke;
 
 /// <summary>PCOPTIMIZER_TEST_PYTHON에 테스트할 설치를 지정하여 별도로 실행합니다.</summary>
+// 프로세스 전역 실행 관문을 공유하므로 실제 도구 fixture끼리는 직렬 실행한다.
+[Collection("OfficialCacheTools")]
 [Trait("Category", "ToolSmoke")]
 public sealed class PipCacheToolSmokeTests
 {

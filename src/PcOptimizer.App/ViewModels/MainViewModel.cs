@@ -106,6 +106,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(HasStatusMessage))]
     private string? _statusMessage;
 
+    /// <summary>표시할 작업 결과 안내가 있는지 여부.</summary>
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
 
     /// <summary>선택한 분류(전체 포함).</summary>
@@ -328,7 +329,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// 검사 결과를 화면 상태에 반영한다(UI 스레드에서 호출). 온라인 확인을 켠 검사였으면 마지막 온라인 확인 시각을 갱신한다.
+    /// 검사 결과를 화면 상태에 반영한다(UI 스레드에서 호출). 온라인 비교가 실제 완료됐을 때만 마지막 확인 시각을 갱신한다.
     /// </summary>
     private void ApplyResult(ScanResult result, bool onlineRequested)
     {
@@ -336,7 +337,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _lastScanIncludedOnline = onlineRequested;
         _allCards = [.. report.Findings.Select(finding => new FindingCardViewModel(finding, _settingsPolicy, _linkPolicy))];
         OnPropertyChanged(nameof(CommunitySummary));
-        if (onlineRequested)
+        if (OnlineComparisonComplete(report))
         {
             LastOnlineCheckAtUtc = report.CompletedAtUtc;
         }

@@ -85,6 +85,7 @@ public sealed class MainViewModelTests
         Assert.Equal(Strings.LastMeasured_None, vm.LastMeasuredText);
     }
 
+    /// <summary>캐시 관측과 커뮤니티 결과를 개선 후보로 승격하지 않습니다.</summary>
     [Fact]
     public async Task OverviewDoesNotPromoteCacheObservationsOrCommunityRules()
     {
@@ -119,6 +120,7 @@ public sealed class MainViewModelTests
         ];
     }
 
+    /// <summary>목적별 내비게이션은 원본 리포트를 바꾸지 않습니다.</summary>
     [Fact]
     public async Task GoalNavigationFiltersResultsWithoutChangingTheReport()
     {
@@ -138,6 +140,7 @@ public sealed class MainViewModelTests
         Assert.Same(report, vm.LastResult);
     }
 
+    /// <summary>온라인 요청과 실제 비교를 구분하고 이전 정리 결과를 보존합니다.</summary>
     [Fact]
     public async Task OfflineComparisonAndLastCleanupRemainExplicitAfterRescan()
     {
@@ -149,11 +152,65 @@ public sealed class MainViewModelTests
         vm.IsOnlineCheckRequested = true;
         Assert.Equal(Strings.Overview_OnlineNotChecked, vm.DriverCount); // Toggling is not a completed comparison.
         await vm.StartScanCommand.ExecuteAsync(null);
-        Assert.Equal(DisplayText.Format(Strings.Overview_CandidateCount, 0), vm.DriverCount);
+        Assert.Equal(Strings.Overview_OnlineUnavailable, vm.DriverCount);
         vm.IsOnlineCheckRequested = false;
         await vm.StartScanCommand.ExecuteAsync(null);
         Assert.Equal(Strings.Overview_OnlineNotChecked, vm.DriverCount);
         Assert.Same(outcome, vm.LastCleanupOutcome);
+    }
+
+    /// <summary>온라인 공급자의 성공·실패·부분·취소 결과로 타일을 표시합니다.</summary>
+    [Theory]
+    [InlineData(ProbeStatus.Success, true)]
+    [InlineData(ProbeStatus.Failed, false)]
+    [InlineData(ProbeStatus.Partial, false)]
+    [InlineData(ProbeStatus.Cancelled, false)]
+    [InlineData(ProbeStatus.Skipped, false)]
+    public async Task DriverTileRequiresActualSuccessfulOnlineResults(ProbeStatus status, bool complete)
+    {
+        using var vm = CreateViewModel([
+            new OnlineFixtureProbe(NvidiaLookupProbeContract.PROBE_ID, ProbeStatus.Success),
+            new OnlineFixtureProbe(WindowsUpdateProbeContract.PROBE_ID, status)]);
+        vm.IsOnlineCheckRequested = true;
+        await vm.StartScanCommand.ExecuteAsync(null);
+        Assert.Equal(complete ? DisplayText.Format(Strings.Overview_CandidateCount, 0) : Strings.Overview_OnlineUnavailable, vm.DriverCount);
+        Assert.Equal(complete, vm.HasLastOnlineCheck);
+        vm.IsOnlineCheckRequested = false;
+        await vm.StartScanCommand.ExecuteAsync(null);
+        Assert.Equal(Strings.Overview_OnlineNotChecked, vm.DriverCount);
+    }
+
+    /// <summary>후보가 있어도 다른 공급자 실패를 감추지 않습니다.</summary>
+    [Fact]
+    public async Task DriverCandidateRetainsPartialWarning()
+    {
+        using var vm = CreateViewModel([
+            new OnlineFixtureProbe(NvidiaLookupProbeContract.PROBE_ID, ProbeStatus.Partial),
+            new OnlineFixtureProbe(WindowsUpdateProbeContract.PROBE_ID, ProbeStatus.Success)], rules: [new DriverFixtureRule()]);
+        vm.IsOnlineCheckRequested = true;
+        await vm.StartScanCommand.ExecuteAsync(null);
+        Assert.Equal(DisplayText.Format(Strings.Overview_OnlinePartialCount, 1), vm.DriverCount);
+        Assert.False(vm.HasLastOnlineCheck);
+    }
+
+    private sealed class DriverFixtureRule : IRule
+    {
+        public string Id => "fixture.driver";
+        public IReadOnlyList<Finding> Evaluate(ScanSnapshot snapshot) => [new Finding("fixture:candidate", FindingCategory.Driver,
+            "드라이버 후보", [], "fixture", Verdict.Candidate, null, null, new Recommendation("공식 도구 확인", "사용자 선택"), null, [])];
+    }
+
+    private sealed class OnlineFixtureProbe(string id, ProbeStatus status) : IProbe
+    {
+        public string Id => id;
+        public FindingCategory Category => FindingCategory.Driver;
+        public bool RequiresElevation => false;
+        public bool RequiresNetwork => true;
+        public ProbeScope Scope => ProbeScope.System;
+        public TimeSpan DefaultTimeout => TimeSpan.FromSeconds(5);
+        public Task<ProbeResult> RunAsync(ScanContext context, CancellationToken ct) => Task.FromResult(
+            new ProbeResult(Id, status, [], status == ProbeStatus.Success ? [] : [new Issue(CannotVerifyReason.NetworkFailed, "fixture")],
+                DateTimeOffset.UnixEpoch, TimeSpan.Zero, context.UserContext));
     }
 
     /// <summary>검사가 끝나면 Finding 기준 건수·분류·카드·마지막 측정 시각을 UI 마샬러로 반영한다.</summary>
@@ -205,9 +262,7 @@ public sealed class MainViewModelTests
         vm.IsOnlineCheckRequested = true;
         await vm.StartScanCommand.ExecuteAsync(null);
 
-        Assert.True(vm.HasLastOnlineCheck);
-        Assert.Equal(vm.LastMeasuredAtUtc, vm.LastOnlineCheckAtUtc);
-        Assert.StartsWith("마지막 온라인 확인:", vm.LastOnlineCheckText, StringComparison.Ordinal);
+        Assert.False(vm.HasLastOnlineCheck); // 요청만 했고 온라인 공급자 결과가 없으면 확인 시각도 갱신하지 않는다.
         Assert.Contains("NVIDIA", Strings.Toggle_OnlineCheck, StringComparison.Ordinal);
         Assert.Contains("Windows Update", Strings.Toggle_OnlineCheck, StringComparison.Ordinal);
     }
