@@ -14,9 +14,15 @@
 
 - 2차 개선 스펙: `docs/superpowers/specs/2026-09-27-improvement-phase2-design.md`(사용자 승인). 계획: `docs/superpowers/plans/2026-09-27-sp4-format-and-admin.md`(Task 1~12).
 - SDD 원장(룰링·라운드 기록): `.superpowers/sdd/2026-09-27-sp4-format-and-admin/progress.md`(git-ignored). 브리프는 같은 폴더 `task-N-brief.md`, 보고서 `task-N-report.md`.
-- 진행: **Task 1~11·13 완료. 다음은 Task 12(포터블 zip·아이콘)뿐이다.** 실행 순서는 10 → 13 → 11 → 12였다. Task 10(0c80a8b..f432d5a — SystemOnly/사양 읽기 중 정리 진입 차단, 실행기 UserScopeExcluded, NormalUserRequired 제거→보호 위치 도구만(시스템 폴더 API), 도구 작업 폴더 System32 고정, 노출 판정을 실행 규칙과 통일). Task 13(3d286be·2d140d7·be6e99a — 사양 프로브 재진입 차단·IsDraining·CacheProcessGuard AggregateException, 결과 화면에 사양 종료 대기 사유 표시). Task 11(문서·원장·검증 마무리 및 이월 minor 편입: `Cleanup_ToolUserWritable` 문구, 스펙 §0 정정, 원장 REV-016~018 재확인 절)에서 빌드 0/0·기본 1247/1247·Smoke 22/22·publish·배포 EXE 실행(창 생성, ExitCode=0, `AppStarted elevated=True scope=Full sessionUserResolved=True`)을 구현 세션 자체 검증으로 확인했다. 모든 REV 상태는 구현자 자기 검증이며 `수정됨·재검증 대기`이고, 독립 재검증 전에는 `검증 완료`로 바꾸지 않는다.
+- 진행: **SP4 전체 완료(Task 1~13, 최종 전체 브랜치 리뷰 후속 수정 포함)**. 마지막 코드 커밋 `ec3547e`(링크 비승격 실행·사양 프로브 백그라운드 실행·검사 전 타일 숨김·범위 판정 불가 배너·자식 프로세스 환경 정리), 원장 `d3d4641`. 실행 순서는 1~9 → 10 → 13 → 11 → 12 → 최종 리뷰 → 후속 1라운드였다.
+- 검증(최종 후속 시점): Release 빌드 0경고/0오류, 기본 필터 1279/1279, Smoke 22/22. Online·ToolSmoke는 이번 단계에서 미실행(수집 코드 변경 없음).
+- 배포: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/package.ps1` → `dist/PcOptimizer-v0.2.0-win-x64.zip`(최상위 4개: `PcOptimizer.exe`·`실행방법.txt`·`LICENSES/`·`rules/`). dist/는 git-ignored이며 GitHub Release에 첨부한다. 아이콘은 `tools/make-icon.ps1` 산출물 `src/PcOptimizer.App/Assets/app.ico`(교체 시 이 파일만).
+- 원장 상태: REV-014~018 모두 `수정됨·재검증 대기`(구현 세션 자체 검증). 독립 재검증(Codex 등)이 남아 있다. 최종 리뷰 보고서 사본: `docs/superpowers/sdd-final-review-2026-09-27-sp4.md`.
+- 이월(최종 리뷰 6~12 + 각 Task 이월): 도구별 실행 가능 판정, 게시 속성의 일반 빌드 적용·Core/Probes lock 파일 win-x64 섹션 churn, SmartScreen 안내, 요약 타일 제거 후 죽은 코드, 예전 전제 문구·말투 혼용, `%TEMP%\.net` 네이티브 DLL 추출(코드 서명 도입 시 재검토), PackagingTests 경로 탐색, Spec_BusyScanning 문구, 서비스 계층 상호 배제, Entra 계정 SID 변환 실패 시 셸 토큰 기반 대안, explorer.exe 인자에 쉼표가 있는 URL 방어, 셸(explorer) 미실행 시 GetShellWindow 검사·IShellDispatch2 전환, Banner_ScopeUnknown 시제, 실패 안내 AbsoluteUri 표기, MainWindow.xaml 중복 주석.
+- 수동 검증 미완: 일반(비관리자) 셸에서 UAC 프롬프트, 표준 계정+다른 관리자 자격 증명 승격(SystemOnly 배너·정리 버튼 비활성), 판정 불가 배너, 링크가 실제로 일반 권한 브라우저로 열리는지, Program Files에 Python만 있는 PC의 정리 버튼 노출, .NET 미설치 PC에서 단일 파일 exe 실행, 탐색기 아이콘 육안, SmartScreen 경고, DPI 100/150/200%·키보드 조작, WMI가 멈춘 PC의 사양 화면.
+- 다음: 사용자 결정 — (1) `feature/p0-skeleton`을 master에 병합할지(원격 게시 없음), (2) SP1(조치 A1·A2·B·C·D·F1·F2) 계획 작성 착수. SP2 고급 카탈로그는 커뮤니티 권장 옵션 목록을 사용자가 검토·확정한 뒤 진행.
 - SDD 원장 사본: `docs/superpowers/sdd-progress-2026-09-27-sp4.md`(룰링·라운드·이월 minor). 원본 `.superpowers/sdd/2026-09-27-sp4-format-and-admin/progress.md`.
-- 재개 시: 원장 마지막 `Task N: complete` 줄 다음 순서로 파견. 다음은 Task 12다. 미검증 수동 항목: 일반(비관리자) 셸에서의 UAC 프롬프트, 표준 계정이 다른 관리자 자격 증명으로 승격했을 때 SystemOnly 배너·정리 버튼 비활성화, Program Files에 Python만 있는 PC에서 정리 버튼 노출, .NET 미설치 PC, 모니터 DPI·키보드 전환.
+- 재개 시: SP4는 끝났다. 사용자에게 병합 여부를 묻고, SP1 계획(writing-plans)부터 시작한다. 잔여 이월 minor는 SP1 첫 Task로 편입.
 - 사용자 확정: UI 배치안(scratchpad 목업, 좌측 메뉴 7개·타일 2개·설명 3줄 카드), 내 PC 사양은 fastfetch식 한 열 나열(CPU·메인보드·GPU·RAM·SSD·HDD·모니터 이름 전부), 배포는 GitHub zip 포터블(단일 파일 exe·아이콘, Task 12).
 - 재개 방법: 원장의 마지막 `Task N:` 줄을 보고 그 다음 작업을 subagent-driven-development로 파견. 파견 전 `git status`로 Codex 미커밋 변경 확인(현재 Codex 유휴).
 - 검증 명령 기본 필터: `Category!=Smoke&Category!=Online&Category!=ToolSmoke`.
