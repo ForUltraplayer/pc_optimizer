@@ -1,7 +1,7 @@
 /**
  * @file    : MainViewModelTests.cs
  * @author  : rudals252
- * @brief   : 메인 화면 모델의 상태 전이·Finding 기준 건수·바로 할 수 있는 것/직접 해야 하는 것 요약·정리 창 노출 조건·온라인 비교 완료 판정·분류 필터·취소 후 재검사·종료 중 표시·내보내기·다른 관리자 계정 실행 시 시스템 범위 안내 배너와 사용자 범위 프로브 건너뜀·내 PC 사양 전환(첫 진입 새로 고침을 기다리지 않는 전환, 검사 중 새로 고침 막기와 검사 후 자동 읽기, 사양 읽는 중 검사 시작 막기, 사양·검사 프로브 종료 대기 중 상호 차단)을 가짜 프로브와 즉시 실행 마샬러로 검증
+ * @brief   : 메인 화면 모델의 상태 전이·Finding 기준 건수·바로 할 수 있는 것/직접 해야 하는 것 요약·정리 창 노출 조건·온라인 비교 완료 판정·분류 필터·취소 후 재검사·종료 중 표시·내보내기·다른 관리자 계정 실행·사용자 확인 불가 시 시스템 범위 안내 배너(문구 구분)와 사용자 범위 프로브 건너뜀·내 PC 사양 전환(첫 진입 새로 고침을 기다리지 않는 전환, 검사 중 새로 고침 막기와 검사 후 자동 읽기, 사양 읽는 중 검사 시작 막기, 사양·검사 프로브 종료 대기 중 상호 차단)을 가짜 프로브와 즉시 실행 마샬러로 검증
  */
 
 // 기본 패키지
@@ -42,7 +42,8 @@ public sealed class MainViewModelTests
         bool limitToSystemScope = false,
         IEnumerable<IRule>? rules = null,
         IActionAvailability? availability = null,
-        PcSpecViewModel? spec = null)
+        PcSpecViewModel? spec = null,
+        bool userScopeUnresolved = false)
     {
         var elevationState = elevation ?? new FakeElevationState(isElevated: false);
         var options = new ScanOptions { CancellationGracePeriod = SHORT_GRACE };
@@ -68,7 +69,8 @@ public sealed class MainViewModelTests
             elevationState,
             userScope,
             availability ?? new FixedActionAvailability(false),
-            spec ?? SpecTestFactory.Create());
+            spec ?? SpecTestFactory.Create(),
+            userScopeUnresolved);
     }
 
     /// <summary>"내 PC 사양" 버튼은 본문을 사양 화면으로 바꾸고 첫 진입에서만 사양을 읽으며, 다시 누르면 결과로 돌아간다.</summary>
@@ -606,6 +608,33 @@ public sealed class MainViewModelTests
         await vm.StartScanCommand.ExecuteAsync(null);
         Assert.Contains(vm.LastResult!.Report.ProbeSummaries, s => s.Status == ProbeStatus.Skipped);
         Assert.Equal(0, userProbe.InvocationCount);
+    }
+
+    /// <summary>
+    /// 대화형 세션 사용자를 확인하지 못해 시스템 범위만 검사하면 "다른 관리자 계정" 대신 확인 불가 배너를 보이고,
+    /// 범위 제한(시스템만·정리 창 막기)은 같게 유지한다(최종 리뷰 이월 4).
+    /// </summary>
+    [Fact]
+    public void UnresolvedSystemOnlyShowsScopeUnknownBanner()
+    {
+        var vm = CreateViewModel([new FixtureMemoryProbe()], elevation: new FakeElevationState(true), userScope: UserScopeMode.SystemOnly,
+            limitToSystemScope: true, availability: new FixedActionAvailability(true), userScopeUnresolved: true);
+
+        Assert.True(vm.IsSystemOnly);
+        Assert.True(vm.HasScopeBanner);
+        Assert.Equal(Strings.Banner_ScopeUnknown, vm.ScopeBannerText);
+        Assert.NotEqual(Strings.Banner_SystemOnly, vm.ScopeBannerText);
+        Assert.False(vm.CanOpenCacheTools);
+    }
+
+    /// <summary>전체 범위에서는 확인 불가 표시가 넘어와도 배너를 보이지 않는다(판정 불가면 항상 시스템만이라 실제로는 생기지 않는 조합).</summary>
+    [Fact]
+    public void FullScopeIgnoresUnresolvedFlag()
+    {
+        var vm = CreateViewModel([new FixtureMemoryProbe()], userScopeUnresolved: true);
+
+        Assert.False(vm.HasScopeBanner);
+        Assert.Null(vm.ScopeBannerText);
     }
 
     /// <summary>시스템 범위만 허용한 창에서는 사용자 캐시 정리로 진입하지 않아야 합니다(REV-016 재현 편입).</summary>

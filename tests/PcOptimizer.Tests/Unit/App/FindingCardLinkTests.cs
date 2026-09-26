@@ -1,7 +1,7 @@
 /**
  * @file    : FindingCardLinkTests.cs
  * @author  : rudals252
- * @brief   : 카드의 공식 링크 버튼(허용된 OpenLink만 이름표와 함께 표시·기본 이름표·숨긴 링크 안내, 만들 때 자동으로 열지 않음, 누르면 검증한 URL 열기, 실행 실패 안내) 단위 테스트
+ * @brief   : 카드의 공식 링크 버튼(허용된 OpenLink만 이름표와 함께 표시·기본 이름표·숨긴 링크 안내, 만들 때 자동으로 열지 않음, 누르면 검증한 URL 열기, 실행 실패 시 주소 복사 안내) 단위 테스트
  */
 
 // 사용자 패키지
@@ -73,7 +73,7 @@ public sealed class FindingCardLinkTests
         Assert.False(card.HasLinkStatus);
     }
 
-    /// <summary>셸 실행이 실패하면 카드에 안내를 보여 준다(예외 없음).</summary>
+    /// <summary>셸 실행이 실패하면 카드에 주소를 복사해 브라우저에 붙여 넣으라는 안내와 검증한 주소를 보여 준다(예외 없음).</summary>
     [Fact]
     public void 실행_실패는_안내한다()
     {
@@ -81,7 +81,8 @@ public sealed class FindingCardLinkTests
 
         card.Links[0].OpenCommand.Execute(null);
 
-        Assert.Equal(Strings.Link_OpenFailed, card.LinkStatusText);
+        Assert.Equal(DisplayText.Format(Strings.Link_OpenFailedCopyFormat, DELL_URL), card.LinkStatusText);
+        Assert.Contains(DELL_URL, card.LinkStatusText, StringComparison.Ordinal);
         Assert.True(card.HasLinkStatus);
     }
 

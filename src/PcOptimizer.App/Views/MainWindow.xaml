@@ -1,7 +1,7 @@
 <!--
 @file    : MainWindow.xaml
 @author  : rudals252
-@brief   : 추천 조치와 검사 결과, "바로 할 수 있는 것/직접 해야 하는 것" 요약 타일, 보호 위치 도구가 있을 때만 보이는 정리 창 버튼, 다른 관리자 계정으로 실행 중일 때의 시스템 범위 안내 배너, 검사·사양 프로브 종료 대기 안내(검사 시작·정리 버튼 비활성 사유)를 표시하고, 머리글의 "내 PC 사양" 버튼으로 본문을 사양 화면과 번갈아 보여 주는 메인 창
+@brief   : 추천 조치와 검사 결과, "바로 할 수 있는 것/직접 해야 하는 것" 요약 타일(검사 결과가 생긴 뒤에만), 보호 위치 도구가 있을 때만 보이는 정리 창 버튼, 다른 관리자 계정으로 실행 중이거나 사용자를 확인하지 못했을 때의 시스템 범위 안내 배너, 링크 열기 실패 시 복사 가능한 주소 안내, 검사·사양 프로브 종료 대기 안내(검사 시작·정리 버튼 비활성 사유)를 표시하고, 머리글의 "내 PC 사양" 버튼으로 본문을 사양 화면과 번갈아 보여 주는 메인 창
 -->
 <ui:FluentWindow x:Class="PcOptimizer.App.Views.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -131,7 +131,10 @@
                                     ToolTip="{x:Static res:Strings.Tooltip_Keep}" Visibility="{Binding HasKeepAction, Converter={StaticResource BoolToVisibility}}" />
                         </WrapPanel>
                         <TextBlock TextWrapping="Wrap" Text="{Binding HiddenLinksNote}" Style="{StaticResource Muted}" Margin="0,6,0,0" Visibility="{Binding HasHiddenLinks, Converter={StaticResource BoolToVisibility}}" />
-                        <TextBlock TextWrapping="Wrap" Text="{Binding LinkStatusText}" Margin="0,6,0,0" Visibility="{Binding HasLinkStatus, Converter={StaticResource BoolToVisibility}}" />
+                        <!-- 링크를 열지 못하면 주소를 복사할 수 있도록 선택 가능한 읽기 전용 글상자로 보여 준다(테마 스타일 대신 기본 테두리 없는 모양). -->
+                        <TextBox Style="{x:Null}" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0" Background="Transparent" Padding="0"
+                                 Text="{Binding LinkStatusText, Mode=OneWay}" Margin="0,6,0,0" AutomationProperties.AutomationId="LinkStatus"
+                                 Visibility="{Binding HasLinkStatus, Converter={StaticResource BoolToVisibility}}" />
                         <Border Margin="0,14,0,0" Padding="14" Background="#F5F7FA" CornerRadius="6" Visibility="{Binding IsDetailsVisible, Converter={StaticResource BoolToVisibility}}">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Card_EvidenceHeader}" FontWeight="SemiBold" />
@@ -188,7 +191,10 @@
                     </StackPanel>
                 </Border>
                 <!-- Rows=1이면 숨긴(Collapsed) 타일을 빼고 열을 나누므로, 바로 할 수 있는 것이 0이면 직접 해야 하는 것 타일이 전체 폭을 쓴다. -->
-                <UniformGrid Rows="1" Margin="0,0,0,12">
+                <!-- 검사 결과가 생기기 전에는 타일 묶음을 숨긴다(검사 전 "직접 해야 하는 것 0건"이 "문제 없음"으로 읽히지 않게). -->
+                <!-- 검사 결과가 생기기 전에는 타일 묶음을 숨긴다(검사 전 "직접 해야 하는 것 0건"이 "문제 없음"으로 읽히지 않게). -->
+                <UniformGrid Rows="1" Margin="0,0,0,12" AutomationProperties.AutomationId="SummaryTiles"
+                             Visibility="{Binding HasCards, Converter={StaticResource BoolToVisibility}}">
                     <Border Style="{StaticResource Tile}" Margin="0,0,12,0" AutomationProperties.AutomationId="DoNowTile"
                             Visibility="{Binding HasDoNow, Converter={StaticResource BoolToVisibility}}">
                         <StackPanel>

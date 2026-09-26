@@ -1,7 +1,7 @@
 /**
  * @file    : MainViewModel.cs
  * @author  : rudals252
- * @brief   : 메인 화면 모델(검사 시작/취소·상태·Finding 기준 요약·분류 목록/필터·카드·마지막 측정 시각·온라인 확인과 마지막 온라인 확인 시각·종료 중 표시·보호 위치 도구가 있을 때만 여는 정리 창·익명화 내보내기·다른 관리자 계정으로 실행될 때 시스템 범위 안내 배너·결과와 내 PC 사양 본문 전환, 검사 중 사양 새로 고침 막기)
+ * @brief   : 메인 화면 모델(검사 시작/취소·상태·Finding 기준 요약·분류 목록/필터·카드·마지막 측정 시각·온라인 확인과 마지막 온라인 확인 시각·종료 중 표시·보호 위치 도구가 있을 때만 여는 정리 창·익명화 내보내기·다른 관리자 계정으로 실행되거나 사용자를 확인하지 못했을 때 시스템 범위 안내 배너(문구 구분)·결과와 내 PC 사양 본문 전환, 검사 중 사양 새로 고침 막기)
  */
 
 // 기본 패키지
@@ -141,6 +141,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <param name="userScope">사용자 범위(대화형 사용자와 다른 관리자 계정으로 실행 중이면 시스템만, 배너 표시).</param>
     /// <param name="actionAvailability">후보의 앱 내 실행 가능 여부와 정리 창 노출 조건(보호 위치 도구 존재, 생성 시 한 번 확인).</param>
     /// <param name="spec">내 PC 사양 화면 모델(검사와 프로브를 공유하므로 검사 중에는 새로 고침을 막음).</param>
+    /// <param name="userScopeUnresolved">
+    /// 대화형 세션 사용자(또는 토큰 사용자)를 확인하지 못해 시스템만으로 정했으면 true. 범위 제한은 같고 배너 문구만 "확인하지 못함"으로 바뀝니다.
+    /// </param>
     public MainViewModel(
         ScanService scanService,
         ReportExporter exporter,
@@ -152,7 +155,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IElevationState elevationState,
         UserScopeMode userScope,
         IActionAvailability actionAvailability,
-        PcSpecViewModel spec)
+        PcSpecViewModel spec,
+        bool userScopeUnresolved = false)
     {
         ArgumentNullException.ThrowIfNull(scanService);
         ArgumentNullException.ThrowIfNull(exporter);
@@ -175,6 +179,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _logger = logger;
         _elevationState = elevationState;
         UserScope = userScope;
+        IsUserScopeUnresolved = userScopeUnresolved;
         _actionAvailability = actionAvailability;
         CacheToolsAvailable = actionAvailability.CacheToolsAvailable;
         Spec = spec;
@@ -198,11 +203,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>이 인스턴스의 사용자 범위.</summary>
     public UserScopeMode UserScope { get; }
 
-    /// <summary>시스템 범위만 검사하는지(다른 관리자 계정으로 실행됨).</summary>
+    /// <summary>대화형 세션 사용자를 확인하지 못해 범위를 정했는지 여부(배너 문구 구분에만 씀).</summary>
+    public bool IsUserScopeUnresolved { get; }
+
+    /// <summary>시스템 범위만 검사하는지(다른 관리자 계정으로 실행됐거나 사용자를 확인하지 못함).</summary>
     public bool IsSystemOnly => UserScope == UserScopeMode.SystemOnly;
 
-    /// <summary>범위 안내 배너(전체 범위면 null).</summary>
-    public string? ScopeBannerText => IsSystemOnly ? Strings.Banner_SystemOnly : null;
+    /// <summary>범위 안내 배너(전체 범위면 null). 사용자를 확인하지 못했으면 "다른 계정" 대신 "확인하지 못함" 문구를 씁니다.</summary>
+    public string? ScopeBannerText => !IsSystemOnly ? null
+        : IsUserScopeUnresolved ? Strings.Banner_ScopeUnknown
+        : Strings.Banner_SystemOnly;
 
     /// <summary>배너 표시 여부.</summary>
     public bool HasScopeBanner => ScopeBannerText is not null;

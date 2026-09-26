@@ -26,6 +26,8 @@
 - **표준 사용자 계정.** 다른 관리자 계정의 자격 증명으로 승격되면 HKCU·프로필이 그 계정의 것이 된다. 이 경우 시스템 범위만 검사·조치하고 사용자별 항목(HKCU, 사용자 프로필, 시작 프로그램 HKCU 부분, 사용자 임시 파일)은 "관리자 계정으로 로그인해서 실행하면 전부 검사할 수 있어요" 안내로 대체한다. 판정은 기존 SID 비교 코드를 재사용한다.
 - 보호 위치 판정은 환경 변수가 아니라 Windows 시스템 폴더 API(`Environment.SpecialFolder.ProgramFiles`·`ProgramFilesX86` 및 `ProgramW6432`)로 읽는다.
 - 규칙·정책 파일은 계속 어셈블리 포함 리소스로만 읽는다.
+- **외부 링크는 비승격 셸로 연다.** 공식 링크는 관리자 권한 프로세스에서 URL을 직접 셸 실행하지 않고, 이미 실행 중인 비승격 셸(Windows 폴더의 `explorer.exe`)에 검증한 주소를 인자로만 넘겨 기본 브라우저가 일반 권한으로 열리게 하며, 열지 못하면 주소 복사 안내로 대체한다(2026-09-27 최종 리뷰 후속).
+- **같은 사용자의 일반 권한 코드는 방어 경계가 아니다.** 보호 위치 도구 규칙은 심층 방어이며, 포터블 exe 특성상 같은 사용자의 중간 무결성 프로세스에 대해서는 앱 시작 훅 끄기(`StartupHookSupport=false`)와 자식 도구 환경 변수 제거(`DOTNET_STARTUP_HOOKS`·`DOTNET_ADDITIONAL_DEPS`·`DOTNET_SHARED_STORE`·`COMPlus_*`·`NODE_OPTIONS`·`PYTHONSTARTUP`·`PYTHONPATH`·`PYTHONHOME` 등) 외의 방어를 약속하지 않는다(2026-09-27 최종 리뷰 후속).
 
 ## 1. 조치 모델 (Action)
 

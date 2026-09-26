@@ -1,7 +1,7 @@
 /**
  * @file    : PcSpecService.cs
  * @author  : rudals252
- * @brief   : 하드웨어 프로브를 규칙 없이 직접 실행해 내 PC 사양 스냅샷(9개 섹션)을 만든다(실행·조립·공용 형식 도우미). 섹션 빌더는 PcSpecService.Sections.cs. 검사와 무관하게 열 때마다 새로 읽는다. 타임아웃 뒤에도 살아 있는 프로브 실행을 추적해 끝날 때까지 재호출하지 않는다(REV-017)
+ * @brief   : 하드웨어 프로브를 규칙 없이 직접 실행해 내 PC 사양 스냅샷(9개 섹션)을 만든다(실행·조립·공용 형식 도우미). 섹션 빌더는 PcSpecService.Sections.cs. 검사와 무관하게 열 때마다 새로 읽는다. 프로브는 스레드 풀에서 실행해 UI 스레드를 막지 않고, 타임아웃 뒤에도 살아 있는 프로브 실행을 추적해 끝날 때까지 재호출하지 않는다(REV-017)
  */
 
 // 기본 패키지
@@ -201,7 +201,7 @@ public sealed partial class PcSpecService
     }
 
     /// <summary>
-    /// 프로브 하나를 기본 타임아웃 안에서 실행한다. 취소 토큰을 무시하는 프로브도 기다리지 않도록 대기 자체에 시간 제한을 두고,
+    /// 프로브 하나를 스레드 풀에서 기본 타임아웃 안에서 실행한다. 동기로 막는 프로브나 취소 토큰을 무시하는 프로브도 기다리지 않도록 대기 자체에 시간 제한을 두고,
     /// 기다리기를 멈춘 뒤에도 끝나지 않은 실행은 <see cref="TrackIfLive"/>로 보관한다.
     /// </summary>
     private async Task<ProbeResult?> RunProbeAsync(IProbe probe, ScanContext context, CancellationToken ct)
@@ -211,7 +211,9 @@ public sealed partial class PcSpecService
         Task<ProbeResult>? running = null;
         try
         {
-            running = probe.RunAsync(context, timeout.Token);
+            // 실제 사양 프로브는 동기 WMI 조회 뒤 Task.FromResult를 돌려주므로 그대로 부르면 호출 스레드(UI)에서 끝까지 실행되고
+            // 타임아웃·살아 있는 실행 추적이 적용되지 않는다. 검사 조율기(ProbeExecutor)와 같이 스레드 풀에서 시작한다.
+            running = Task.Run(() => probe.RunAsync(context, timeout.Token), CancellationToken.None);
             var result = await running.WaitAsync(probe.DefaultTimeout, ct).ConfigureAwait(false);
             if (!string.Equals(result.ProbeId, probe.Id, StringComparison.Ordinal))
             {

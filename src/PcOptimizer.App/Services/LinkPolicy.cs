@@ -1,11 +1,8 @@
 /**
  * @file    : LinkPolicy.cs
  * @author  : rudals252
- * @brief   : 외부 링크의 엄격한 HTTPS·공식 호스트 및 경로 허용 목록을 확인해 정규 URL만 셸로 열기
+ * @brief   : 외부 링크의 엄격한 HTTPS·공식 호스트 및 경로 허용 목록을 확인해 정규 URL만 비승격 셸(explorer.exe)로 열기(관리자 권한 브라우저 방지)
  */
-
-// 기본 패키지
-using System.Diagnostics;
 
 // 사용자 패키지
 using PcOptimizer.Core.Abstractions;
@@ -21,7 +18,9 @@ namespace PcOptimizer.App.Services;
 /// (1) 공식 링크 표(vendor-links.json) 항목과 같은 ASCII 호스트이고 경로가 그 항목 경로로 시작하거나,
 /// (2) NVIDIA 허용 호스트의 드라이버 페이지 또는 Windows 배포 파일 경로입니다.
 /// 이 정책은 출처와 관계없이 호스트와 경로를 다시 확인합니다. 호스트는 퓨니코드로 비교해 유사 문자 도메인을 막습니다.
-/// 열 때는 검증한 <see cref="Uri.AbsoluteUri"/>(정규화한 문자열)를 그대로 <see cref="Process.Start(ProcessStartInfo)"/>(UseShellExecute)에 넘깁니다.
+/// 열 때는 검증한 <see cref="Uri.AbsoluteUri"/>(정규화한 문자열)만 <see cref="UnelevatedShellLauncher"/>에 넘깁니다. 앱이 항상 관리자 권한이므로
+/// URL을 직접 셸 실행하지 않고 이미 실행 중인 비승격 셸(explorer.exe)에 인자로 넘겨 브라우저가 일반 권한으로 열리게 합니다.
+/// 열지 못하면 <see cref="LinkOpenResult.Failed"/>를 돌려주고 카드가 주소 복사 안내를 보여 줍니다.
 /// </remarks>
 public sealed class LinkPolicy
 {
@@ -32,12 +31,23 @@ public sealed class LinkPolicy
     private readonly Action<string> _shellLauncher;
 
     /// <summary>
-    /// 셸 실행(Process.Start + UseShellExecute)을 쓰는 정책을 만듭니다.
+    /// 비승격 셸(explorer.exe)로 여는 정책을 만듭니다.
     /// </summary>
     /// <param name="catalog">공식 링크 표(읽지 못했으면 null, 이때 NVIDIA 허용 호스트만 엶).</param>
     /// <param name="logger">공용 로거.</param>
     public LinkPolicy(VendorLinkCatalog? catalog, IAppLogger logger)
-        : this(catalog, logger, LaunchWithShell)
+        : this(catalog, logger, new UnelevatedShellLauncher())
+    {
+    }
+
+    /// <summary>
+    /// 비승격 셸 실행기를 지정해 정책을 만듭니다(테스트에서 프로세스 시작기만 바꿔 실제 시작 정보를 확인하기 위함).
+    /// </summary>
+    /// <param name="catalog">공식 링크 표.</param>
+    /// <param name="logger">공용 로거.</param>
+    /// <param name="shellLauncher">검증한 URL을 비승격 셸로 여는 실행기.</param>
+    public LinkPolicy(VendorLinkCatalog? catalog, IAppLogger logger, UnelevatedShellLauncher shellLauncher)
+        : this(catalog, logger, (shellLauncher ?? throw new ArgumentNullException(nameof(shellLauncher))).Launch)
     {
     }
 
@@ -67,7 +77,7 @@ public sealed class LinkPolicy
     }
 
     /// <summary>
-    /// 허용된 링크면 검증한 정규 URL을 셸로 엽니다. 예외를 던지지 않습니다.
+    /// 허용된 링크면 검증한 정규 URL을 엽니다. 예외를 던지지 않습니다.
     /// </summary>
     /// <param name="url">링크 URL.</param>
     /// <returns>열기 결과.</returns>
@@ -111,13 +121,5 @@ public sealed class LinkPolicy
         }
 
         return false;
-    }
-
-    /// <summary>
-    /// 셸로 URL을 연다(기본 브라우저).
-    /// </summary>
-    private static void LaunchWithShell(string url)
-    {
-        using var process = Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
     }
 }

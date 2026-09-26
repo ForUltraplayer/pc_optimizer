@@ -1,7 +1,7 @@
 /**
  * @file    : CacheToolProcess.cs
  * @author  : rudals252
- * @brief   : 셸 없는 고정 도구 실행(작업 폴더 System32 고정)과 제한된 출력·시간·환경, 사용자 캐시 명령 조립
+ * @brief   : 셸 없는 고정 도구 실행(작업 폴더 System32 고정)과 제한된 출력·시간·환경(주입 가능 환경 변수·COMPlus_ 등 런타임 접두사 제거), 사용자 캐시 명령 조립
  */
 using System.Diagnostics;
 using System.Text;
@@ -20,6 +20,22 @@ internal static class CacheToolProcess
     private static readonly TimeSpan QUERY_TIMEOUT = TimeSpan.FromSeconds(15);
     private static readonly SemaphoreSlim Gate = new(1);
     private static readonly CacheProcessGuard Guard = new();
+
+    /// <summary>
+    /// 시작 전에 지우는 주입 가능 환경 변수 이름(대소문자 무시). 관리자 권한 자식 프로세스(node·python·dotnet)에 사용자 코드를 실을 수 있는 값이다
+    /// (시작 훅·추가 deps·공유 저장소·NODE_OPTIONS의 --require·PYTHONSTARTUP·PYTHONPATH·PYTHONHOME). 같은 사용자의 일반 권한 프로세스가
+    /// HKCU\Environment에 심어도 도구가 읽지 못하게 한다. NUGET_*·NPM_CONFIG_*·PIP_*는 사용자 자신의 캐시 위치를 고르는 값이라 지우지 않는다
+    /// (2026-09-27 최종 리뷰 후속 판정).
+    /// </summary>
+    internal static readonly string[] INJECTION_ENVIRONMENT_VARIABLES =
+    [
+        "DOTNET_STARTUP_HOOKS", "DOTNET_ADDITIONAL_DEPS", "DOTNET_SHARED_STORE", "NODE_OPTIONS", "PYTHONSTARTUP", "PYTHONPATH", "PYTHONHOME",
+    ];
+
+    /// <summary>
+    /// 시작 전에 지우는 런타임 설정 환경 변수 접두사(대소문자 무시, 위 이름보다 넓게 지움). COMPlus_는 DOTNET_ 런타임 설정의 옛 접두사라 함께 지운다.
+    /// </summary>
+    internal static readonly string[] STRIPPED_ENVIRONMENT_PREFIXES = ["DOTNET_", "COMPlus_", "CORECLR_", "COR_", "NODE_", "PYTHON"];
 
     /// <summary>
     /// 도구 작업 폴더(System32)입니다. 관리자 권한으로 실행하므로 작업 폴더와 그 상위 폴더가 모두 관리자 전용이어야 한다.
@@ -78,7 +94,8 @@ internal static class CacheToolProcess
     }
 
     /// <summary>
-    /// 셸 없이 실행할 시작 정보를 만듭니다(프로세스는 시작하지 않음). 작업 폴더는 System32로 고정하고, 런타임을 바꾸는 환경 변수는 지웁니다.
+    /// 셸 없이 실행할 시작 정보를 만듭니다(프로세스는 시작하지 않음). 작업 폴더는 System32로 고정하고, 코드 주입이 가능하거나 런타임을 바꾸는 환경 변수
+    /// (<see cref="INJECTION_ENVIRONMENT_VARIABLES"/>, <see cref="STRIPPED_ENVIRONMENT_PREFIXES"/>)는 지웁니다.
     /// </summary>
     /// <param name="tool">검사를 통과한 도구 위치.</param>
     /// <param name="clear">정리 명령이면 true, 위치 조회면 false.</param>
@@ -90,10 +107,7 @@ internal static class CacheToolProcess
             UseShellExecute = false, CreateNoWindow = true,
             RedirectStandardOutput = true, RedirectStandardError = true, WorkingDirectory = TOOL_WORKING_DIRECTORY,
         };
-        foreach (var key in start.Environment.Keys.Where(key => key.StartsWith("DOTNET_", StringComparison.OrdinalIgnoreCase)
-            || key.StartsWith("CORECLR_", StringComparison.OrdinalIgnoreCase) || key.StartsWith("COR_", StringComparison.OrdinalIgnoreCase)
-            || key.StartsWith("NODE_", StringComparison.OrdinalIgnoreCase) || key.StartsWith("PYTHON", StringComparison.OrdinalIgnoreCase)).ToArray())
-        { start.Environment.Remove(key); }
+        foreach (var key in start.Environment.Keys.Where(IsStrippedVariable).ToArray()) { start.Environment.Remove(key); }
         start.Environment["DOTNET_NOLOGO"] = "1";
         start.Environment["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1";
         start.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
@@ -105,6 +119,11 @@ internal static class CacheToolProcess
         if (clear && tool.Tool == CacheTool.NuGetHttp) { start.Environment["NUGET_HTTP_CACHE_PATH"] = tool.CachePath; }
         return start;
     }
+
+    /// <summary>주입 가능 이름이거나 런타임 접두사로 시작하는 환경 변수인지 판단합니다.</summary>
+    private static bool IsStrippedVariable(string key) =>
+        INJECTION_ENVIRONMENT_VARIABLES.Contains(key, StringComparer.OrdinalIgnoreCase)
+        || STRIPPED_ENVIRONMENT_PREFIXES.Any(prefix => key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>사용자 입력을 명령으로 해석하지 않는 인자 배열입니다.</summary>
     internal static IReadOnlyList<string> Arguments(CacheToolLocation tool, bool clear) => tool.Tool switch

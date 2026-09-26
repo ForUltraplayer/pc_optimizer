@@ -1,7 +1,7 @@
 /**
  * @file    : PackagingTests.cs
  * @author  : rudals252
- * @brief   : 포터블 배포에 필요한 App 프로젝트 속성(단일 파일·self-contained·아이콘·어셈블리 이름·버전)이 설정돼 있는지 검증
+ * @brief   : 포터블 배포에 필요한 App 프로젝트 속성(단일 파일·self-contained·아이콘·어셈블리 이름·버전·시작 훅 끄기)이 설정돼 있는지 검증
  */
 
 // 기본 패키지
@@ -15,7 +15,7 @@ public sealed class PackagingTests
 {
     private static readonly string CSPROJ = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "PcOptimizer.App", "PcOptimizer.App.csproj"));
 
-    /// <summary>단일 파일 self-contained 배포·아이콘·이름·버전 속성이 있다.</summary>
+    /// <summary>단일 파일 self-contained 배포·아이콘·이름·버전 속성과 시작 훅 끄기(관리자 권한 앱에 사용자 환경 변수 DOTNET_STARTUP_HOOKS 주입 차단)가 있다.</summary>
     [Theory]
     [InlineData("AssemblyName", "PcOptimizer")]
     [InlineData("ApplicationIcon", @"Assets\app.ico")]
@@ -26,6 +26,7 @@ public sealed class PackagingTests
     [InlineData("EnableCompressionInSingleFile", "true")]
     [InlineData("SatelliteResourceLanguages", "ko")]
     [InlineData("DebugType", "none")]
+    [InlineData("StartupHookSupport", "false")]
     public void PublishPropertiesArePresent(string name, string expected)
     {
         var doc = XDocument.Load(CSPROJ);

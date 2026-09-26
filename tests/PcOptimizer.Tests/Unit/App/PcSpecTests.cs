@@ -1,7 +1,7 @@
 /**
  * @file    : PcSpecTests.cs
  * @author  : rudals252
- * @brief   : 내 PC 사양 스냅샷(섹션 순서·확인 불가 표시·장치별 개별 나열·빈 값 비표시)과 프로브 예외·타임아웃 흡수, 타임아웃 뒤 살아 있는 공유 프로브 재진입 차단·종료 대기(REV-017), 텍스트 형식(기본 익명화·확인 불가 섹션 한 줄), 사양 뷰모델(새로 고침·복사·TXT 저장·검사 중 새로 고침 막기·종료 대기 중 새로 고침 막기·이미지 대상 없음)을 가짜 프로브 결과로 검증
+ * @brief   : 내 PC 사양 스냅샷(섹션 순서·확인 불가 표시·장치별 개별 나열·빈 값 비표시)과 프로브 예외·타임아웃 흡수, 타임아웃 뒤 살아 있는 공유 프로브 재진입 차단·종료 대기(REV-017), 동기 차단 프로브의 백그라운드 실행(수집·새로 고침 Execute가 막히지 않음), 텍스트 형식(기본 익명화·확인 불가 섹션 한 줄), 사양 뷰모델(새로 고침·복사·TXT 저장·검사 중 새로 고침 막기·종료 대기 중 새로 고침 막기·이미지 대상 없음)을 가짜 프로브 결과로 검증
  */
 
 // 기본 패키지
@@ -423,6 +423,66 @@ public sealed class PcSpecTests
             Assert.True(vm.RefreshCommand.CanExecute(null));
         }
         finally { probe.Release.TrySetResult(); }
+    }
+
+    /// <summary>
+    /// 실제 사양 프로브처럼 RunAsync 안에서 스레드를 동기로 막는 프로브도 수집을 막지 않는다: 프로브 타임아웃 뒤 반환하고,
+    /// 끝나지 않은 실행을 살아 있는 프로브로 추적한다(최종 리뷰 필수 2, REV-017). 수정 전 코드가 호출 스레드를 영구히 막지 않도록
+    /// 제한 시간 뒤 풀어 주는 안전장치를 두며, 안전장치가 풀기 전에 반환해야 통과한다.
+    /// </summary>
+    [Fact]
+    public async Task SynchronouslyBlockingProbeTimesOutAndStaysTracked()
+    {
+        using var probe = new BlockingProbe(SystemDetailsProbeContract.PROBE_ID);
+        var service = new PcSpecService([probe], new FakeClock(), NullAppLogger.Instance, TestContexts.Normal);
+        using var safety = new CancellationTokenSource(Bound);
+        using var safetyRelease = safety.Token.Register(probe.Release);
+        try
+        {
+            var snapshot = await service.CaptureAsync(default).WaitAsync(Bound);
+
+            Assert.False(safety.IsCancellationRequested, "동기 차단 프로브가 CaptureAsync 호출 스레드를 막았다");
+            Assert.True(service.HasLiveProbes);
+            Assert.Contains(Strings.Spec_Section_Os, snapshot.UnavailableSections);
+        }
+        finally
+        {
+            probe.Release();
+        }
+
+        await service.WaitForDrainAsync(default).WaitAsync(Bound);
+        Assert.False(service.HasLiveProbes);
+    }
+
+    /// <summary>
+    /// 동기 차단 프로브가 막고 있어도 새로 고침 명령 실행(Execute)은 곧바로 돌아온다(UI 스레드 정지 방지, 최종 리뷰 필수 2).
+    /// 프로브는 테스트가 직접 풀며, 안전장치는 수정 전 코드에서 테스트가 멈추지 않게 하기 위한 것이다.
+    /// </summary>
+    [Fact]
+    public async Task ViewModelRefreshExecuteReturnsWhileProbeBlocks()
+    {
+        using var probe = new BlockingProbe(SystemDetailsProbeContract.PROBE_ID);
+        var service = new PcSpecService([probe], new FakeClock(), NullAppLogger.Instance, TestContexts.Normal);
+        var vm = new PcSpecViewModel(service, new PcSpecTextFormatter(), new RecordingClipboard(), new FixedExportPathPicker(null), () => null,
+            new ImmediateUiDispatcher(), NullAppLogger.Instance, machineName: null, userName: null);
+        using var safety = new CancellationTokenSource(Bound);
+        using var safetyRelease = safety.Token.Register(probe.Release);
+        try
+        {
+            vm.RefreshCommand.Execute(null);
+
+            Assert.False(safety.IsCancellationRequested, "새로 고침 Execute가 동기 차단 프로브에 막혔다");
+            Assert.NotNull(vm.RefreshCommand.ExecutionTask);
+        }
+        finally
+        {
+            probe.Release();
+        }
+
+        await vm.RefreshCommand.ExecutionTask!.WaitAsync(Bound);
+        await service.WaitForDrainAsync(default).WaitAsync(Bound);
+        Assert.False(vm.IsLoading);
+        Assert.NotNull(vm.Snapshot);
     }
 
     /// <summary>텍스트 형식은 익명화 기본이며 PC 이름·사용자명은 토글이 켜졌을 때만 헤더에 들어간다.</summary>

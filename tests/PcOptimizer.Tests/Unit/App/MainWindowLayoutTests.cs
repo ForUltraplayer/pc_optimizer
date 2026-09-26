@@ -1,7 +1,7 @@
 /**
  * @file    : MainWindowLayoutTests.cs
  * @author  : rudals252
- * @brief   : 메인 창을 화면에 띄우지 않고 고정 폭으로 배치해, 긴 경로가 든 카드 문장이 가로로 넘치지 않고 줄바꿈되는지, 판정 배지 텍스트, 관리자 권한 재검사 버튼 없음과 다른 관리자 계정 실행 시 시스템 범위 안내 배너 표시, 공식 링크 버튼 표시, 카드의 안전 배지·설명 3줄 렌더, 요약 타일 두 개(바로 할 수 있는 것은 0이면 숨김)와 정리 창 버튼 노출 조건, 사양 프로브 종료 대기 안내의 결과 화면 표시·숨김, 내 PC 사양 화면(한 열 나열·화면 줄 == 텍스트 줄·720px 폭·익명화 표기·PNG 저장·본문 전환)을 검증
+ * @brief   : 메인 창을 화면에 띄우지 않고 고정 폭으로 배치해, 긴 경로가 든 카드 문장이 가로로 넘치지 않고 줄바꿈되는지, 판정 배지 텍스트, 관리자 권한 재검사 버튼 없음과 다른 관리자 계정 실행·사용자 확인 불가 시 시스템 범위 안내 배너 표시(문구 구분), 공식 링크 버튼 표시, 카드의 안전 배지·설명 3줄 렌더, 요약 타일 두 개(바로 할 수 있는 것은 0이면 숨김, 검사 전에는 묶음 전체 숨김)와 정리 창 버튼 노출 조건, 사양 프로브 종료 대기 안내의 결과 화면 표시·숨김, 내 PC 사양 화면(한 열 나열·화면 줄 == 텍스트 줄·720px 폭·익명화 표기·PNG 저장·본문 전환)을 검증
  */
 
 // 기본 패키지
@@ -100,7 +100,7 @@ public sealed class MainWindowLayoutTests
     /// 긴 경로가 든 CannotVerify를 돌려주는 규칙이 있는 뷰모델로 검사를 한 번 실행한다.
     /// </summary>
     private static MainViewModel CreateScannedViewModel(bool isElevated = false, UserScopeMode userScope = UserScopeMode.Full,
-        bool overview = false, bool scan = true, IRule? rule = null, IActionAvailability? availability = null)
+        bool overview = false, bool scan = true, IRule? rule = null, IActionAvailability? availability = null, bool userScopeUnresolved = false)
     {
         var elevation = new FakeElevationState(isElevated);
         var service = new ScanService(
@@ -122,7 +122,8 @@ public sealed class MainWindowLayoutTests
             elevation,
             userScope,
             availability ?? new FixedActionAvailability(false),
-            SpecTestFactory.Create());
+            SpecTestFactory.Create(),
+            userScopeUnresolved);
         if (scan)
         {
             vm.StartScanCommand.ExecuteAsync(null).GetAwaiter().GetResult();
@@ -351,9 +352,14 @@ public sealed class MainWindowLayoutTests
         RunOnSta(() =>
         {
             var model = CreateScannedViewModel(overview: true);
+            // 사양 프로브는 스레드 풀에서 실행되므로(최종 리뷰 필수 2) 창을 만들기 전에 한 번 읽어 둔다.
+            // 그러면 전환은 새 읽기를 시작하지 않고, 창이 있는 상태에서 바인딩만으로 본문이 바뀌는지 확인할 수 있다.
+            model.Spec.RefreshCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+            var loaded = model.Spec.RefreshCommand.ExecutionTask;
             var window = new MainWindow(model);
             var root = (FrameworkElement)window.Content;
             model.ToggleSpecCommand.Execute(null);
+            Assert.Same(loaded, model.Spec.RefreshCommand.ExecutionTask);
             Assert.True(model.Spec.RefreshCommand.ExecutionTask!.IsCompleted);
             root.Measure(new Size(CARD_LAYOUT_WIDTH, CARD_LAYOUT_HEIGHT));
             root.Arrange(new Rect(0, 0, CARD_LAYOUT_WIDTH, CARD_LAYOUT_HEIGHT));
@@ -456,6 +462,41 @@ public sealed class MainWindowLayoutTests
         });
     }
 
+    /// <summary>
+    /// 검사 전에는 요약 타일 묶음을 접어 "직접 해야 하는 것 0건"을 보여 주지 않는다(최종 리뷰 필수 3: 검사 전 0건은 "문제 없음"으로 읽힘).
+    /// 개선 후보 카드가 있는 결과가 생기면 타일 묶음이 보인다.
+    /// </summary>
+    [Fact]
+    public void SummaryTilesAreHiddenBeforeScanAndShownAfterResult()
+    {
+        RunOnSta(() =>
+        {
+            var before = CreateScannedViewModel(overview: true, scan: false);
+            var after = CreateScannedViewModel(overview: true, rule: new ImprovementRule());
+            Assert.Null(before.LastResult);
+            Assert.NotEmpty(after.RecommendedCards);
+
+            Assert.Equal(Visibility.Collapsed, LayoutSummaryTiles(before).Visibility);
+            Assert.Equal(Visibility.Visible, LayoutSummaryTiles(after).Visibility);
+        });
+    }
+
+    /// <summary>
+    /// 창을 배치하고 요약 타일 묶음(직접 해야 하는 것 타일의 부모)을 돌려준다.
+    /// </summary>
+    private static FrameworkElement LayoutSummaryTiles(MainViewModel model)
+    {
+        var window = new MainWindow(model);
+        var root = (FrameworkElement)window.Content;
+        root.Measure(new Size(CARD_LAYOUT_WIDTH, CARD_LAYOUT_HEIGHT));
+        root.Arrange(new Rect(0, 0, CARD_LAYOUT_WIDTH, CARD_LAYOUT_HEIGHT));
+        root.UpdateLayout();
+        var doManually = Assert.Single(Descendants<Border>(root), b => AutomationProperties.GetAutomationId(b) == "DoManuallyTile");
+        var group = (FrameworkElement)doManually.Parent;
+        window.Close();
+        return group;
+    }
+
     /// <summary>사양 프로브 종료 대기 중(Spec.IsDraining)에는 결과 화면 개요 카드에 비활성 사유 문구가 보이고, 끝나면 숨는다(REV-017).</summary>
     [Fact]
     public void SpecDrainingNoteShowsOnResultsOverview()
@@ -549,6 +590,21 @@ public sealed class MainWindowLayoutTests
             var (_, banner) = LayoutScopeBanner(window);
 
             Assert.Equal(Strings.Banner_SystemOnly, banner.Text);
+            Assert.Equal(Visibility.Visible, ((FrameworkElement)banner.Parent).Visibility);
+            window.Close();
+        });
+    }
+
+    /// <summary>이 창을 연 사용자를 확인하지 못해 시스템 범위만 검사하면, 다른 계정 안내가 아니라 "확인하지 못함" 배너가 보인다(최종 리뷰 이월 4).</summary>
+    [Fact]
+    public void 사용자_확인_불가면_확인_불가_배너가_보인다()
+    {
+        RunOnSta(() =>
+        {
+            var window = new MainWindow(CreateScannedViewModel(isElevated: true, UserScopeMode.SystemOnly, userScopeUnresolved: true));
+            var (_, banner) = LayoutScopeBanner(window);
+
+            Assert.Equal(Strings.Banner_ScopeUnknown, banner.Text);
             Assert.Equal(Visibility.Visible, ((FrameworkElement)banner.Parent).Visibility);
             window.Close();
         });

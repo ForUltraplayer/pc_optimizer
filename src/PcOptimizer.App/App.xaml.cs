@@ -1,7 +1,7 @@
 /**
  * @file    : App.xaml.cs
  * @author  : rudals252
- * @brief   : 애플리케이션 진입점(항상 관리자 권한). 프로세스 토큰 SID와 대화형 로그온 사용자 SID를 비교해 사용자 범위(전체/시스템만)를 정하고 공용 로거·검사 서비스·내보내기·설정 URI 정책·공식 링크 정책·앱 내 실행 판정(보호 위치 도구 캐시 정리)·내 PC 사양 화면 모델(검사와 프로브 공유)·메인 화면 모델을 조립하며 처리되지 않은 예외를 형식 이름만 기록
+ * @brief   : 애플리케이션 진입점(항상 관리자 권한). 프로세스 토큰 SID와 대화형 로그온 사용자 SID를 비교해 사용자 범위(전체/시스템만)와 판정 불가 여부(배너 문구 구분)를 정하고 공용 로거·검사 서비스·내보내기·설정 URI 정책·공식 링크 정책·앱 내 실행 판정(보호 위치 도구 캐시 정리)·내 PC 사양 화면 모델(검사와 프로브 공유)·메인 화면 모델을 조립하며 처리되지 않은 예외를 형식 이름만 기록
  */
 
 // 기본 패키지
@@ -47,6 +47,7 @@ public partial class App : Application
         var sessionUserResolved = InteractiveSessionUser.TryGetSid(out var sid);
         var interactiveSid = sessionUserResolved ? sid : null;
         var userScope = UserScopeResolver.Resolve(elevation.CurrentUserSid, interactiveSid);
+        var userScopeUnresolved = UserScopeResolver.IsUnresolved(elevation.CurrentUserSid, interactiveSid);
 
         // SID·계정명은 기록하지 않는다(권한과 범위·판정 성공 여부만).
         logger.Info(LOG_CATEGORY, $"AppStarted elevated={elevation.IsElevated} scope={userScope} sessionUserResolved={sessionUserResolved}");
@@ -93,7 +94,9 @@ public partial class App : Application
             userScope,
             // 앱 안에서 바로 실행하는 조치는 보호 위치(Program Files) 도구의 npm·pip·NuGet 캐시 정리뿐이다. 도구 위치는 존재 확인만 하며 프로세스를 실행하지 않는다.
             new CacheToolActionAvailability(() => SystemCacheToolBackend.AnyToolInProtectedLocation(), CacheToolActionAvailability.DEFAULT_REVIEWED_APP_IDS),
-            spec);
+            spec,
+            // SID를 알아내지 못해 시스템만으로 정한 경우는 "다른 관리자 계정" 배너가 아니라 "확인하지 못함" 배너를 보인다.
+            userScopeUnresolved);
 
         window = new MainWindow(viewModel, logger);
         MainWindow = window;

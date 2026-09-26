@@ -255,16 +255,16 @@ public sealed partial class FindingCardViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 링크 정책으로 다시 확인한 뒤 공식 링크를 엽니다. 거부·실패하면 카드에 안내를 보여 줍니다.
+    /// 링크 정책으로 다시 확인한 뒤 공식 링크를 엽니다. 거부하면 안내를, 열지 못하면(비승격 셸 시작 실패) 주소를 복사해 붙여 넣으라는 안내와 주소를 보여 줍니다.
     /// </summary>
-    /// <param name="url">링크 URL.</param>
+    /// <param name="url">링크 URL(허용 목록을 통과한 링크만 버튼으로 만들어짐).</param>
     private void OpenLink(string url)
     {
         LinkStatusText = _linkPolicy.TryOpen(url) switch
         {
             LinkOpenResult.Opened => null,
             LinkOpenResult.Refused => Strings.Link_Refused,
-            _ => Strings.Link_OpenFailed,
+            _ => DisplayText.Format(Strings.Link_OpenFailedCopyFormat, url),
         };
     }
 
