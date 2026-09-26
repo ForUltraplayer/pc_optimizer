@@ -1,0 +1,134 @@
+# PC Optimizer 2차 개선 설계 — 조치 중심 전환
+
+- 작성일: 2026-09-27
+- 상태: 사용자 승인 설계(대화 승인). 구현 계획은 별도 작성.
+- 기준 코드: 브랜치 `feature/p0-skeleton` HEAD d1dbaef(1차 완성본 + REV-008~014 수정). 기존 설계 `2026-09-26-pc-optimizer-design.md`와 `2026-09-27-first-release-actions.md`를 잇되, 충돌하는 부분은 이 문서가 우선한다.
+
+## 0. 목적 재정의
+
+**컴퓨터를 잘 모르는 사용자가 버튼을 눌러 실제로 PC가 정리·개선되게 한다.** 진단은 조치를 고르기 위한 수단이고, 제품의 중심은 조치 실행이다.
+
+핵심 결정:
+1. **조치 중심.** 안내·링크로 끝나는 항목은 최소화하고, 프로그램이 직접 할 수 있는 것은 직접 한다.
+2. **항목별 확인이 기본.** 조치마다 미리보기 → 확인 → 실행 → 재관측. "한 번에 승인"은 조치 속성(`묶음 가능`)으로만 표시하고 묶음 화면은 다음 단계.
+3. **항상 관리자 권한.** 앱 매니페스트를 `requireAdministrator`로 바꾸고 단일 프로세스로 실행한다. 별도 관리자 실행기, 승격 재실행 흐름, "관리자 권한으로 다시 검사" 버튼은 제거한다.
+4. **격리 없음, 즉시 삭제.** 사용자는 공간 확보에 집중한다. 삭제 대상은 재생성되는 임시 파일·캐시로 한정한다.
+5. **LLM 미사용.** 로컬 LLM 구동 없음. 프로그램 로직으로 최대한 처리한다. 나중에 필요하면 "질문 파일 내보내기"(§6)로 무료 LLM에 사용자가 직접 묻는 방식만 계획한다.
+6. **설명은 짧게.** 항목마다 "이게 뭔가요" 한 줄, 효과 한 줄, 주의 한 줄. 근거 링크·난이도·용어 툴팁 없음. 대신 **안전 수준** 배지.
+
+### 항상 관리자 권한의 조건
+
+- **사용자 쓰기 가능 도구는 관리자로 실행하지 않는다.** npm·pip·dotnet 정리는 도구 실행 파일이 `%ProgramFiles%`·`%ProgramFiles(x86)%`·`%ProgramW6432%` 아래일 때만 실행한다. 사용자 폴더(nvm, 사용자 설치 Python 등)에 있으면 실행하지 않고 "직접 실행" 안내로 대체한다. 이유: 사용자 폴더의 `npm-cli.js`를 바꿔치기하면 관리자 권한을 얻을 수 있다.
+- **표준 사용자 계정.** 다른 관리자 계정의 자격 증명으로 승격되면 HKCU·프로필이 그 계정의 것이 된다. 이 경우 시스템 범위만 검사·조치하고 사용자별 항목(HKCU, 사용자 프로필, 시작 프로그램 HKCU 부분, 사용자 임시 파일)은 "원래 계정으로 로그인해서 실행" 안내로 대체한다. 판정은 기존 SID 비교 코드를 재사용한다.
+- 규칙·정책 파일은 계속 어셈블리 포함 리소스로만 읽는다.
+
+## 1. 조치 모델 (Action)
+
+모든 조치는 `ActionDefinition` 하나로 기술한다.
+
+```
+ActionDefinition
+  Id              : string        예) cleanup.userTemp, startup.disable, power.setPlan, display.setRefresh
+  Category        : enum          Cleanup | Setting | Driver | Advanced
+  SafetyLevel     : enum          Safe(안전) | Caution(주의) | Irreversible(되돌릴 수 없음)
+  BatchEligible   : bool          "한 번에 승인" 후보 여부(Safe이고 사용자 확인이 필요 없는 것만 true)
+  RollbackKind    : enum          AutoRestore(이전 값 저장 후 복원) | ManualRestore | Regenerated(재생성되므로 복원 없음) | None
+  RequiresReboot  : bool
+  Warning         : string?       항목별 경고 문구(필요한 것에만). "잘 모르면 건드리지 마세요"는 기본 문구가 아니다
+  Explain         : { What, Effect, Caution }   각 한 줄(리소스 문자열 키)
+  Planner         : IActionPlanner   Finding(Candidate) + 현재 상태 → ActionPlan
+  Executor        : IActionExecutor  ActionPlan → ActionResult
+```
+
+```
+ActionPlan
+  PlanId, ActionId, ScanId, CreatedAtUtc, ExpiresAtUtc(생성 + 5분), SingleUse
+  Targets         : 대상 목록(경로·레지스트리 값·GUID·모드 등, 조치 종류별 형식)
+  Fingerprint     : 실행 직전 재검증용(대상 목록 해시, 관련 실행 파일 해시, 현재 값)
+  Preview         : { ExpectedEffect(예: "약 3.2 GB"), SideEffects[], RequiresReboot }
+  RollbackData    : 복원에 필요한 이전 값(AutoRestore일 때)
+
+ActionResult
+  Started         : bool          실제 실행에 들어갔는가(거절·만료·대상 변경은 false)
+  Code            : Completed | ToolFailed | PartiallyCompleted | Refused(reason) | PlanExpired | TargetChanged | Busy | ObservationFailed
+  Observed        : { Before, After }  실행 전후 재관측(예: 볼륨 여유 공간, 설정 값)
+  Skipped         : { InUse, Refused, Failed } 건수
+  RollbackToken   : string?       AutoRestore 조치의 되돌리기 핸들
+```
+
+공통 흐름(기존 캐시 정리 흐름을 일반화):
+1. Finding이 Candidate이고 연결된 ActionDefinition이 있으면 카드에 [실행] 버튼.
+2. [실행] → Planner가 ActionPlan 생성(대상 열거·미리보기·지문). 5분 유효·일회용.
+3. 확인창: 설명 3줄, 안전 수준, 예상 효과, 부작용, 재부팅 여부, 되돌리기 방법. [실행] [취소].
+4. Executor: 만료 확인 → 지문 재검증(대상 재열거·보호 정책·도구 지문) → 변경되면 `TargetChanged`로 새 확인 요구 → 실행 → 재관측 → ActionResult.
+5. 결과 화면: 실측 효과("여유 공간 +3.1 GB"), 건너뜀·실패 건수, 되돌리기 버튼(가능한 경우). 창을 닫으면 전체 재검사.
+6. 실행은 직렬화한다. 검사 중·종료 중에는 실행 불가.
+
+## 2. 이번 단계 조치 목록 (SP1)
+
+| 조치 | 안전 수준 | 되돌리기 | 묶음 | 실행 방식 |
+|---|---|---|---|---|
+| A1 사용자 임시 파일(`%TEMP%`, 썸네일·아이콘 캐시) 삭제 | 안전 | 재생성 | 가능 | 앱이 직접 삭제. 사용 중 파일은 건너뛰고 건수 보고 |
+| A2 Windows 업데이트 캐시(`SoftwareDistribution\Download`)·배달 최적화 캐시·`%SystemRoot%\Temp` 삭제 | 안전 | 재생성 | 가능 | 관리자 권한 직접 삭제. 업데이트 캐시는 `wuauserv`(및 `bits`) 정지 → 삭제 → 재시작. 정지 실패 시 삭제하지 않고, 어떤 경우에도 서비스를 원래 상태로 복구 |
+| B 시작 프로그램 끄기 | 안전 | 자동(이전 값 저장·복원) | 가능 | `StartupApproved\Run`/`Run32`/`StartupFolder` 값 변경(첫 바이트 0x03). 항목별 토글. 우리 앱이 끈 것만 되돌리기 목록에 표시 |
+| C 전원 계획 변경 | 안전 | 자동(이전 GUID 복원) | 가능 | `PowerSetActiveScheme`. 노트북 배터리 중 고성능은 제안하지 않음 |
+| D 주사율 변경 | 안전 | 15초 안에 [유지] 누르지 않으면 자동 복원 | 불가 | `ChangeDisplaySettingsEx`, 같은 해상도·방향·색심도·프로그레시브 모드만. 복제·원격·가상 어댑터는 제외 |
+| F1 도구 캐시(npm·pip·NuGet HTTP) | 안전 | 재다운로드 | 가능 | 기존 실행기. 보호 위치의 도구만(§0) |
+| F2 폴더 캐시(Adobe 미디어 캐시, Steam 셰이더 캐시, NVIDIA DXCache/GLCache/D3DSCache) | 주의 | 재생성(시간 소요) | 불가 | 앱이 직접 삭제. 해당 앱 프로세스 실행 중이면 거부 |
+
+**삭제 공통 규칙**
+- 대상은 진단 때 관측한 경로 목록으로 고정한다. 실행 직전 다시 열거해 포함 보호 정책·다른 사용자·Known Folder·동기화 루트·reparse/placeholder를 재검사하고, 검사 이후 새로 생긴 파일은 지우지 않는다.
+- 파일 단위로 삭제하고 최상위 폴더는 남긴다. 하위 빈 폴더는 제거해도 된다.
+- 사용 중(공유 위반)·접근 거부 파일은 건너뛰고 건수를 보고한다. 재시도 없음.
+- "확보 용량"은 삭제 전후 볼륨 여유 공간을 다시 읽은 실측 차이로만 표시한다. 논리 크기 합계는 "예상"으로만 쓴다.
+- 개발·자동 테스트에서 실제 사용자 파일을 지우지 않는다. 소유한 임시 fixture만 사용한다.
+
+**되돌리기 저장소**: `%LocalAppData%\PcOptimizer\rollback\<planId>.json`(이전 값만, 개인 경로는 파일 내부에만). 앱이 변경한 시작 프로그램·전원 계획·주사율은 "되돌리기" 목록에서 복원한다. 보관 30일.
+
+**묶음 실행 화면은 이번 단계에 만들지 않는다.** `BatchEligible` 속성만 모델과 데이터에 둔다.
+
+## 3. 화면 (SP4 형식 반영)
+
+- 카드 형식 통일: 제목 → "이게 뭔가요" 한 줄 → 효과 한 줄 → 주의 한 줄 → 안전 수준 배지(텍스트 포함) → [실행] [자세히]. 원시 측정값·근거는 자세히 안에만.
+- 상단 요약 타일을 "바로 할 수 있는 것 n건 / 직접 해야 하는 것 n건"으로 바꾼다. 자동 조치 후보가 0이면 그 묶음을 숨긴다(REV-015 흡수).
+- 개발 도구 정리 카드·요약 건수는 도구가 보호 위치에 설치된 PC에서만 생성한다.
+- **'고급' 탭** 추가: SP2 항목만 둔다. '고급'의 뜻은 "기본 화면에 두지 않는 항목"이며 경고 문구는 항목 속성으로만 붙는다.
+- **'되돌리기' 목록** 화면: 앱이 변경한 것들을 시간순으로 보여주고 복원한다.
+- 확인창과 결과창은 §1 흐름대로 공통 컴포넌트 하나로 만든다(현재 `CacheToolsWindow`를 일반화).
+- 제거: "관리자 권한으로 다시 검사" 버튼, 승격 배너.
+
+## 4. 고급 카탈로그 (SP2)
+
+데이터 파일 `rules/advanced-options.json`(어셈블리 임베드). 항목: `id`, 이름, 설명 3줄(리소스 키), 안전 수준, 권장 상태(`On` | `Off` | `DependsOnEnvironment`), 현재 값 읽는 방법(레지스트리 값 | 도구 조회 | 확인 불가), 적용 방법(레지스트리 값 | API | BIOS 안내), 되돌리기, 재부팅 여부, 경고 문구(선택).
+
+1차 항목:
+- **Resizable BAR**: 현재 상태 읽기(NVIDIA는 `nvidia-smi -q` 또는 NVAPI 가능 여부를 구현 시 확인, 불가하면 확인 불가), BIOS에서 켜는 방법 안내(제조사별 메뉴 이름). 권장 켜기. 앱이 직접 바꿀 수 없음.
+- **게임 모드**: HKCU `GameBar\AutoGameModeEnabled`. 권장 켜기. 자동 복원.
+- **HAGS**: HKLM `GraphicsDrivers\HwSchMode`. 환경별. 재부팅 필요. 자동 복원.
+- **커뮤니티 권장 옵션**: 구현 전에 후보 목록(옵션명, 무엇을 바꾸는지, 주장되는 효과, 실제 근거 수준, 위험)을 조사 문서로 제출하고, 사용자가 채택 항목과 문구를 정한 뒤 카탈로그에 넣는다. 조사 전에는 어떤 항목도 넣지 않는다.
+
+## 5. 장치 드라이버 안내 (SP3)
+
+- 식별: 데스크톱은 `Win32_BaseBoard`(제조사·제품명), 노트북은 `Win32_ComputerSystem`(제조사·모델). 설치된 드라이버는 `Win32_PnPSignedDriver`에서 칩셋·랜(유선)·Wi-Fi·오디오 장치 클래스별 버전·날짜.
+- 링크: 벤더별 제품 페이지 URL 규칙(`rules/vendor-links.json` 확장): ASUS, MSI, Gigabyte, ASRock, Dell, HP, Lenovo, 삼성, LG. 규칙이 없거나 모델 매칭이 불확실하면 공식 지원 홈 + 모델명 복사 버튼.
+- 안내문(한국어): "이 페이지에서 아래 네 가지를 받으세요" + 항목마다 한국어 이름·영어 표기(Chipset / LAN·Ethernet / Wireless·Wi-Fi·WLAN / Audio·Realtek) · 보통 있는 메뉴 위치 · 받은 뒤 실행 순서. 옆에 현재 설치 버전·날짜를 보여줘 "이미 최신으로 보임 / 확인 필요"를 구분한다(최신 여부는 벤더 페이지에서만 확인 가능함을 명시).
+- NVIDIA: 기존 공식 상세·다운로드 링크에 더해 "설치 파일 받기"(브라우저로 공식 URL 열기). 설치 자동화 없음.
+- 모든 링크는 기존 `LinkPolicy` 허용 목록을 거친다.
+
+## 6. LLM 질문 파일 (계획만, 구현 대기)
+
+"이 결과를 AI에게 물어보기" 버튼이 진단 요약(기본 익명화 내보내기와 같은 규칙)을 JSON/TXT로 저장하고, 무료 LLM(Gemini·GPT·Claude 무료 모델)에 붙여넣을 한국어 안내문을 함께 만든다. 앱은 어떤 모델도 호출하지 않는다. 이번 단계에 구현하지 않는다.
+
+## 7. 순서와 산출물
+
+1. **SP4+권한**: 카드 형식(설명 3줄·안전 배지), 요약 타일 변경, `requireAdministrator` 전환과 승격 재실행 제거, 표준 사용자 처리.
+2. **SP1**: §1 모델·공통 확인/결과 창·되돌리기 저장소 → A1, B, C, D → A2, F2 → F1 통합.
+3. **SP2**: 고급 탭 + 카탈로그 3항목. 커뮤니티 옵션은 조사 문서 제출 → 사용자 채택 → 추가.
+4. **SP3**: 보드·장치 식별, 벤더 링크 규칙, 한국어 안내.
+
+각 단계는 기존 절차(구현 → 태스크 리뷰 → 공유 원장 기록 → 독립 재검증)를 따른다. 실제 삭제·설정 변경은 이 PC의 사용자 데이터가 아닌 소유 fixture로 테스트하고, 실기 검증은 별도 평가 PC에서 한다.
+
+## 8. 범위 밖 (다음 단계)
+
+- G 미분류 대용량 폴더 삭제, I Windows.old·휴지통 비우기(되돌릴 수 없음 표시와 함께 다음 단계).
+- 드라이버 설치 자동화, 묶음 실행 화면, LLM 질문 파일 구현, 주기 점검·트레이 상주.
