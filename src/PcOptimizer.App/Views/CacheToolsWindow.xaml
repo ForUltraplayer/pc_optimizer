@@ -1,3 +1,8 @@
+<!--
+@file    : CacheToolsWindow.xaml
+@author  : rudals252
+@brief   : 공식 도구별 캐시 미리보기·확인·실행 결과 창
+-->
 <Window x:Class="PcOptimizer.App.Views.CacheToolsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"

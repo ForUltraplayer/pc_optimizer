@@ -3,6 +3,7 @@
  * @author  : rudals252
  * @brief   : 자동 정리의 승인·만료·일회성·변경·보호·실패·후속 관측 경계 검증
  */
+using System.IO;
 using PcOptimizer.App.ViewModels;
 using PcOptimizer.Probes.Actions;
 using PcOptimizer.Tests.Unit.Probes.Fakes;
@@ -44,7 +45,9 @@ public sealed class CacheCleanupTests
         var first = (await service.PrepareAsync(CacheTool.Npm, default)).Plan!;
         var second = (await service.PrepareAsync(CacheTool.Npm, default)).Plan!;
         var running = service.ExecuteAsync(first.Id, default);
-        Assert.Equal("Busy", (await service.ExecuteAsync(second.Id, default)).Code);
+        var refused = await service.ExecuteAsync(second.Id, default);
+        Assert.Equal("Busy", refused.Code);
+        Assert.False(refused.Started);
         Assert.Equal(1, backend.Clears);
         backend.ClearGate.SetResult();
         await running;
@@ -130,6 +133,7 @@ public sealed class CacheCleanupTests
         Assert.Null(vm.Outcome);
     }
 
+    /// <summary>상태 문구가 바뀌어도 준비된 대상을 확인 창에 표시합니다.</summary>
     [Fact]
     public async Task ConfirmationUsesPreparedTargetEvenIfStatusMessageChanges()
     {
@@ -145,6 +149,7 @@ public sealed class CacheCleanupTests
         Assert.Equal(0, backend.Clears);
     }
 
+    /// <summary>미리보기 대신 실행 직전 크기로 전후 차이를 계산합니다.</summary>
     [Fact]
     public async Task OutcomeComparesImmediatePreflightInsteadOfStalePreview()
     {
@@ -163,6 +168,7 @@ public sealed class CacheCleanupTests
         Assert.Equal("npm", vm.Outcome.Tool);
     }
 
+    /// <summary>실패·미확인·크기 증가를 성공적인 정리로 표시하지 않습니다.</summary>
     [Theory]
     [InlineData(true, null, "Cleanup_OutcomeUnverified")]
     [InlineData(true, 500L, "Cleanup_OutcomeUnchanged")]
@@ -181,29 +187,108 @@ public sealed class CacheCleanupTests
     public void CommandsAreFixedAndDoNotUseShell()
     {
         var location = new Backend().Location;
-        Assert.Equal(["nuget", "locals", "http-cache", "--clear", "--force-english-output"],
+        Assert.Equal(["nuget", "locals", "http-cache", "--clear"],
             CacheToolProcess.Arguments(location with { Tool = CacheTool.NuGetHttp }, true));
-        Assert.Contains("--cache-dir", CacheToolProcess.Arguments(location with { Tool = CacheTool.Pip }, true));
+        Assert.Equal(["-I", "-m", "pip", "--cache-dir", location.CachePath, "cache", "purge"],
+            CacheToolProcess.Arguments(location with { Tool = CacheTool.Pip }, true));
+        Assert.Equal(["-I", "-m", "pip", "cache", "dir"], CacheToolProcess.Arguments(location with { Tool = CacheTool.Pip }, false));
+        Assert.Equal(["nuget", "locals", "http-cache", "--list"], CacheToolProcess.Arguments(location with { Tool = CacheTool.NuGetHttp }, false));
         Assert.Contains("--offline", CacheToolProcess.Arguments(location, true));
+    }
+
+    /// <summary>계획 만료·대상 변경·보호·시작 실패는 실행 결과나 재검사 요청을 만들지 않습니다.</summary>
+    [Theory]
+    [InlineData("expired")]
+    [InlineData("changed")]
+    [InlineData("protected")]
+    [InlineData("throw")]
+    [InlineData("start")]
+    [InlineData("running")]
+    public async Task PreflightRefusalDoesNotClaimPartialCleanup(string refusal)
+    {
+        var backend = new Backend();
+        var time = new ManualTimeProvider();
+        var vm = new CacheToolsViewModel(new CacheCleanupService(backend, time), _ => true);
+        await vm.PrepareCommand.ExecuteAsync(null);
+        switch (refusal)
+        {
+            case "expired": time.Advance(TimeSpan.FromMinutes(6)); break;
+            case "changed": backend.Location = backend.Location with { Fingerprint = "changed" }; break;
+            case "protected": backend.Allowed = false; break;
+            case "throw": backend.ThrowInspect = true; break;
+            case "start": backend.Started = false; break;
+            case "running": backend.Unavailable = "ProcessStillRunning"; break;
+        }
+        await vm.ClearCommand.ExecuteAsync(null);
+        Assert.False(vm.NeedsRescan);
+        Assert.Null(vm.Outcome);
+        Assert.Contains("실행하지 않았", vm.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("일부만", vm.Message, StringComparison.Ordinal);
+        if (refusal == "running") { Assert.Contains("아직 종료되지", vm.Message, StringComparison.Ordinal); }
+    }
+
+    /// <summary>이전 실제 실행 결과는 다음 사전 검사 거절로 덮어쓰지 않습니다.</summary>
+    [Fact]
+    public async Task RefusalPreservesPreviousOutcome()
+    {
+        var backend = new Backend();
+        var vm = new CacheToolsViewModel(new CacheCleanupService(backend), _ => true);
+        await vm.PrepareCommand.ExecuteAsync(null);
+        await vm.ClearCommand.ExecuteAsync(null);
+        var previous = vm.Outcome;
+        await vm.PrepareCommand.ExecuteAsync(null);
+        backend.Allowed = false;
+        await vm.ClearCommand.ExecuteAsync(null);
+        Assert.NotNull(previous);
+        Assert.Same(previous, vm.Outcome);
+    }
+
+    /// <summary>시작된 프로세스 실패와 실행 뒤 관측 예외는 실행 이력을 보존합니다.</summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StartedFailureOrAfterInspectionExceptionRequiresRescan(bool afterException)
+    {
+        var backend = new Backend { Succeeds = afterException, ThrowAfter = afterException };
+        var vm = new CacheToolsViewModel(new CacheCleanupService(backend), _ => true);
+        await vm.PrepareCommand.ExecuteAsync(null);
+        await vm.ClearCommand.ExecuteAsync(null);
+        Assert.True(vm.NeedsRescan);
+        Assert.NotNull(vm.Outcome);
+        Assert.Equal(afterException ? PcOptimizer.App.Resources.Strings.Cleanup_OutcomeUnverified
+            : PcOptimizer.App.Resources.Strings.Cleanup_OutcomeFailed, vm.Outcome.Title);
+    }
+
+    /// <summary>프로세스 종료 대기 차단은 도구 미설치로 변환하지 않습니다.</summary>
+    [Fact]
+    public async Task RunningToolIsNotMisdiagnosedAsUninstalled()
+    {
+        var service = new CacheCleanupService(new Backend { Unavailable = "ProcessStillRunning" });
+        Assert.Equal("ProcessStillRunning", (await service.PrepareAsync(CacheTool.Npm, default)).Reason);
     }
 
     private sealed class Backend : ICacheToolBackend
     {
         public CacheToolLocation Location { get; set; } = new(CacheTool.Npm, @"C:\tools\node.exe", @"C:\Users\tester\cache", "hash", @"C:\tools\npm-cli.js");
+        public bool Started { get; set; } = true;
+        public bool ThrowInspect { get; set; }
+        public bool ThrowAfter { get; set; }
+        public string? Unavailable { get; set; }
         public bool Allowed { get; set; } = true;
         public bool Succeeds { get; set; } = true;
         public bool BlockAfterClear { get; set; }
         public TaskCompletionSource? ClearGate { get; set; }
         public int Clears { get; private set; }
         public long BeforeBytes { get; set; } = 500;
-        public Task<CacheToolLocation?> LocateAsync(CacheTool tool, CancellationToken ct) => Task.FromResult<CacheToolLocation?>(Location);
-        public Task<CacheInspection> InspectAsync(CacheToolLocation location, CancellationToken ct) => Task.FromResult(new CacheInspection(Allowed, Clears == 0 ? BeforeBytes : 0, "Blocked"));
-        public async Task<bool> ClearAsync(CacheToolLocation location, CancellationToken ct)
+        public Task<CacheToolLocation?> LocateAsync(CacheTool tool, CancellationToken ct) => Unavailable is { } code ? throw new CacheToolUnavailableException(code) : Task.FromResult<CacheToolLocation?>(Location);
+        public Task<CacheInspection> InspectAsync(CacheToolLocation location, CancellationToken ct) => ThrowInspect || (ThrowAfter && Clears > 0) ? throw new IOException("fixture") : Task.FromResult(new CacheInspection(Allowed, Clears == 0 ? BeforeBytes : 0, "Blocked"));
+        public async Task<CacheToolExecution> ClearAsync(CacheToolLocation location, CancellationToken ct)
         {
+            if (!Started) { return new(false, false, "StartFailed"); }
             Clears++;
             if (ClearGate is not null) { await ClearGate.Task; }
             if (BlockAfterClear) { Allowed = false; }
-            return Succeeds;
+            return new(true, Succeeds, Succeeds ? "Completed" : "ToolFailed");
         }
     }
 }

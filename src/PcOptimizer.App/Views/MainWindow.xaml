@@ -1,3 +1,8 @@
+<!--
+@file    : MainWindow.xaml
+@author  : rudals252
+@brief   : 추천 조치와 목적별 검사 결과를 표시하는 메인 창
+-->
 <ui:FluentWindow x:Class="PcOptimizer.App.Views.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"

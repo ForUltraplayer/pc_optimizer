@@ -20,21 +20,26 @@ public sealed partial class CacheToolsViewModel : ObservableObject
     /// <summary>선택 도구 목록입니다.</summary>
     public IReadOnlyList<string> Tools { get; } = ["npm", "pip", "NuGet HTTP"];
 
+    /// <summary>선택한 공식 도구의 인덱스.</summary>
     [ObservableProperty]
     private int _selectedTool;
 
+    /// <summary>조회 또는 실행 진행 여부.</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(PrepareCommand), nameof(ClearCommand))]
     [NotifyPropertyChangedFor(nameof(CanSelectTool))]
     private bool _isBusy;
 
+    /// <summary>현재 단계와 결과의 안내.</summary>
     [ObservableProperty]
     private string _message = Strings.Cleanup_Intro;
 
+    /// <summary>실제 도구가 시작된 최근 정리 결과.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasOutcome))]
     private CleanupOutcomeViewModel? _outcome;
 
+    /// <summary>실제 정리 실행 결과 표시 여부.</summary>
     public bool HasOutcome => Outcome is not null;
 
     /// <summary>실행을 시도한 뒤에는 메인 진단을 다시 읽습니다.</summary>
@@ -73,7 +78,7 @@ public sealed partial class CacheToolsViewModel : ObservableObject
             _plan = result.Plan;
             Message = _plan is null ? FailureText(result.Reason) : FormatPreview(_plan);
         }
-        catch (Exception ex) when (ex is not OutOfMemoryException) { Message = Strings.Cleanup_Failed; }
+        catch (Exception ex) when (ex is not OutOfMemoryException) { Message = Strings.Cleanup_QueryFailed; }
         finally { IsBusy = false; }
     }
 
@@ -86,11 +91,17 @@ public sealed partial class CacheToolsViewModel : ObservableObject
             + Environment.NewLine + Strings.Cleanup_Confirm)) { return; }
         _plan = null;
         IsBusy = true;
-        NeedsRescan = true;
         Message = Strings.Cleanup_Running;
         try
         {
             var result = await _service.ExecuteAsync(plan.Id, CancellationToken.None);
+            if (!result.Started)
+            {
+                var reason = FailureText(result.Code);
+                Message = reason == Strings.Cleanup_NotExecuted ? reason : Strings.Cleanup_NotExecuted + " " + reason;
+                return;
+            }
+            NeedsRescan = true;
             Outcome = new CleanupOutcomeViewModel(Tools[(int)plan.Location.Tool], result);
             Message = result.ToolSucceeded
                 ? DisplayText.Format(Strings.Cleanup_Done, result.RemainingBytes is { } bytes
@@ -100,8 +111,7 @@ public sealed partial class CacheToolsViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Message = Strings.Cleanup_Failed;
-            Outcome = new CleanupOutcomeViewModel(Tools[(int)plan.Location.Tool], new(false, null, "ToolFailed"));
+            Message = Strings.Cleanup_NotExecuted;
         }
         finally { IsBusy = false; }
     }
@@ -115,6 +125,9 @@ public sealed partial class CacheToolsViewModel : ObservableObject
         "NormalUserRequired" or "ToolUnavailable" => Strings.Cleanup_Unavailable,
         "PlanExpired" or "TargetChanged" or "ToolChanged" => Strings.Cleanup_Changed,
         "OutsideUserProfile" => Strings.Cleanup_OutsideProfile,
+        "Busy" => Strings.Cleanup_Busy,
+        "ProcessStillRunning" => Strings.Cleanup_ProcessStillRunning,
+        "StartFailed" or "PreflightFailed" => Strings.Cleanup_NotExecuted,
         "ToolFailed" => Strings.Cleanup_Failed,
         _ => Strings.Cleanup_Blocked,
     };

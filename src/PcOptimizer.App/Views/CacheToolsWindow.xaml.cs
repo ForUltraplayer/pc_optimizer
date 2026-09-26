@@ -24,7 +24,7 @@ public partial class CacheToolsWindow : Window
     {
         _logger = logger ?? NullAppLogger.Instance;
         InitializeComponent();
-        ViewModel = new CacheToolsViewModel(new CacheCleanupService(new SystemCacheToolBackend(), logger: _logger),
+        ViewModel = new CacheToolsViewModel(new CacheCleanupService(new SystemCacheToolBackend(_logger), logger: _logger),
             text => System.Windows.MessageBox.Show(this, text, Strings.Cleanup_Title, MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes);
         DataContext = ViewModel;
         Closing += (_, args) => args.Cancel = ViewModel.IsBusy;
@@ -33,6 +33,6 @@ public partial class CacheToolsWindow : Window
     private void OpenWindowsCleanup(object sender, RoutedEventArgs e)
     {
         var opened = new SettingsUriPolicy(_logger).TryOpen(SettingsUriPolicy.STORAGE_SENSE_SETTINGS_URI);
-        ViewModel.Message = opened ? Strings.Cleanup_WindowsHelp : Strings.Cleanup_Failed;
+        ViewModel.Message = opened ? Strings.Cleanup_WindowsHelp : Strings.Cleanup_SettingsFailed;
     }
 }
