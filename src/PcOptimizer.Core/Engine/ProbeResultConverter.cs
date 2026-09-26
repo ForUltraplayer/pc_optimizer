@@ -1,7 +1,7 @@
 /**
  * @file    : ProbeResultConverter.cs
  * @author  : rudals252
- * @brief   : 프로브 상태(건너뜀/실패/취소/부분)를 CannotVerify Finding으로 변환해 실패가 빈 결과나 Ok로 사라지지 않게 함
+ * @brief   : 프로브 상태(건너뜀/실패/취소/부분)를 CannotVerify Finding으로 변환해 실패가 빈 결과나 Ok로 사라지지 않게 함(지원 불가 건너뜀은 Issue 요약을 상세로 표시)
  */
 
 // 사용자 패키지
@@ -83,10 +83,21 @@ public static class ProbeResultConverter
             evidence: CannotVerifyTexts.EvidenceFor(reason),
             verdict: Verdict.CannotVerify,
             cannotVerifyReason: reason,
-            detail: null,
+            detail: DetailFor(result, reason),
             recommendation: null,
             impact: null,
             actions: []);
+    }
+
+    /// <summary>
+    /// 지원 불가(Unsupported)로 건너뛴 결과는 근거 문장만으로는 이유(예: 다른 계정으로 승격돼 사용자별 항목 제외)를 알 수 없으므로
+    /// 첫 Issue 요약을 상세로 보여 준다. 건너뜀 Issue 요약은 조율기·프로브의 리소스 문장이며 예외 원문을 담지 않는다. 그 밖에는 null.
+    /// </summary>
+    private static string? DetailFor(ProbeResult result, CannotVerifyReason reason)
+    {
+        return result.Status == ProbeStatus.Skipped && reason == CannotVerifyReason.Unsupported && result.Issues.Count > 0
+            ? result.Issues[0].Summary
+            : null;
     }
 
     /// <summary>

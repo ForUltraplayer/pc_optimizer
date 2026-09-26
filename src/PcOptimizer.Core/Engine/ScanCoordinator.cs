@@ -1,7 +1,7 @@
 /**
  * @file    : ScanCoordinator.cs
  * @author  : rudals252
- * @brief   : 검사 한 번의 조율(중복 검사 억제, 권한/온라인/종료 중 정책, 제한 병렬도, 사용자 취소)과 규칙 평가·리포트 조립
+ * @brief   : 검사 한 번의 조율(중복 검사 억제, 범위/권한/온라인/종료 중 정책, 제한 병렬도, 사용자 취소)과 규칙 평가·리포트 조립
  */
 
 // 기본 패키지
@@ -19,7 +19,7 @@ namespace PcOptimizer.Core.Engine;
 /// </summary>
 /// <remarks>
 /// <list type="bullet">
-/// <item>권한·온라인 정책에 맞지 않는 프로브는 호출하지 않고 Skipped로 남깁니다.</item>
+/// <item>권한·온라인·범위 정책에 맞지 않는 프로브는 호출하지 않고 Skipped로 남깁니다(시스템 범위 제한 검사에서 사용자별 프로브 포함).</item>
 /// <item>프로브 예외·타임아웃·취소는 ProbeResult(Failed/Cancelled)로 흡수하고 다른 프로브에 전파하지 않습니다.</item>
 /// <item>타임아웃된 호출은 끝날 때까지 "종료 중"으로 추적하고, 나중에 끝나도 결과를 합치지 않고 로그만 남깁니다.
 /// 종료 중인 프로브는 다음 검사에서 다시 실행하지 않습니다.</item>
@@ -176,10 +176,17 @@ public sealed class ScanCoordinator
     }
 
     /// <summary>
-    /// 권한·온라인·종료 중 정책에 걸리면 호출하지 않고 Skipped 결과를 만든다. 걸리지 않으면 null.
+    /// 범위·권한·온라인·종료 중 정책에 걸리면 호출하지 않고 Skipped 결과를 만든다. 걸리지 않으면 null.
     /// </summary>
     private ProbeResult? TryCreatePolicySkip(IProbe probe, ScanContext context)
     {
+        if (probe.Scope == ProbeScope.User && context.LimitToSystemScope)
+        {
+            // 다른 계정으로 승격된 재검사: 그 계정의 HKCU·프로필을 원래 사용자 결과로 보이지 않도록 호출하지 않는다.
+            return ProbeExecutor.CreateIssueResult(
+                probe.Id, context, ProbeStatus.Skipped, CannotVerifyReason.Unsupported, CoreStrings.ProbeIssue_UserScopeExcluded, _clock.UtcNow, TimeSpan.Zero);
+        }
+
         if (probe.RequiresElevation && !context.IsElevated)
         {
             return ProbeExecutor.CreateIssueResult(

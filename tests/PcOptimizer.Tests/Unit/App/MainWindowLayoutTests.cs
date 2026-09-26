@@ -1,15 +1,17 @@
 /**
  * @file    : MainWindowLayoutTests.cs
  * @author  : rudals252
- * @brief   : 메인 창을 화면에 띄우지 않고 고정 폭으로 배치해, 긴 경로가 든 카드 문장이 가로로 넘치지 않고 줄바꿈되는지와 판정 배지 텍스트를 검증
+ * @brief   : 메인 창을 화면에 띄우지 않고 고정 폭으로 배치해, 긴 경로가 든 카드 문장이 가로로 넘치지 않고 줄바꿈되는지, 판정 배지 텍스트, 관리자 권한 재검사 버튼 활성·배너 표시를 검증
  */
 
 // 기본 패키지
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
 
 // 사용자 패키지
+using PcOptimizer.App.Resources;
 using PcOptimizer.App.Services;
 using PcOptimizer.App.ViewModels;
 using PcOptimizer.App.Views;
@@ -36,8 +38,9 @@ public sealed class MainWindowLayoutTests
     /// <summary>
     /// 긴 경로가 든 CannotVerify를 돌려주는 규칙이 있는 뷰모델로 검사를 한 번 실행한다.
     /// </summary>
-    private static MainViewModel CreateScannedViewModel()
+    private static MainViewModel CreateScannedViewModel(bool isElevated = false, ScanLaunchMode launchMode = ScanLaunchMode.Normal)
     {
+        var elevation = new FakeElevationState(isElevated);
         var service = new ScanService(
             [new ThrowingProbe("fixture.failing") { Category = FindingCategory.Storage }],
             [new LongTextRule()],
@@ -52,7 +55,10 @@ public sealed class MainWindowLayoutTests
             new FixedExportPathPicker(null),
             new SettingsUriPolicy(NullAppLogger.Instance, _ => { }),
             new ImmediateUiDispatcher(),
-            NullAppLogger.Instance);
+            NullAppLogger.Instance,
+            elevation,
+            new ElevationRelauncher(new RecordingProcessStarter(), elevation, () => null, NullAppLogger.Instance),
+            launchMode);
         vm.StartScanCommand.ExecuteAsync(null).GetAwaiter().GetResult();
         return vm;
     }
@@ -124,6 +130,52 @@ public sealed class MainWindowLayoutTests
             Assert.True(evidence.ActualHeight >= singleLine * MIN_WRAPPED_LINES, $"높이 {evidence.ActualHeight}");
 
             Assert.Contains(texts, t => t.Text == DisplayText.Verdict(Verdict.CannotVerify));
+            window.Close();
+        });
+    }
+
+    /// <summary>
+    /// 창을 배치하고 관리자 권한 재검사 버튼과 배너를 찾는다.
+    /// </summary>
+    private static (Button Button, TextBlock Banner) LayoutElevationControls(MainWindow window)
+    {
+        var root = (FrameworkElement)window.Content;
+        root.Measure(new Size(LAYOUT_WIDTH, LAYOUT_HEIGHT));
+        root.Arrange(new Rect(0, 0, LAYOUT_WIDTH, LAYOUT_HEIGHT));
+        root.UpdateLayout();
+        var button = Assert.Single(Descendants<Button>(root), b => AutomationProperties.GetAutomationId(b) == "ElevatedRescanButton");
+        var banner = Assert.Single(Descendants<TextBlock>(root), t => AutomationProperties.GetAutomationId(t) == "ElevatedBanner");
+        return (button, banner);
+    }
+
+    /// <summary>일반 권한 창에서는 관리자 권한 재검사 버튼이 켜져 있고 배너는 보이지 않는다.</summary>
+    [Fact]
+    public void 일반_권한에서는_재검사_버튼이_켜진다()
+    {
+        RunOnSta(() =>
+        {
+            var window = new MainWindow(CreateScannedViewModel(isElevated: false));
+            var (button, banner) = LayoutElevationControls(window);
+
+            Assert.True(button.IsEnabled);
+            Assert.Equal(Strings.Button_ElevatedRescan, button.Content);
+            Assert.Equal(Visibility.Collapsed, ((FrameworkElement)banner.Parent).Visibility);
+            window.Close();
+        });
+    }
+
+    /// <summary>관리자 권한 창에서는 재검사 버튼이 꺼지고, 다른 계정으로 승격된 인스턴스는 원래 창 안내 배너를 보인다.</summary>
+    [Fact]
+    public void 관리자_권한에서는_버튼이_꺼지고_배너가_보인다()
+    {
+        RunOnSta(() =>
+        {
+            var window = new MainWindow(CreateScannedViewModel(isElevated: true, ScanLaunchMode.ElevatedDifferentUser));
+            var (button, banner) = LayoutElevationControls(window);
+
+            Assert.False(button.IsEnabled);
+            Assert.Equal(Strings.Banner_ElevatedDifferentUser, banner.Text);
+            Assert.Equal(Visibility.Visible, ((FrameworkElement)banner.Parent).Visibility);
             window.Close();
         });
     }

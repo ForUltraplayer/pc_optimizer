@@ -1,10 +1,11 @@
 /**
  * @file    : MainViewModelTests.cs
  * @author  : rudals252
- * @brief   : 메인 화면 모델의 상태 전이·Finding 기준 건수·분류 필터·취소 후 재검사·종료 중 표시·내보내기를 가짜 프로브와 즉시 실행 마샬러로 검증
+ * @brief   : 메인 화면 모델의 상태 전이·Finding 기준 건수·분류 필터·취소 후 재검사·종료 중 표시·내보내기·관리자 권한 재검사(버튼 활성, UAC 취소 시 결과 보존, 실패 안내, 배너)를 가짜 프로브와 즉시 실행 마샬러로 검증
  */
 
 // 기본 패키지
+using System.ComponentModel;
 using System.IO;
 
 // 사용자 패키지
@@ -26,14 +27,22 @@ public sealed class MainViewModelTests
 {
     private static readonly TimeSpan WAIT_BOUND = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan SHORT_GRACE = TimeSpan.FromMilliseconds(50);
+    private const string APP_PATH = @"C:\Program Files\PcOptimizer\PcOptimizer.App.exe";
 
     private readonly List<string> _launchedUris = [];
 
     /// <summary>
     /// 프로브·규칙으로 뷰모델을 만든다.
     /// </summary>
-    private MainViewModel CreateViewModel(IEnumerable<IProbe> probes, IExportPathPicker? picker = null, IUiDispatcher? dispatcher = null)
+    private MainViewModel CreateViewModel(
+        IEnumerable<IProbe> probes,
+        IExportPathPicker? picker = null,
+        IUiDispatcher? dispatcher = null,
+        IElevationState? elevation = null,
+        IProcessStarter? starter = null,
+        ScanLaunchMode launchMode = ScanLaunchMode.Normal)
     {
+        var elevationState = elevation ?? new FakeElevationState(isElevated: false);
         var options = new ScanOptions { CancellationGracePeriod = SHORT_GRACE };
         var service = new ScanService(
             probes,
@@ -51,7 +60,10 @@ public sealed class MainViewModelTests
             picker ?? new FixedExportPathPicker(null),
             new SettingsUriPolicy(NullAppLogger.Instance, _launchedUris.Add),
             dispatcher ?? new ImmediateUiDispatcher(),
-            NullAppLogger.Instance);
+            NullAppLogger.Instance,
+            elevationState,
+            new ElevationRelauncher(starter ?? new RecordingProcessStarter(), elevationState, () => APP_PATH, NullAppLogger.Instance),
+            launchMode);
     }
 
     /// <summary>처음에는 대기 상태이고 시작만 가능하다.</summary>
@@ -205,5 +217,91 @@ public sealed class MainViewModelTests
         await cancelledVm.StartScanCommand.ExecuteAsync(null);
         await cancelledVm.ExportCommand.ExecuteAsync(null);
         Assert.Null(cancelledVm.StatusMessage);
+    }
+
+    /// <summary>일반 권한 창에서만 관리자 권한 재검사를 요청할 수 있고, 관리자 권한 창에서는 버튼이 꺼진다.</summary>
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public void 관리자_권한_재검사는_일반_권한에서만_가능하다(bool isElevated, bool canRequest)
+    {
+        var vm = CreateViewModel([new FixtureMemoryProbe()], elevation: new FakeElevationState(isElevated));
+
+        Assert.Equal(isElevated, vm.IsElevated);
+        Assert.Equal(canRequest, vm.RequestElevatedRescanCommand.CanExecute(null));
+        Assert.Equal(isElevated ? Strings.Tooltip_ElevatedRescan_AlreadyElevated : Strings.Tooltip_ElevatedRescan, vm.ElevatedRescanTooltip);
+        Assert.False(vm.HasElevatedBanner);
+    }
+
+    /// <summary>UAC를 취소하면 기존 창의 상태·결과·카드는 그대로이고 "관리자 권한 요청이 취소되었어요"만 표시한다.</summary>
+    [Fact]
+    public async Task UAC_취소는_기존_결과를_보존한다()
+    {
+        var starter = new RecordingProcessStarter { ThrowOnStart = new Win32Exception(ElevationRelauncher.ERROR_CANCELLED) };
+        var vm = CreateViewModel([new FixtureMemoryProbe()], starter: starter);
+        await vm.StartScanCommand.ExecuteAsync(null);
+        var result = vm.LastResult;
+        var state = vm.State;
+        var cards = vm.Cards.ToList();
+        var summary = vm.SummaryText;
+        var measured = vm.LastMeasuredText;
+
+        await vm.RequestElevatedRescanCommand.ExecuteAsync(null);
+
+        Assert.Equal(Strings.Elevation_Cancelled, vm.StatusMessage);
+        Assert.Same(result, vm.LastResult);
+        Assert.Equal(state, vm.State);
+        Assert.Equal(cards, vm.Cards);
+        Assert.Equal(summary, vm.SummaryText);
+        Assert.Equal(measured, vm.LastMeasuredText);
+        Assert.Equal(ElevationRelauncher.RUNAS_VERB, Assert.Single(starter.Started).Verb);
+        Assert.False(vm.IsRelaunching);
+        Assert.True(vm.RequestElevatedRescanCommand.CanExecute(null));
+    }
+
+    /// <summary>그 밖의 시작 실패는 예외 형식 이름만 안내하고 기존 결과를 유지한다.</summary>
+    [Fact]
+    public async Task 시작_실패는_형식_이름만_안내한다()
+    {
+        var starter = new RecordingProcessStarter { ThrowOnStart = new InvalidOperationException(@"C:\Users\Kimtester secret") };
+        var vm = CreateViewModel([new FixtureMemoryProbe()], starter: starter);
+        await vm.StartScanCommand.ExecuteAsync(null);
+        var result = vm.LastResult;
+
+        await vm.RequestElevatedRescanCommand.ExecuteAsync(null);
+
+        Assert.Equal(DisplayText.Format(Strings.Elevation_Failed, nameof(InvalidOperationException)), vm.StatusMessage);
+        Assert.DoesNotContain("Kimtester", vm.StatusMessage, StringComparison.Ordinal);
+        Assert.Same(result, vm.LastResult);
+    }
+
+    /// <summary>새 창을 시작해도 이 창의 결과는 합치거나 바꾸지 않고 안내만 표시한다.</summary>
+    [Fact]
+    public async Task 시작_성공은_이_창_결과를_바꾸지_않는다()
+    {
+        var starter = new RecordingProcessStarter();
+        var vm = CreateViewModel([new FixtureMemoryProbe()], starter: starter);
+        await vm.StartScanCommand.ExecuteAsync(null);
+        var result = vm.LastResult;
+
+        await vm.RequestElevatedRescanCommand.ExecuteAsync(null);
+
+        Assert.Equal(Strings.Elevation_Started, vm.StatusMessage);
+        Assert.Same(result, vm.LastResult);
+        Assert.Single(starter.Started);
+    }
+
+    /// <summary>관리자 재검사 인스턴스는 별도 검사 배너를, 다른 계정으로 승격된 경우 원래 창 안내를 함께 보인다.</summary>
+    [Theory]
+    [InlineData(ScanLaunchMode.ElevatedSameUser)]
+    [InlineData(ScanLaunchMode.ElevatedDifferentUser)]
+    public void 관리자_재검사_인스턴스는_배너를_보인다(ScanLaunchMode mode)
+    {
+        var vm = CreateViewModel([new FixtureMemoryProbe()], elevation: new FakeElevationState(isElevated: true), launchMode: mode);
+
+        Assert.True(vm.HasElevatedBanner);
+        Assert.Equal(mode == ScanLaunchMode.ElevatedSameUser ? Strings.Banner_ElevatedSameUser : Strings.Banner_ElevatedDifferentUser, vm.ElevatedBannerText);
+        Assert.Contains("별도 검사", vm.ElevatedBannerText, StringComparison.Ordinal);
+        Assert.False(vm.RequestElevatedRescanCommand.CanExecute(null));
     }
 }

@@ -1,7 +1,7 @@
 /**
  * @file    : App.xaml.cs
  * @author  : rudals252
- * @brief   : 애플리케이션 진입점. 공용 로거·검사 서비스·내보내기·설정 URI 정책·메인 화면 모델을 조립하고 처리되지 않은 예외를 형식 이름만 기록
+ * @brief   : 애플리케이션 진입점. 관리자 재검사 고정 인자·권한·SID로 시작 방식을 정하고 공용 로거·검사 서비스·내보내기·설정 URI 정책·재검사 시작기·메인 화면 모델을 조립하며 처리되지 않은 예외를 형식 이름만 기록
  */
 
 // 기본 패키지
@@ -16,7 +16,8 @@ using PcOptimizer.App.Views;
 namespace PcOptimizer.App;
 
 /// <summary>
-/// 애플리케이션 진입점 클래스입니다. 구성 요소를 조립해 메인 창을 띄웁니다(일반 권한, 조회 전용).
+/// 애플리케이션 진입점 클래스입니다. 구성 요소를 조립해 메인 창을 띄웁니다(일반 권한 시작, 조회 전용).
+/// 관리자 권한 재검사로 시작된 인스턴스는 고정 인자만 해석하고, 원래 사용자와 SID가 다르면 시스템 범위만 검사합니다.
 /// </summary>
 public partial class App : Application
 {
@@ -37,19 +38,36 @@ public partial class App : Application
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
-        logger.Info(LOG_CATEGORY, "AppStarted");
+        var elevation = WindowsElevationState.Capture();
+        var launchMode = ScanLaunchModeResolver.Resolve(ElevatedRescanArguments.Parse(e.Args), elevation.IsElevated, elevation.CurrentUserSid);
+
+        // SID·인자 원문은 기록하지 않는다(시작 방식만).
+        logger.Info(LOG_CATEGORY, $"AppStarted elevated={elevation.IsElevated} mode={launchMode}");
+
+        // 승격된 인스턴스는 앱에 포함된(번들) 규칙·보호 정책만 쓴다. 지금은 사용자 쓰기 가능한 규칙 파일이 없으며,
+        // P5에서 규칙 파일 로더를 추가할 때 launchMode가 Normal이 아니면 사용자 추가 경로·외부 규칙을 거부하도록 여기서 강제한다.
+        var scanService = ScanService.CreateDefault(logger, limitToSystemScope: launchMode == ScanLaunchMode.ElevatedDifferentUser);
 
         var viewModel = new MainViewModel(
-            ScanService.CreateDefault(logger),
+            scanService,
             new ReportExporter(PersonalDataScrubber.FromEnvironment()),
             new SaveFileDialogExportPathPicker(),
             new SettingsUriPolicy(logger),
             new WpfUiDispatcher(Dispatcher),
-            logger);
+            logger,
+            elevation,
+            ElevationRelauncher.CreateDefault(elevation, logger),
+            launchMode);
 
         var window = new MainWindow(viewModel);
         MainWindow = window;
         window.Show();
+
+        if (launchMode != ScanLaunchMode.Normal)
+        {
+            // 사용자가 원래 창에서 재검사를 요청해 UAC를 승인했으므로 새 검사 ID로 바로 검사한다(원래 창 결과와 합치지 않음).
+            viewModel.StartScanCommand.Execute(null);
+        }
     }
 
     /// <summary>

@@ -1,7 +1,7 @@
 <!--
   @file    : MainWindow.xaml
   @author  : rudals252
-  @brief   : 메인 진단 화면(상단 시작/취소·상태·Finding 기준 요약·마지막 측정 시각·온라인 확인, 왼쪽 분류 목록, 가운데 판정 카드 목록)
+  @brief   : 메인 진단 화면(상단 시작/취소·관리자 권한 재검사·상태·Finding 기준 요약·마지막 측정 시각·온라인 확인·관리자 재검사 배너, 왼쪽 분류 목록, 가운데 판정 카드 목록)
 -->
 <ui:FluentWindow x:Class="PcOptimizer.App.Views.MainWindow"
                  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -195,7 +195,7 @@
 
         <ui:TitleBar Grid.Row="0" Title="{x:Static res:Strings.MainWindow_Title}" />
 
-        <!-- 상단: 시작/취소·내보내기·온라인 확인 -->
+        <!-- 상단: 시작/취소·내보내기·관리자 권한 재검사·온라인 확인 -->
         <WrapPanel Grid.Row="1" Margin="16,8,16,0" Orientation="Horizontal">
             <ui:Button x:Name="StartScanButton"
                        Appearance="Primary"
@@ -222,6 +222,14 @@
                     AutomationProperties.Name="{x:Static res:Strings.Button_DiagnosticExport}"
                     AutomationProperties.HelpText="{x:Static res:Strings.Tooltip_DiagnosticExport}"
                     Margin="0,0,16,8" />
+            <Button Content="{x:Static res:Strings.Button_ElevatedRescan}"
+                    Command="{Binding RequestElevatedRescanCommand}"
+                    ToolTip="{Binding ElevatedRescanTooltip}"
+                    ToolTipService.ShowOnDisabled="True"
+                    AutomationProperties.AutomationId="ElevatedRescanButton"
+                    AutomationProperties.Name="{x:Static res:Strings.Button_ElevatedRescan}"
+                    AutomationProperties.HelpText="{Binding ElevatedRescanTooltip}"
+                    Margin="0,0,16,8" />
             <ui:ToggleSwitch Content="{x:Static res:Strings.Toggle_OnlineCheck}"
                              IsChecked="{Binding IsOnlineCheckRequested}"
                              IsEnabled="{Binding CanChangeOptions}"
@@ -232,6 +240,12 @@
 
         <!-- 상태·요약 영역 -->
         <StackPanel Grid.Row="2" Margin="16,0,16,8">
+            <Border Visibility="{Binding HasElevatedBanner, Converter={StaticResource BoolToVisibility}}"
+                    Margin="0,0,0,6" Padding="10,6" CornerRadius="6" BorderThickness="1"
+                    BorderBrush="#FF8A5A00" Background="#FFFFF4DC">
+                <TextBlock Text="{Binding ElevatedBannerText}" TextWrapping="Wrap" FontWeight="SemiBold" Foreground="#FF1A1A1A"
+                           AutomationProperties.AutomationId="ElevatedBanner" />
+            </Border>
             <WrapPanel Orientation="Horizontal">
                 <TextBlock Text="{Binding StateText}" FontWeight="SemiBold" Margin="0,0,16,0"
                            AutomationProperties.AutomationId="StateText" />

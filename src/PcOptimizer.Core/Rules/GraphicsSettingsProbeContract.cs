@@ -1,20 +1,24 @@
 /**
  * @file    : GraphicsSettingsProbeContract.cs
  * @author  : rudals252
- * @brief   : 그래픽 설정 프로브와 규칙이 공유하는 프로브 ID·레지스트리 값별(HAGS, 게임 모드) 존재·형식·값 측정 이름과 알려진 원시 값 계약 상수
+ * @brief   : 그래픽 설정 프로브(HAGS: 시스템 범위, 게임 모드: 사용자 범위)와 규칙이 공유하는 프로브 ID·레지스트리 값별 존재·형식·값 측정 이름과 알려진 원시 값 계약 상수
  */
 
 namespace PcOptimizer.Core.Rules;
 
 /// <summary>
-/// 그래픽 설정 프로브(Probes)와 <see cref="GraphicsSettingsRule"/>(Core)가 공유하는 측정값 계약입니다.
+/// 그래픽 설정 프로브 두 개(HAGS: <see cref="PROBE_ID"/>, 게임 모드: <see cref="GAME_MODE_PROBE_ID"/>)와
+/// <see cref="GraphicsSettingsRule"/>(Core)가 공유하는 측정값 계약입니다.
 /// 레지스트리 값마다 존재 여부(불리언), 값 형식(문자열), DWORD 값(정수)을 따로 기록합니다.
 /// 값을 읽지 못한 경우(접근 거부 등)에는 존재 여부 측정값 자체가 없습니다.
 /// </summary>
 public static class GraphicsSettingsProbeContract
 {
-    /// <summary>그래픽 설정 프로브 ID.</summary>
+    /// <summary>그래픽 설정(HAGS, HKLM) 프로브 ID. 시스템 범위입니다.</summary>
     public const string PROBE_ID = "hardware.graphicsSettings";
+
+    /// <summary>게임 모드(HKCU) 프로브 ID. 사용자 범위이므로 HAGS와 다른 프로브로 수집합니다.</summary>
+    public const string GAME_MODE_PROBE_ID = "hardware.gameModeSettings";
 
     /// <summary>HAGS 설정 측정 이름 접두사(HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers 의 HwSchMode).</summary>
     public const string HAGS_PREFIX = "graphics.hwSchMode";

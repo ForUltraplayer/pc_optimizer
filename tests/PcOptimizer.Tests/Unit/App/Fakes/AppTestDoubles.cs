@@ -1,8 +1,11 @@
 /**
  * @file    : AppTestDoubles.cs
  * @author  : rudals252
- * @brief   : 뷰모델 테스트용 대역(즉시 실행 UI 마샬러, 고정 경로 선택기, 메모리 fixture 프로브, 첫 호출만 취소를 기다리는 프로브)
+ * @brief   : 뷰모델 테스트용 대역(즉시 실행 UI 마샬러, 고정 경로 선택기, 메모리 fixture 프로브, 첫 호출만 취소를 기다리는 프로브, 고정 권한 상태, 기록·예외 프로세스 시작기)
  */
+
+// 기본 패키지
+using System.Diagnostics;
 
 // 사용자 패키지
 using PcOptimizer.App.Services;
@@ -68,6 +71,9 @@ internal sealed class FixtureMemoryProbe : IProbe
     public bool RequiresNetwork => false;
 
     /// <inheritdoc />
+    public ProbeScope Scope => ProbeScope.System;
+
+    /// <inheritdoc />
     public TimeSpan DefaultTimeout => FakeProbe.GENEROUS_TIMEOUT;
 
     /// <inheritdoc />
@@ -122,6 +128,9 @@ internal sealed class FirstCallWaitsForCancelProbe : IProbe
     public bool RequiresNetwork => false;
 
     /// <inheritdoc />
+    public ProbeScope Scope => ProbeScope.System;
+
+    /// <inheritdoc />
     public TimeSpan DefaultTimeout => FakeProbe.GENEROUS_TIMEOUT;
 
     /// <inheritdoc />
@@ -134,5 +143,42 @@ internal sealed class FirstCallWaitsForCancelProbe : IProbe
         }
 
         return new ProbeResult(Id, ProbeStatus.Success, [], [], context.StartedAtUtc, TimeSpan.Zero, context.UserContext);
+    }
+}
+
+/// <summary>
+/// 고정 권한 상태입니다.
+/// </summary>
+internal sealed class FakeElevationState(bool isElevated, string? currentUserSid = FakeElevationState.USER_SID) : IElevationState
+{
+    /// <summary>테스트 사용자 SID(가짜 값).</summary>
+    public const string USER_SID = "S-1-5-21-1111111111-2222222222-3333333333-1001";
+
+    /// <inheritdoc />
+    public bool IsElevated { get; } = isElevated;
+
+    /// <inheritdoc />
+    public string? CurrentUserSid { get; } = currentUserSid;
+}
+
+/// <summary>
+/// 시작 요청을 기록하고, 지정하면 예외를 던지는 프로세스 시작기입니다(실제 프로세스·UAC 없음).
+/// </summary>
+internal sealed class RecordingProcessStarter : IProcessStarter
+{
+    /// <summary>받은 시작 정보.</summary>
+    public List<ProcessStartInfo> Started { get; } = [];
+
+    /// <summary>Start에서 던질 예외(없으면 null).</summary>
+    public Exception? ThrowOnStart { get; init; }
+
+    /// <inheritdoc />
+    public void Start(ProcessStartInfo startInfo)
+    {
+        Started.Add(startInfo);
+        if (ThrowOnStart is not null)
+        {
+            throw ThrowOnStart;
+        }
     }
 }

@@ -1,7 +1,7 @@
 /**
  * @file    : HardwareProbeSmokeTests.cs
  * @author  : rudals252
- * @brief   : [Smoke] 이 PC에서 실제 메모리·전원·디스플레이·시스템 정보·그래픽 설정·보안 상태 프로브를 실행해 실패하지 않고 측정값을 내는지 확인(기본 테스트 필터에서 제외)
+ * @brief   : [Smoke] 이 PC에서 실제 메모리·전원·디스플레이·시스템 정보·그래픽 설정(HAGS)·게임 모드·보안 상태 프로브를 실행해 실패하지 않고 측정값을 내는지 확인(기본 테스트 필터에서 제외)
  */
 
 // 사용자 패키지
@@ -90,6 +90,17 @@ public sealed class HardwareProbeSmokeTests(ITestOutputHelper output)
     public async Task 그래픽_설정_프로브가_측정값을_낸다()
     {
         var result = await new GraphicsSettingsProbe().RunAsync(CONTEXT, CancellationToken.None);
+        Dump(output, result);
+
+        Assert.NotEqual(ProbeStatus.Failed, result.Status);
+        Assert.NotEmpty(result.Measurements);
+    }
+
+    /// <summary>실제 게임 모드(HKCU) 프로브가 실패하지 않고 존재 여부 측정값을 낸다(값 부재도 성공 측정).</summary>
+    [Fact]
+    public async Task 게임_모드_프로브가_측정값을_낸다()
+    {
+        var result = await new GameModeSettingsProbe().RunAsync(CONTEXT, CancellationToken.None);
         Dump(output, result);
 
         Assert.NotEqual(ProbeStatus.Failed, result.Status);

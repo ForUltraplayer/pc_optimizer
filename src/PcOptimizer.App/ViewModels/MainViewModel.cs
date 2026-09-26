@@ -1,7 +1,7 @@
 /**
  * @file    : MainViewModel.cs
  * @author  : rudals252
- * @brief   : 메인 화면 모델(검사 시작/취소·상태·Finding 기준 요약·분류 목록/필터·카드·마지막 측정 시각·온라인 확인·종료 중 표시·익명화 내보내기)
+ * @brief   : 메인 화면 모델(검사 시작/취소·상태·Finding 기준 요약·분류 목록/필터·카드·마지막 측정 시각·온라인 확인·종료 중 표시·익명화 내보내기·관리자 권한 재검사 요청과 별도 검사 배너)
  */
 
 // 기본 패키지
@@ -104,13 +104,19 @@ public sealed partial class MainViewModel : ObservableObject
     /// <param name="settingsPolicy">설정 URI 허용 정책.</param>
     /// <param name="dispatcher">UI 스레드 마샬러.</param>
     /// <param name="logger">공용 로거.</param>
+    /// <param name="elevationState">현재 프로세스 권한 상태.</param>
+    /// <param name="relauncher">관리자 권한 재검사 시작기.</param>
+    /// <param name="launchMode">이 인스턴스의 시작 방식(관리자 재검사 인스턴스면 배너 표시).</param>
     public MainViewModel(
         ScanService scanService,
         ReportExporter exporter,
         IExportPathPicker exportPathPicker,
         SettingsUriPolicy settingsPolicy,
         IUiDispatcher dispatcher,
-        IAppLogger logger)
+        IAppLogger logger,
+        IElevationState elevationState,
+        ElevationRelauncher relauncher,
+        ScanLaunchMode launchMode)
     {
         ArgumentNullException.ThrowIfNull(scanService);
         ArgumentNullException.ThrowIfNull(exporter);
@@ -118,6 +124,8 @@ public sealed partial class MainViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(settingsPolicy);
         ArgumentNullException.ThrowIfNull(dispatcher);
         ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(elevationState);
+        ArgumentNullException.ThrowIfNull(relauncher);
 
         _scanService = scanService;
         _exporter = exporter;
@@ -125,6 +133,9 @@ public sealed partial class MainViewModel : ObservableObject
         _settingsPolicy = settingsPolicy;
         _dispatcher = dispatcher;
         _logger = logger;
+        _elevationState = elevationState;
+        _relauncher = relauncher;
+        LaunchMode = launchMode;
 
         RebuildCategories([]);
     }

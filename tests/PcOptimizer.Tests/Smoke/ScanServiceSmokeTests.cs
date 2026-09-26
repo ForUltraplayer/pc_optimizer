@@ -1,7 +1,7 @@
 /**
  * @file    : ScanServiceSmokeTests.cs
  * @author  : rudals252
- * @brief   : [Smoke] 기본 구성 검사 서비스를 이 PC에서 끝까지 실행하고 익명화 JSON을 임시 폴더에 내보내 메모리·전원·디스플레이·드라이버·그래픽·보안·저장소 Finding과 개인정보·장치 ID 제거를 확인
+ * @brief   : [Smoke] 기본 구성 검사 서비스를 이 PC에서 끝까지 실행하고 익명화 JSON을 임시 폴더에 내보내 메모리·전원·디스플레이·드라이버·그래픽·보안·저장소·시작 프로그램 Finding과 개인정보·장치 ID 제거를 확인
  */
 
 // 기본 패키지
@@ -28,7 +28,7 @@ public sealed class ScanServiceSmokeTests(ITestOutputHelper output)
     /// <summary>내보낸 JSON 파일 이름(임시 폴더).</summary>
     public const string EXPORT_FILE_NAME = "pcoptimizer-smoke-export.json";
 
-    /// <summary>실제 검사를 끝까지 실행하면 P3a까지의 분류별 Finding이 나오고 기본 내보내기에 개인 경로·이름이 없다.</summary>
+    /// <summary>실제 검사를 끝까지 실행하면 P3b까지의 분류별 Finding이 나오고 기본 내보내기에 개인 경로·이름이 없다.</summary>
     [Fact]
     public async Task 실제_검사_결과를_익명화해_내보낸다()
     {
@@ -56,6 +56,9 @@ public sealed class ScanServiceSmokeTests(ITestOutputHelper output)
         Assert.Contains(result.Report.Findings, f => f.Category == FindingCategory.Graphics);
         Assert.Contains(result.Report.Findings, f => f.Id.StartsWith(StorageSpaceRule.FINDING_ID_PREFIX, StringComparison.Ordinal));
         Assert.Contains(result.Report.Findings, f => f.Id.StartsWith(DiskHealthRule.FINDING_ID_PREFIX, StringComparison.Ordinal));
+        Assert.Contains(result.Report.Findings, f => f.Id == StartupItemsRule.SUMMARY_FINDING_ID && f.Verdict == Verdict.Info);
+        Assert.Contains(result.Report.Findings, f => f.Id == StartupItemsRule.BOOT_IMPACT_FINDING_ID && f.CannotVerifyReason == CannotVerifyReason.Unsupported);
+        Assert.DoesNotContain(result.Report.Findings, f => f.Category == FindingCategory.Startup && f.Verdict == Verdict.Candidate);
 
         var path = Path.Combine(Path.GetTempPath(), EXPORT_FILE_NAME);
         await new ReportExporter(PersonalDataScrubber.FromEnvironment()).ExportAnonymizedAsync(result.Report, path, CancellationToken.None);

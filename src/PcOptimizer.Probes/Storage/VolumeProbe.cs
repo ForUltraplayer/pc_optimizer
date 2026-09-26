@@ -101,6 +101,9 @@ public sealed class VolumeProbe : IProbe
     public bool RequiresNetwork => false;
 
     /// <inheritdoc />
+    public ProbeScope Scope => ProbeScope.System;
+
+    /// <inheritdoc />
     public TimeSpan DefaultTimeout => ScanOptions.DEFAULT_LOCAL_TIMEOUT;
 
     /// <inheritdoc />
