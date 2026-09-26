@@ -18,6 +18,8 @@
 | REV-003 | P2 | 미해결 | P2 UI / P7 | 작업이 실제 종료돼도 ‘종료 중’ 안내가 다음 검사까지 남음 |
 | REV-004 | 제품 범위 | 범위 결정 필요 | 구현 계획 | 사용자가 기대한 기존 도구 통합이 계획에서 2차로 연기됨 |
 | REV-005 | P2 | 검증 완료(장치 ID 범위) | P3a 내보내기 | 장치 내부 ID 원문 노출 보완 확인 |
+| REV-006 | P2 | 미해결·독립 재현 | P5 앱 설정 읽기 | 설정 파일 본문을 읽기 전에 중간 reparse 경로를 검사하지 않음 |
+| REV-007 | P2 | 미해결·독립 재현 | P5 앱 설정 읽기 | 접근 거부 설정 파일이 ‘설정 없음’으로 바뀜 |
 
 ## REV-001 — 보호 경로와 스캔 경로의 검증 정책을 분리
 
@@ -168,7 +170,34 @@
 - 독립 확인: 보완 작업본을 임시 복사본에 적용한 429개 테스트 통과, 실제 내보내기의 모니터/어댑터/PnP/디스크 ID 토큰 치환 확인. P3b 커밋의 기본 523개 및 스모크 13개도 재실행 통과.
 - 한계: 장치 ID 범위의 확인이다. P4 경로, 시작 명령의 인자 등 향후 추가되는 모든 데이터의 익명화를 포괄 승인하지 않는다.
 
+## REV-006 — 설정 파일 본문 읽기에도 링크 경계 적용
+
+- 독립 발견: 2026-09-26, 기준 `96a593c`(P5 3차 수정 포함). 기존 캐시 대상의 정션 미추종 수정과 다른 입력 경로다.
+- 위치: `src/PcOptimizer.Probes/Applications/ConfigReaders/ConfigFileText.cs:35`, `src/PcOptimizer.Probes/Platform/SystemPathEnvironment.cs`의 `ReadSmallTextFile`, 각 설정 리더.
+- 실제: `ConfigFileText.Read`는 `environment.ReadSmallTextFile`을 먼저 호출한다. 그 구현은 크기 확인 뒤 `File.ReadAllText`를 호출하며 중간 reparse·파일 링크·placeholder를 확인하지 않는다. `AppCacheProbe`의 `ReparseAncestorCheck`는 탐지/관측 대상에 적용되고, 설정 파일 본문을 읽는 이 경로에는 전달되지 않는다. 설정에서 읽은 결과 경로를 나중에 분류해도 이미 읽은 본문을 보호할 수 없다.
+- 재현: [ConfigReadBoundaryReviewTests.cs](repro/ConfigReadBoundaryReviewTests.cs)의 `ConfigUnderReparseAncestorMustNotBeRead`. 프로필 경로의 메타데이터가 ReparsePoint인 가짜 환경에서도 `.npmrc` 본문 읽기가 기록돼 `Assert.Empty(environment.FileReads)` 실패. 실제 개인 파일은 읽지 않았다.
+- 요청: 허용된 작은 설정 파일 예외에도 본문 읽기 전 중간 경로와 파일 자체의 reparse/placeholder 경계를 적용하고, 건너뛴 사유를 반환한다. 허용 설정 파일 예외를 없애거나 Program Files 아래 Steam 설정을 일괄 금지하라는 요구는 아니다. 파일 링크는 현재 `ProbeRoot`가 파일을 먼저 NotDirectory로 처리하므로 디렉터리 전용 상태만으로 검증하지 말 것.
+- 완료 근거: 재현 통과, 정상 설정 읽기 유지, 중간 정션·파일 링크·placeholder 각각에서 본문 읽기 미호출 검증.
+- 대응 기록: 아직 없음.
+
+## REV-007 — 설정 파일 읽기 실패를 부재와 구분
+
+- 독립 발견: 2026-09-26, 기준 `96a593c`.
+- 위치: `ConfigFileText.cs:38`. 읽기 결과가 null이면 `ProbeRoot(path) == NotDirectory`일 때만 Unreadable이다. `AccessDenied`/`Error`는 false가 되어 npm 리더가 NotConfigured로 돌려준다.
+- 재현: 같은 [ConfigReadBoundaryReviewTests.cs](repro/ConfigReadBoundaryReviewTests.cs)의 `DeniedConfigMustNotLookAbsent`. `.npmrc` 읽기 null + ProbeRoot AccessDenied에서 기대 Unreadable, 실제 NotConfigured로 실패.
+- 영향: 사용자가 별도 캐시 위치를 설정했지만 읽을 권한이 없을 때 ‘설정 없음/기본 위치만’처럼 보일 수 있다.
+- 요청: Missing만 부재로 처리하고 접근 거부·조회 오류는 읽기 실패/확인 불가로 구분한다. 리더 결과뿐 아니라 `AppCacheProbe.ConfigDetectedRuleIds`/`reportedConfigs`까지 확인해, 기본 탐지가 없는 앱도 실제 설정 읽기 실패 사유가 요약 또는 카드에 남게 한다. 후자의 전파 경로는 소스상 확인 필요 사항이며 별도 파이프라인 재현은 아직 하지 않았다.
+- 완료 근거: 재현 통과, 없는 파일은 NotConfigured 유지, 실패 사유가 최종 결과에서 사라지지 않는 회귀 검증.
+- 대응 기록: 아직 없음.
+
 ## 독립 검증 기록
+
+### P5 독립 확인 (2026-09-26, Codex)
+
+- 기준 `96a593c` 별도 `git archive` 복사본: Release 빌드 경고 0/오류 0, 기본 803/803 통과. 포함 규칙·보호 정책 리소스 사용, Steam 설치 경로 단일 값 조회, Squirrel 별도 목록, Section 범주 제외 코드를 확인했다. 테스트 통과를 전체 실제 UI·모든 환경의 검증으로 확대하지 않는다.
+- 같은 복사본에서 `dotnet test PcOptimizer.sln --configuration Release --no-build --no-restore --filter "Category=Smoke"` 실행: **18/18 통과**, 약 47초. 실제 조회·테스트용 임시 링크 검증이며 사용자 설정 변경·삭제·온라인 요청은 없다. 기본 803개와 Smoke 18개 통과는 추가 경계 테스트 2개 실패와 별도로 기록한다.
+- 추가 가짜 환경 테스트 2개는 **2/2 실패**. 원본 작업 소스에는 추가하지 않고 `docs/reviews/repro/ConfigReadBoundaryReviewTests.cs`로 공유했다. 복사본의 `tests/PcOptimizer.Tests/Unit/Probes/`에 편입 후 `dotnet test PcOptimizer.sln --configuration Release --no-restore --filter "FullyQualifiedName~ConfigReadBoundaryReviewTests"`로 재현한다.
+- P5 3차 보고서는 최종 앱 캐시 카드가 106장이라고 기록한다. 119→97은 2차 수치이며 Games/Adobe 과병합을 푼 뒤의 최종 수치와 구분한다. 카드가 많다는 이유만으로 검사 결과를 숨기지 말고 P7에서 요약·필터·정렬 사용성을 확인한다. 실제 WPF 조작 검증은 이번 검토에서 하지 않았다.
 
 ### P5 다음 리뷰 인계 — 구현 세션 보고, 독립 검증 전
 
