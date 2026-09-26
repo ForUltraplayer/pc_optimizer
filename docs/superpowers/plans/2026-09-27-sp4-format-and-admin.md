@@ -54,6 +54,7 @@
 | App 서비스 | `ElevationRelauncher.cs`, `ElevatedRescanArguments.cs`, `ElevationRelaunchResult.cs`, `ScanLaunchMode.cs`, `ScanLaunchModeResolver.cs` (삭제) | 승격 재실행 제거 |
 | App 뷰 | `src/PcOptimizer.App/Views/MainWindow.xaml` (수정), `Views/PcSpecView.xaml(.cs)` (새) | 카드 템플릿·타일·사양 섹션 |
 | App | `src/PcOptimizer.App/app.manifest`, `App.xaml.cs` (수정) | requireAdministrator, 조립 |
+| 배포 | `src/PcOptimizer.App/Assets/app.ico`, `tools/make-icon.ps1`, `tools/package.ps1`, `tools/README-in-zip.txt`, `THIRD-PARTY-NOTICES.md` (새) | 단일 파일 포터블 zip(Task 12) |
 | Tests | `tests/PcOptimizer.Tests/Unit/Models/ExplanationTests.cs`, `Unit/Rules/CandidateExplanationTests.cs`, `Unit/Probes/SystemDetailsProbeTests.cs`, `Unit/App/UserScopeResolverTests.cs`, `Unit/App/PcSpecTests.cs`, `Unit/App/ActionAvailabilityTests.cs` (새); `Unit/App/MainViewModelTests.cs`, `MainWindowLayoutTests.cs`, `FindingCardViewModelTests.cs` (수정); `ElevationRelauncherTests.cs`, `ElevatedRescanArgumentsTests.cs` (삭제) | |
 
 ---
@@ -1692,8 +1693,137 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 ---
 
+### Task 12: 포터블 배포 패키징 — 단일 파일 exe, 아이콘, zip 구조
+
+**Files:**
+- Modify: `src/PcOptimizer.App/PcOptimizer.App.csproj`(AssemblyName·Version·ApplicationIcon·단일 파일 publish 속성)
+- Create: `src/PcOptimizer.App/Assets/app.ico`(생성 산출물, 커밋), `tools/make-icon.ps1`, `tools/package.ps1`, `tools/README-in-zip.txt`, `THIRD-PARTY-NOTICES.md`
+- Modify: `.gitignore`(`dist/` 추가), `README.md`(배포·실행 방법)
+- Test: `tests/PcOptimizer.Tests/Unit/App/PackagingTests.cs`(csproj 속성 검증), 수동 검증 절차
+
+**Interfaces:**
+- Produces: `dist/PcOptimizer-v<Version>-win-x64.zip`. 압축 해제 시 최상위 항목 ≤ 6개: `PcOptimizer.exe`(단일 파일, self-contained), `실행방법.txt`, `LICENSES/`(winapp2 CC-BY-SA 고지, 서드파티 고지), `rules/`(출처 메타데이터 `sources.json`만, 실행 시 읽지 않음). 사용자는 `PcOptimizer.exe`만 실행한다.
+
+- [ ] **Step 1: 실패하는 테스트 작성** — `tests/PcOptimizer.Tests/Unit/App/PackagingTests.cs`: App csproj를 XML로 읽어 속성을 단언한다.
+
+```csharp
+/**
+ * @file    : PackagingTests.cs
+ * @author  : rudals252
+ * @brief   : 포터블 배포에 필요한 App 프로젝트 속성(단일 파일·self-contained·아이콘·어셈블리 이름·버전)이 설정돼 있는지 검증
+ */
+
+// 기본 패키지
+using System.Xml.Linq;
+
+namespace PcOptimizer.Tests.Unit.App;
+
+/// <summary>배포 속성을 검증합니다.</summary>
+public sealed class PackagingTests
+{
+    private static readonly string CSPROJ = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "PcOptimizer.App", "PcOptimizer.App.csproj"));
+
+    /// <summary>단일 파일 self-contained 배포·아이콘·이름·버전 속성이 있다.</summary>
+    [Theory]
+    [InlineData("AssemblyName", "PcOptimizer")]
+    [InlineData("ApplicationIcon", @"Assets\app.ico")]
+    [InlineData("PublishSingleFile", "true")]
+    [InlineData("SelfContained", "true")]
+    [InlineData("RuntimeIdentifier", "win-x64")]
+    [InlineData("IncludeNativeLibrariesForSelfExtract", "true")]
+    [InlineData("EnableCompressionInSingleFile", "true")]
+    [InlineData("SatelliteResourceLanguages", "ko")]
+    [InlineData("DebugType", "none")]
+    public void PublishPropertiesArePresent(string name, string expected)
+    {
+        var doc = XDocument.Load(CSPROJ);
+        var value = doc.Descendants(name).Select(e => e.Value.Trim()).FirstOrDefault();
+        Assert.Equal(expected, value);
+    }
+
+    /// <summary>버전이 유의적 버전 형식이다.</summary>
+    [Fact]
+    public void VersionIsSemantic()
+    {
+        var version = XDocument.Load(CSPROJ).Descendants("Version").Select(e => e.Value.Trim()).FirstOrDefault();
+        Assert.Matches(@"^\d+\.\d+\.\d+$", version);
+    }
+}
+```
+
+- [ ] **Step 2: 실패 확인** — `--filter "FullyQualifiedName~PackagingTests"` → 속성 없음으로 FAIL.
+
+- [ ] **Step 3: 아이콘 생성 스크립트** — `tools/make-icon.ps1`(자체 제작, 외부 자산 없음): `System.Drawing`으로 16·24·32·48·64·128·256px 비트맵을 그려 ICO로 저장한다. 도형은 원본 디자인(둥근 사각형 배경 `#2563EB` + 흰색 체크 표시 + 작은 렌치 실루엣). 각 크기의 PNG 프레임을 ICO 컨테이너(헤더 6바이트 + 항목 16바이트씩 + PNG 데이터, 256px는 폭·높이 0으로 기록)로 묶는 코드를 스크립트에 둔다. 실행: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/make-icon.ps1 -Output src/PcOptimizer.App/Assets/app.ico`. 산출물 `app.ico`는 커밋한다(빌드 입력). 디자이너 아이콘으로 바꿀 때는 이 파일만 교체한다.
+
+- [ ] **Step 4: csproj 속성** — `PropertyGroup`에 추가:
+
+```xml
+    <AssemblyName>PcOptimizer</AssemblyName>
+    <Version>0.2.0</Version>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <SatelliteResourceLanguages>ko</SatelliteResourceLanguages>
+    <DebugType>none</DebugType>
+    <PublishReadyToRun>false</PublishReadyToRun>
+```
+
+WPF는 trimming을 지원하지 않으므로 `PublishTrimmed`는 두지 않는다. `RuntimeIdentifier`를 고정하면 일반 `dotnet build`도 win-x64로만 빌드된다(허용; 테스트 프로젝트는 영향 없음 — 영향이 있으면 `Directory.Build.props`가 아니라 App csproj에만 둔다). `ApplicationManifest`는 그대로(Task 9의 requireAdministrator). 기존 `rules/*.ini;*.json` publish 복사는 `sources.json`과 `LICENSE-winapp2.md`만 남긴다.
+
+- [ ] **Step 5: 패키징 스크립트** — `tools/package.ps1`:
+
+```powershell
+<#
+ @file    : package.ps1
+ @author  : rudals252
+ @brief   : 단일 파일 publish 후 포터블 zip을 dist/에 만든다(최상위 항목 최소화, 실행 파일 하나)
+#>
+param([string]$Configuration = "Release")
+$ErrorActionPreference = "Stop"
+$root = Split-Path -Parent $PSScriptRoot
+$csproj = Join-Path $root "src\PcOptimizer.App\PcOptimizer.App.csproj"
+$version = ([xml](Get-Content $csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+$publishDir = Join-Path $root "dist\publish"
+$stage = Join-Path $root "dist\PcOptimizer-v$version-win-x64"
+foreach ($dir in @($publishDir, $stage)) { if (Test-Path $dir) { Remove-Item $dir -Recurse -Force } }
+& "$env:ProgramFiles\dotnet\dotnet.exe" publish $csproj -c $Configuration -r win-x64 --self-contained true -o $publishDir
+if ($LASTEXITCODE -ne 0) { throw "publish failed: $LASTEXITCODE" }
+New-Item -ItemType Directory -Path $stage | Out-Null
+Copy-Item (Join-Path $publishDir "PcOptimizer.exe") $stage
+Copy-Item (Join-Path $PSScriptRoot "README-in-zip.txt") (Join-Path $stage "실행방법.txt")
+New-Item -ItemType Directory -Path (Join-Path $stage "LICENSES") | Out-Null
+Copy-Item (Join-Path $root "rules\LICENSE-winapp2.md") (Join-Path $stage "LICENSES\winapp2-CC-BY-SA-4.0.md")
+Copy-Item (Join-Path $root "THIRD-PARTY-NOTICES.md") (Join-Path $stage "LICENSES\THIRD-PARTY-NOTICES.md")
+New-Item -ItemType Directory -Path (Join-Path $stage "rules") | Out-Null
+Copy-Item (Join-Path $root "rules\sources.json") (Join-Path $stage "rules\sources.json")
+$zip = "$stage.zip"
+if (Test-Path $zip) { Remove-Item $zip -Force }
+Compress-Archive -Path $stage -DestinationPath $zip
+$top = (Get-ChildItem $stage).Count
+if ($top -gt 6) { throw "zip top-level entries too many: $top" }
+Write-Host "created $zip"
+```
+
+`tools/README-in-zip.txt`(한국어, 10줄 이내): 압축을 푼 폴더에서 `PcOptimizer.exe`를 더블클릭 → 관리자 권한 확인창에서 "예" → 설치 없음, 삭제하려면 폴더 삭제 → 설정·로그 위치 `%LocalAppData%\PcOptimizer` → 문의 시 "내 PC 사양 → 이미지 저장" 파일을 첨부. `THIRD-PARTY-NOTICES.md`를 저장소 루트에 만든다(WPF-UI MIT, CommunityToolkit.Mvvm MIT, .NET 런타임 MIT, Fluent System Icons MIT(아이콘에 쓴 경우), Pretendard OFL(쓴 경우), winapp2 CC-BY-SA 4.0). `.gitignore`에 `dist/` 추가.
+
+- [ ] **Step 6: 검증** — `powershell -NoProfile -ExecutionPolicy Bypass -File tools/package.ps1` → `dist/PcOptimizer-v0.2.0-win-x64.zip` 생성, 최상위 항목 ≤ 6, `PcOptimizer.exe` 크기 기록. zip을 `%TEMP%`에 풀어 exe 실행 → 창 생성(이 셸은 관리자라 UAC 생략) → 정상 종료 코드 0. 탐색기에서 아이콘이 보이는지 확인(수동, 스크린샷은 커밋하지 않음). `PackagingTests` PASS, 기본 필터 PASS.
+
+- [ ] **Step 7: 문서·커밋** — README에 "배포: `tools/package.ps1` → GitHub Release에 zip 첨부. 사용자는 zip을 풀고 `PcOptimizer.exe` 실행" 절과 아이콘 교체 방법을 적는다.
+
+```bash
+git add src/PcOptimizer.App/PcOptimizer.App.csproj src/PcOptimizer.App/Assets tools .gitignore README.md THIRD-PARTY-NOTICES.md tests/PcOptimizer.Tests/Unit/App/PackagingTests.cs
+git -c user.name=rudals252 -c user.email=jwr300028@gmail.com commit -m "SP4: 포터블 배포 — 단일 파일 self-contained exe, 자체 제작 아이콘, zip 패키징 스크립트
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+```
+
+---
+
 ## 자체 점검
 
-- **스펙 커버리지**: §0 항상 관리자(Task 9), 사용자 쓰기 가능 도구 미실행(Task 10), 표준 계정 시스템 범위(Task 9); §3 카드 형식·안전 배지(Task 1~4), 요약 타일·도구 노출 조건(Task 5), 승격 버튼·배너 제거(Task 9); §3.2 사양 섹션 9항목·확인 불가·캡처·공유·익명화(Task 6~8); §7 1단계 순서 준수. 고급 탭·되돌리기 목록·확인/결과 창 일반화는 SP1·SP2 계획으로 미룸(스펙 §3에 명시된 항목이나 이 단계 범위 밖).
+- **스펙 커버리지**: 배포(스펙 §7A: GitHub zip 포터블, 파일 수 최소, 실행 파일 명확, 아이콘)는 Task 12. §0 항상 관리자(Task 9), 사용자 쓰기 가능 도구 미실행(Task 10), 표준 계정 시스템 범위(Task 9); §3 카드 형식·안전 배지(Task 1~4), 요약 타일·도구 노출 조건(Task 5), 승격 버튼·배너 제거(Task 9); §3.2 사양 섹션 9항목·확인 불가·캡처·공유·익명화(Task 6~8); §7 1단계 순서 준수. 고급 탭·되돌리기 목록·확인/결과 창 일반화는 SP1·SP2 계획으로 미룸(스펙 §3에 명시된 항목이나 이 단계 범위 밖).
 - **자리표시자**: 코드 블록에 실제 내용. Task 7 빌더 9개는 라벨·형식 규칙을 주석으로 명시했고 구현자가 그대로 옮긴다.
 - **형식 일관성**: `Explanation(What, Effect, Caution)`, `SafetyLevel {Safe, Caution, Irreversible}`, `IActionAvailability.CanExecuteInApp(Finding)`, `UserScopeMode {Full, SystemOnly}`, `PcSpecService.BuildSnapshot(IReadOnlyDictionary<string, ProbeResult>, DateTimeOffset)`, `PcSpecTextFormatter.Format(snapshot, includeIdentity, machineName, userName)` — 전 작업에서 동일하게 사용.
