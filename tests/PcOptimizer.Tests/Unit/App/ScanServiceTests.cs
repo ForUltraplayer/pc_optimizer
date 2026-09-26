@@ -124,9 +124,12 @@ public sealed class ScanServiceTests
         Assert.Equal([FindingCategory.Memory, FindingCategory.Power], service.Categories);
     }
 
-    /// <summary>기본 구성은 P5까지의 로컬 프로브(앱 캐시 포함)를 등록하고, 네트워크 프로브는 없으며 관리자 권한 프로브는 TRIM 정책 하나뿐이다.</summary>
+    /// <summary>
+    /// 기본 구성은 P5까지의 로컬 프로브와 P6 온라인 프로브를 등록한다. 네트워크 프로브는 NVIDIA 조회와 Windows Update 검색 둘뿐이며
+    /// (온라인 확인을 켠 검사에서만 실행), 관리자 권한 프로브는 TRIM 정책 하나뿐이다.
+    /// </summary>
     [Fact]
-    public void 기본_구성은_로컬_프로브만_등록한다()
+    public void 기본_구성의_네트워크_프로브는_NVIDIA와_WUA뿐이다()
     {
         var service = ScanService.CreateDefault(NullAppLogger.Instance);
 
@@ -143,7 +146,9 @@ public sealed class ScanServiceTests
                 FindingCategory.AppCache,
             ],
             service.Categories);
-        Assert.All(service.Probes, probe => Assert.False(probe.RequiresNetwork));
+        Assert.Equal(
+            [NvidiaLookupProbeContract.PROBE_ID, WindowsUpdateProbeContract.PROBE_ID],
+            service.Probes.Where(probe => probe.RequiresNetwork).Select(probe => probe.Id));
         var elevated = Assert.Single(service.Probes, probe => probe.RequiresElevation);
         Assert.Equal(TrimPolicyProbeContract.PROBE_ID, elevated.Id);
         Assert.Equal(service.Probes.Count, service.Probes.Select(probe => probe.Id).Distinct(StringComparer.Ordinal).Count());
@@ -166,6 +171,8 @@ public sealed class ScanServiceTests
             [GraphicsSettingsProbeContract.GAME_MODE_PROBE_ID] = ProbeScope.User,
             [SecurityStatusProbeContract.PROBE_ID] = ProbeScope.System,
             [GpuProbeContract.PROBE_ID] = ProbeScope.System,
+            [NvidiaLookupProbeContract.PROBE_ID] = ProbeScope.System,
+            [WindowsUpdateProbeContract.PROBE_ID] = ProbeScope.System,
             [VolumeProbeContract.PROBE_ID] = ProbeScope.System,
             [PhysicalDiskProbeContract.PROBE_ID] = ProbeScope.System,
             [TrimPolicyProbeContract.PROBE_ID] = ProbeScope.System,

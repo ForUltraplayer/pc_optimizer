@@ -45,7 +45,7 @@ public sealed class FindingCardViewModelTests
     /// </summary>
     private FindingCardViewModel CreateCard(Finding finding)
     {
-        return new FindingCardViewModel(finding, new SettingsUriPolicy(NullAppLogger.Instance, _launched.Add));
+        return new FindingCardViewModel(finding, new SettingsUriPolicy(NullAppLogger.Instance, _launched.Add), new LinkPolicy(null, NullAppLogger.Instance, _launched.Add));
     }
 
     /// <summary>판정은 배지 텍스트로도 읽을 수 있다.</summary>

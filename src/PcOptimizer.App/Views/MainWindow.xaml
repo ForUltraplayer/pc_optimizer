@@ -1,7 +1,7 @@
 <!--
   @file    : MainWindow.xaml
   @author  : rudals252
-  @brief   : 메인 진단 화면(상단 시작/취소·관리자 권한 재검사·상태·Finding 기준 요약·마지막 측정 시각·온라인 확인·관리자 재검사 배너, 왼쪽 분류 목록, 가운데 판정 카드 목록)
+  @brief   : 메인 진단 화면(상단 시작/취소·관리자 권한 재검사·상태·Finding 기준 요약·마지막 측정 시각·온라인 확인과 마지막 온라인 확인 시각·관리자 재검사 배너, 왼쪽 분류 목록, 가운데 판정 카드 목록과 허용된 공식 링크 버튼)
 -->
 <ui:FluentWindow x:Class="PcOptimizer.App.Views.MainWindow"
                  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -144,6 +144,25 @@
                                     Command="{Binding OpenSettingsCommand}"
                                     AutomationProperties.Name="{x:Static res:Strings.Button_OpenSettings}"
                                     Visibility="{Binding CanOpenSettings, Converter={StaticResource BoolToVisibility}}" />
+                            <!-- 허용 목록을 통과한 공식 링크(누를 때만 열림) -->
+                            <ItemsControl ItemsSource="{Binding Links}" Focusable="False"
+                                          Visibility="{Binding HasLinks, Converter={StaticResource BoolToVisibility}}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:LinkButtonViewModel}">
+                                        <Button Style="{StaticResource CardButtonStyle}"
+                                                Content="{Binding Label}"
+                                                Command="{Binding OpenCommand}"
+                                                ToolTip="{Binding Url}"
+                                                AutomationProperties.Name="{Binding Label}"
+                                                AutomationProperties.HelpText="{Binding Url}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                             <Button Style="{StaticResource CardButtonStyle}"
                                     Content="{x:Static res:Strings.Button_Keep}"
                                     Command="{Binding KeepCommand}"
@@ -162,6 +181,10 @@
                                 <TextBlock Text="{Binding ApplyTooltip}" VerticalAlignment="Bottom" Margin="0,0,8,6" Opacity="0.7" TextWrapping="Wrap" />
                             </StackPanel>
                         </WrapPanel>
+                        <TextBlock Text="{Binding HiddenLinksNote}" Style="{StaticResource BodyTextStyle}" Opacity="0.8"
+                                   Visibility="{Binding HasHiddenLinks, Converter={StaticResource BoolToVisibility}}" />
+                        <TextBlock Text="{Binding LinkStatusText}" Style="{StaticResource BodyTextStyle}" FontWeight="SemiBold"
+                                   Visibility="{Binding HasLinkStatus, Converter={StaticResource BoolToVisibility}}" />
 
                         <!-- 자세히 보기: 측정값 출처·품질·관측 시각 -->
                         <Border Visibility="{Binding IsDetailsVisible, Converter={StaticResource BoolToVisibility}}"
@@ -251,7 +274,9 @@
                            AutomationProperties.AutomationId="StateText" />
                 <TextBlock Text="{Binding SummaryText}" Margin="0,0,16,0" AutomationProperties.AutomationId="SummaryText" />
                 <TextBlock Text="{Binding LastMeasuredText}" Margin="0,0,16,0" AutomationProperties.AutomationId="LastMeasuredText" />
-                <TextBlock Text="{Binding OnlineCheckText}" />
+                <TextBlock Text="{Binding OnlineCheckText}" Margin="0,0,16,0" />
+                <TextBlock Text="{Binding LastOnlineCheckText}" AutomationProperties.AutomationId="LastOnlineCheckText"
+                           Visibility="{Binding HasLastOnlineCheck, Converter={StaticResource BoolToVisibility}}" />
             </WrapPanel>
             <TextBlock Text="{x:Static res:Strings.Summary_Disclaimer}" TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0" />
             <TextBlock Text="{Binding DrainingNote}" TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,2,0,0"

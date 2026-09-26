@@ -59,6 +59,7 @@ public sealed class MainViewModelTests
             new ReportExporter(scrubber),
             picker ?? new FixedExportPathPicker(null),
             new SettingsUriPolicy(NullAppLogger.Instance, _launchedUris.Add),
+            new LinkPolicy(null, NullAppLogger.Instance, _launchedUris.Add),
             dispatcher ?? new ImmediateUiDispatcher(),
             NullAppLogger.Instance,
             elevationState,
@@ -106,6 +107,26 @@ public sealed class MainViewModelTests
         Assert.Equal(Strings.Verdict_CannotVerify, failed.VerdictText);
         Assert.True(failed.HasReason);
         Assert.Equal(DisplayText.Reason(CannotVerifyReason.ProbeError), failed.ReasonText);
+    }
+
+    /// <summary>온라인 확인을 켠 검사가 끝나야 '마지막 온라인 확인' 시각을 보여 주며, 로컬 검사만 한 동안에는 보이지 않는다.</summary>
+    [Fact]
+    public async Task 온라인_확인_검사_후에만_마지막_온라인_확인을_보여_준다()
+    {
+        var vm = CreateViewModel([new FixtureMemoryProbe()]);
+
+        await vm.StartScanCommand.ExecuteAsync(null);
+        Assert.False(vm.HasLastOnlineCheck);
+        Assert.Null(vm.LastOnlineCheckText);
+
+        vm.IsOnlineCheckRequested = true;
+        await vm.StartScanCommand.ExecuteAsync(null);
+
+        Assert.True(vm.HasLastOnlineCheck);
+        Assert.Equal(vm.LastMeasuredAtUtc, vm.LastOnlineCheckAtUtc);
+        Assert.StartsWith("마지막 온라인 확인:", vm.LastOnlineCheckText, StringComparison.Ordinal);
+        Assert.Contains("NVIDIA", Strings.Toggle_OnlineCheck, StringComparison.Ordinal);
+        Assert.Contains("Windows Update", Strings.Toggle_OnlineCheck, StringComparison.Ordinal);
     }
 
     /// <summary>분류를 고르면 그 분류 카드만 보이고, 전체를 고르면 모두 보인다.</summary>

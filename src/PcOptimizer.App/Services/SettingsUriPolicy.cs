@@ -37,6 +37,9 @@ public sealed class SettingsUriPolicy
     /// <summary>시작 앱 설정 URI.</summary>
     public const string STARTUP_APPS_SETTINGS_URI = "ms-settings:startupapps";
 
+    /// <summary>Windows 업데이트 설정 URI(드라이버 후보는 고급 옵션의 선택적 업데이트에서 확인).</summary>
+    public const string WINDOWS_UPDATE_SETTINGS_URI = "ms-settings:windowsupdate";
+
     private const string LOG_CATEGORY = nameof(SettingsUriPolicy);
 
     /// <summary>허용 목록(키: 비교용, 값: 실행할 정식 표기).</summary>
@@ -48,6 +51,7 @@ public sealed class SettingsUriPolicy
         [GAME_MODE_SETTINGS_URI] = GAME_MODE_SETTINGS_URI,
         [STORAGE_SENSE_SETTINGS_URI] = STORAGE_SENSE_SETTINGS_URI,
         [STARTUP_APPS_SETTINGS_URI] = STARTUP_APPS_SETTINGS_URI,
+        [WINDOWS_UPDATE_SETTINGS_URI] = WINDOWS_UPDATE_SETTINGS_URI,
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     private readonly IAppLogger _logger;

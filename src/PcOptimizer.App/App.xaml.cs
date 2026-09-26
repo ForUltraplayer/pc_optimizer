@@ -1,7 +1,7 @@
 /**
  * @file    : App.xaml.cs
  * @author  : rudals252
- * @brief   : 애플리케이션 진입점. 관리자 재검사 고정 인자·권한·SID로 시작 방식을 정하고 공용 로거·검사 서비스·내보내기·설정 URI 정책·재검사 시작기·메인 화면 모델을 조립하며 처리되지 않은 예외를 형식 이름만 기록
+ * @brief   : 애플리케이션 진입점. 관리자 재검사 고정 인자·권한·SID로 시작 방식을 정하고 공용 로거·검사 서비스·내보내기·설정 URI 정책·공식 링크 정책·재검사 시작기·메인 화면 모델을 조립하며 처리되지 않은 예외를 형식 이름만 기록
  */
 
 // 기본 패키지
@@ -13,6 +13,7 @@ using PcOptimizer.App.Services;
 using PcOptimizer.App.ViewModels;
 using PcOptimizer.App.Views;
 using PcOptimizer.Probes.Applications;
+using PcOptimizer.Probes.Drivers;
 
 namespace PcOptimizer.App;
 
@@ -49,13 +50,23 @@ public partial class App : Application
         // 없고 파일 시스템에서 읽지도 않음). 포함 sources.json과 SHA-256이 맞을 때만 쓰며 다운로드·사용자 규칙 경로는 없다. 관리자 권한으로 실행 중인
         // 검사(재검사·직접 승격)에서는 사용자 쓰기 가능한 앱 설정 경로(npm·pip·NuGet·Steam)를 적용하지 않고 기본 위치만 본다(AppCacheProbe, ScanContext.IsElevated 기준).
         var bundledRules = RuleCatalogLoader.CreateEmbedded();
-        var scanService = ScanService.CreateDefault(logger, limitToSystemScope: launchMode == ScanLaunchMode.ElevatedDifferentUser, rules: bundledRules);
+
+        // 공식 링크 표(vendor-links.json)도 Probes 어셈블리 포함 리소스만 읽는다. 규칙(링크 생성)과 링크 열기 정책이 같은 표를 쓴다.
+        var vendorLinks = VendorLinkCatalogLoader.LoadEmbedded();
+        if (vendorLinks.Catalog is null)
+        {
+            logger.Warn(LOG_CATEGORY, $"VendorLinksUnavailable errors={vendorLinks.Errors.Count}");
+        }
+
+        var scanService = ScanService.CreateDefault(
+            logger, limitToSystemScope: launchMode == ScanLaunchMode.ElevatedDifferentUser, rules: bundledRules, vendorLinks: vendorLinks.Catalog);
 
         var viewModel = new MainViewModel(
             scanService,
             new ReportExporter(PersonalDataScrubber.FromEnvironment()),
             new SaveFileDialogExportPathPicker(),
             new SettingsUriPolicy(logger),
+            new LinkPolicy(vendorLinks.Catalog, logger),
             new WpfUiDispatcher(Dispatcher),
             logger,
             elevation,

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LookupValueSearch>
+<LookupValues><LookupValue ParentID="1">
+<Name>GeForce 8800 Ultra</Name>
+<Value>8</Value>
+</LookupValue><LookupValue ParentID="1">
+<Name>GeForce 8800 GTX</Name>
+<Value>7</Value>
+</LookupValue><LookupValue ParentID="1">
+<Name>GeForce 8800 GTS 512</Name>
+<Value>270</Value>
+</LookupValue><LookupValue ParentID="101">
+<Name>GeForce GTX 1060</Name>
+<Value>817</Value>
+</LookupValue><LookupValue ParentID="102">
+<Name>GeForce GTX 1060</Name>
+<Value>821</Value>
+</LookupValue><LookupValue ParentID="127">
+<Name>NVIDIA GeForce RTX 4090 D</Name>
+<Value>1036</Value>
+</LookupValue><LookupValue ParentID="127">
+<Name>NVIDIA GeForce RTX 4090</Name>
+<Value>995</Value>
+</LookupValue><LookupValue ParentID="127">
+<Name>NVIDIA GeForce RTX 4080 SUPER</Name>
+<Value>1041</Value>
+</LookupValue><LookupValue ParentID="127">
+<Name>NVIDIA GeForce RTX 4080</Name>
+<Value>999</Value>
+</LookupValue><LookupValue ParentID="127">
+<Name>NVIDIA GeForce RTX 4070 Ti SUPER</Name>
+<Value>1040</Value>
+</LookupValue><LookupValue ParentID="127">
+<Name>NVIDIA GeForce RTX 4070 Ti</Name>
+<Value>1001</Value>
+</LookupValue><LookupValue ParentID="127">
+<Name>NVIDIA GeForce RTX 4070 SUPER</Name>
+<Value>1039</Value>
+</LookupValue><LookupValue ParentID="127">
+<Name>NVIDIA GeForce RTX 4070</Name>
+<Value>1015</Value>
+</LookupValue><LookupValue ParentID="127">
+<Name>NVIDIA GeForce RTX 4060 Ti</Name>
+<Value>1022</Value>
+</LookupValue><LookupValue ParentID="127">
+<Name>NVIDIA GeForce RTX 4060</Name>
+<Value>1023</Value>
+</LookupValue><LookupValue ParentID="129">
+<Name>GeForce RTX 4080 Laptop GPU</Name>
+<Value>1005</Value>
+</LookupValue></LookupValues>
+</LookupValueSearch>

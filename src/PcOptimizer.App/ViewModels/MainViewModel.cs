@@ -1,7 +1,7 @@
 /**
  * @file    : MainViewModel.cs
  * @author  : rudals252
- * @brief   : 메인 화면 모델(검사 시작/취소·상태·Finding 기준 요약·분류 목록/필터·카드·마지막 측정 시각·온라인 확인·종료 중 표시·익명화 내보내기·관리자 권한 재검사 요청과 별도 검사 배너)
+ * @brief   : 메인 화면 모델(검사 시작/취소·상태·Finding 기준 요약·분류 목록/필터·카드·마지막 측정 시각·온라인 확인과 마지막 온라인 확인 시각·종료 중 표시·익명화 내보내기·관리자 권한 재검사 요청과 별도 검사 배너)
  */
 
 // 기본 패키지
@@ -33,6 +33,7 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly ReportExporter _exporter;
     private readonly IExportPathPicker _exportPathPicker;
     private readonly SettingsUriPolicy _settingsPolicy;
+    private readonly LinkPolicy _linkPolicy;
     private readonly IUiDispatcher _dispatcher;
     private readonly IAppLogger _logger;
 
@@ -71,6 +72,11 @@ public sealed partial class MainViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(LastMeasuredText))]
     private DateTimeOffset? _lastMeasuredAtUtc;
 
+    /// <summary>마지막으로 온라인 확인을 켠 검사가 끝난 시각(UTC, 없으면 null).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LastOnlineCheckText), nameof(HasLastOnlineCheck))]
+    private DateTimeOffset? _lastOnlineCheckAtUtc;
+
     /// <summary>사용자가 온라인 업데이트 확인을 켰는지 여부.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(OnlineCheckText))]
@@ -102,6 +108,7 @@ public sealed partial class MainViewModel : ObservableObject
     /// <param name="exporter">리포트 내보내기.</param>
     /// <param name="exportPathPicker">저장 경로 선택기.</param>
     /// <param name="settingsPolicy">설정 URI 허용 정책.</param>
+    /// <param name="linkPolicy">외부 링크 허용 정책.</param>
     /// <param name="dispatcher">UI 스레드 마샬러.</param>
     /// <param name="logger">공용 로거.</param>
     /// <param name="elevationState">현재 프로세스 권한 상태.</param>
@@ -112,6 +119,7 @@ public sealed partial class MainViewModel : ObservableObject
         ReportExporter exporter,
         IExportPathPicker exportPathPicker,
         SettingsUriPolicy settingsPolicy,
+        LinkPolicy linkPolicy,
         IUiDispatcher dispatcher,
         IAppLogger logger,
         IElevationState elevationState,
@@ -122,6 +130,7 @@ public sealed partial class MainViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(exporter);
         ArgumentNullException.ThrowIfNull(exportPathPicker);
         ArgumentNullException.ThrowIfNull(settingsPolicy);
+        ArgumentNullException.ThrowIfNull(linkPolicy);
         ArgumentNullException.ThrowIfNull(dispatcher);
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(elevationState);
@@ -131,6 +140,7 @@ public sealed partial class MainViewModel : ObservableObject
         _exporter = exporter;
         _exportPathPicker = exportPathPicker;
         _settingsPolicy = settingsPolicy;
+        _linkPolicy = linkPolicy;
         _dispatcher = dispatcher;
         _logger = logger;
         _elevationState = elevationState;
@@ -169,6 +179,14 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>온라인 확인 상태 문자열.</summary>
     public string OnlineCheckText => IsOnlineCheckRequested ? Strings.OnlineCheck_On : Strings.OnlineCheck_Off;
 
+    /// <summary>마지막 온라인 확인 시각 문자열(온라인 확인을 한 검사가 없으면 null).</summary>
+    public string? LastOnlineCheckText => LastOnlineCheckAtUtc is { } checkedAt
+        ? DisplayText.Format(Strings.LastOnlineCheck_Format, DisplayText.LocalTime(checkedAt))
+        : null;
+
+    /// <summary>마지막 온라인 확인 시각을 보여 주는지 여부.</summary>
+    public bool HasLastOnlineCheck => LastOnlineCheckAtUtc is not null;
+
     /// <summary>종료 중 안내가 있는지 여부.</summary>
     public bool HasDrainingNote => DrainingNote is not null;
 
@@ -188,13 +206,14 @@ public sealed partial class MainViewModel : ObservableObject
         using var cancellation = new CancellationTokenSource();
         _scanCancellation = cancellation;
         var previousState = State;
+        var onlineRequested = IsOnlineCheckRequested;
         State = ScanState.Scanning;
         StatusMessage = null;
 
         ScanResult result;
         try
         {
-            result = await _scanService.RunScanAsync(IsOnlineCheckRequested, cancellation.Token).ConfigureAwait(false);
+            result = await _scanService.RunScanAsync(onlineRequested, cancellation.Token).ConfigureAwait(false);
         }
         catch (InvalidOperationException ex)
         {
@@ -216,7 +235,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             if (generation == _scanGeneration)
             {
-                ApplyResult(result);
+                ApplyResult(result, onlineRequested);
             }
         }).ConfigureAwait(false);
     }
@@ -282,12 +301,16 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 검사 결과를 화면 상태에 반영한다(UI 스레드에서 호출).
+    /// 검사 결과를 화면 상태에 반영한다(UI 스레드에서 호출). 온라인 확인을 켠 검사였으면 마지막 온라인 확인 시각을 갱신한다.
     /// </summary>
-    private void ApplyResult(ScanResult result)
+    private void ApplyResult(ScanResult result, bool onlineRequested)
     {
         var report = result.Report;
-        _allCards = [.. report.Findings.Select(finding => new FindingCardViewModel(finding, _settingsPolicy))];
+        _allCards = [.. report.Findings.Select(finding => new FindingCardViewModel(finding, _settingsPolicy, _linkPolicy))];
+        if (onlineRequested)
+        {
+            LastOnlineCheckAtUtc = report.CompletedAtUtc;
+        }
 
         OkCount = report.Findings.Count(f => f.Verdict == Verdict.Ok);
         CandidateCount = report.Findings.Count(f => f.Verdict == Verdict.Candidate);

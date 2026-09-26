@@ -1,7 +1,7 @@
 /**
  * @file    : SettingsUriPolicyTests.cs
  * @author  : rudals252
- * @brief   : 설정 URI 허용 목록 정책(허용 URI만 실행, 규칙이 내는 설정 URI는 모두 허용, file:/http:/미등록 ms-settings·windowsdefender 등 거부) 단위 테스트
+ * @brief   : 설정 URI 허용 목록 정책(허용 URI만 실행, 규칙이 내는 설정 URI는 모두 허용, file:/http:/미등록 ms-settings·windowsdefender 등 거부, P6 Windows 업데이트 설정 허용) 단위 테스트
  */
 
 // 사용자 패키지
@@ -34,6 +34,7 @@ public sealed class SettingsUriPolicyTests
     [InlineData("ms-settings:gaming-gamemode")]
     [InlineData("ms-settings:storagesense")]
     [InlineData("ms-settings:startupapps")]
+    [InlineData("ms-settings:windowsupdate")]
     public void 허용된_URI는_실행한다(string uri)
     {
         var policy = CreatePolicy();
@@ -63,7 +64,7 @@ public sealed class SettingsUriPolicyTests
     [InlineData("http://example.com")]
     [InlineData("https://example.com/ms-settings:display")]
     [InlineData("ms-settings:privacy")]
-    [InlineData("ms-settings:windowsupdate")]
+    [InlineData("ms-settings:windowsupdate-action")]
     [InlineData("ms-settings:display?extra=1")]
     [InlineData("ms-settings:display ")]
     [InlineData(" ms-settings:display")]
@@ -100,6 +101,7 @@ public sealed class SettingsUriPolicyTests
     [InlineData(GraphicsSettingsRule.GAME_MODE_SETTINGS_URI)]
     [InlineData(StorageSpaceRule.STORAGE_SETTINGS_URI)]
     [InlineData(StartupItemsRule.STARTUP_SETTINGS_URI)]
+    [InlineData(WindowsUpdateDriverRule.WINDOWS_UPDATE_SETTINGS_URI)]
     public void 규칙이_쓰는_설정_URI는_허용_목록에_있다(string uri)
     {
         Assert.True(SettingsUriPolicy.IsAllowed(uri));

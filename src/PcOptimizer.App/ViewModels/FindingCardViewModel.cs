@@ -1,7 +1,7 @@
 /**
  * @file    : FindingCardViewModel.cs
  * @author  : rudals252
- * @brief   : Finding 카드 표시 모델(제목·측정값·근거·판정 배지·권장/조건·영향·확인 불가 사유)과 자세히 보기·설정 열기·유지·비활성 적용 동작
+ * @brief   : Finding 카드 표시 모델(제목·측정값·근거·판정 배지·권장/조건·영향·확인 불가 사유)과 자세히 보기·설정 열기·허용된 공식 링크 열기·유지·비활성 적용 동작
  */
 
 // 서드파티 패키지
@@ -20,6 +20,7 @@ namespace PcOptimizer.App.ViewModels;
 /// <list type="bullet">
 /// <item>판정은 색이 아니라 배지 텍스트(<see cref="VerdictText"/>)로도 읽을 수 있습니다.</item>
 /// <item>[설정 열기]는 허용 목록에 있는 설정 URI가 있을 때만 제공하고, 없으면 수동 경로 안내를 보여 줍니다.</item>
+/// <item>공식 링크 버튼은 링크 정책(<see cref="LinkPolicy"/>)을 통과한 OpenLink만 보여 주며, 누를 때 다시 확인한 뒤 엽니다(자동으로 열지 않음).</item>
 /// <item>[유지]는 현재 검사에서 카드를 접는 UI 동작일 뿐이며 설정 변경·영구 제외가 아닙니다(다음 검사에서 새 카드가 만들어짐).</item>
 /// <item>[적용]은 항상 비활성이며 '자동 조치는 다음 버전 예정' 설명을 제공합니다.</item>
 /// </list>
@@ -27,6 +28,7 @@ namespace PcOptimizer.App.ViewModels;
 public sealed partial class FindingCardViewModel : ObservableObject
 {
     private readonly SettingsUriPolicy _settingsPolicy;
+    private readonly LinkPolicy _linkPolicy;
 
     /// <summary>자세히 보기 패널을 펼쳤는지 여부.</summary>
     [ObservableProperty]
@@ -38,18 +40,26 @@ public sealed partial class FindingCardViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsBodyVisible))]
     private bool _isKept;
 
+    /// <summary>링크를 열지 못했을 때의 안내(없으면 null).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasLinkStatus))]
+    private string? _linkStatusText;
+
     /// <summary>
     /// Finding으로 카드 모델을 만듭니다.
     /// </summary>
     /// <param name="finding">표시할 Finding.</param>
     /// <param name="settingsPolicy">설정 URI 허용 정책.</param>
-    public FindingCardViewModel(Finding finding, SettingsUriPolicy settingsPolicy)
+    /// <param name="linkPolicy">외부 링크 허용 정책.</param>
+    public FindingCardViewModel(Finding finding, SettingsUriPolicy settingsPolicy, LinkPolicy linkPolicy)
     {
         ArgumentNullException.ThrowIfNull(finding);
         ArgumentNullException.ThrowIfNull(settingsPolicy);
+        ArgumentNullException.ThrowIfNull(linkPolicy);
 
         Finding = finding;
         _settingsPolicy = settingsPolicy;
+        _linkPolicy = linkPolicy;
         Measurements = [.. finding.Measured.Select(m => new MeasurementItemViewModel(m))];
         VerdictText = DisplayText.Verdict(finding.Verdict);
         CategoryText = DisplayText.Category(finding.Category);
@@ -57,6 +67,12 @@ public sealed partial class FindingCardViewModel : ObservableObject
         SettingsUri = finding.Actions.OfType<OpenSettingsAction>()
             .Select(action => action.Uri)
             .FirstOrDefault(SettingsUriPolicy.IsAllowed);
+        OpenLinkAction[] linkActions = [.. finding.Actions.OfType<OpenLinkAction>()];
+        Links = [.. linkActions
+            .Where(action => linkPolicy.IsAllowed(action.Url))
+            .Select(action => new LinkButtonViewModel(
+                string.IsNullOrWhiteSpace(action.Label) ? Strings.Button_OpenLinkDefault : action.Label, action.Url, OpenLink))];
+        HiddenLinkCount = linkActions.Length - Links.Count;
         HasKeepAction = finding.Actions.Any(action => action is KeepAction);
         HasApplyAction = finding.Actions.Any(action => action is ApplyAction);
         CanShowDetails = Measurements.Count > 0 || finding.Actions.Any(action => action is ShowDetailsAction);
@@ -138,6 +154,24 @@ public sealed partial class FindingCardViewModel : ObservableObject
     /// <summary>설정 URI가 없어 수동 경로 안내를 보여야 하는지 여부(권장이 있을 때만).</summary>
     public bool ShowManualPathHint => HasRecommendation && !CanOpenSettings;
 
+    /// <summary>허용 목록을 통과한 공식 링크 버튼(OpenLink 순서).</summary>
+    public IReadOnlyList<LinkButtonViewModel> Links { get; }
+
+    /// <summary>공식 링크 버튼이 있는지 여부.</summary>
+    public bool HasLinks => Links.Count > 0;
+
+    /// <summary>허용 목록에 없어 표시하지 않은 링크 수.</summary>
+    public int HiddenLinkCount { get; }
+
+    /// <summary>표시하지 않은 링크 안내(없으면 null).</summary>
+    public string? HiddenLinksNote => HiddenLinkCount > 0 ? DisplayText.Format(Strings.Card_LinksHiddenFormat, HiddenLinkCount) : null;
+
+    /// <summary>표시하지 않은 링크가 있는지 여부.</summary>
+    public bool HasHiddenLinks => HiddenLinkCount > 0;
+
+    /// <summary>링크 열기 안내가 있는지 여부.</summary>
+    public bool HasLinkStatus => LinkStatusText is not null;
+
     /// <summary>[유지]를 제공하는지 여부.</summary>
     public bool HasKeepAction { get; }
 
@@ -169,6 +203,20 @@ public sealed partial class FindingCardViewModel : ObservableObject
     private void OpenSettings()
     {
         _settingsPolicy.TryOpen(SettingsUri);
+    }
+
+    /// <summary>
+    /// 링크 정책으로 다시 확인한 뒤 공식 링크를 엽니다. 거부·실패하면 카드에 안내를 보여 줍니다.
+    /// </summary>
+    /// <param name="url">링크 URL.</param>
+    private void OpenLink(string url)
+    {
+        LinkStatusText = _linkPolicy.TryOpen(url) switch
+        {
+            LinkOpenResult.Opened => null,
+            LinkOpenResult.Refused => Strings.Link_Refused,
+            _ => Strings.Link_OpenFailed,
+        };
     }
 
     /// <summary>

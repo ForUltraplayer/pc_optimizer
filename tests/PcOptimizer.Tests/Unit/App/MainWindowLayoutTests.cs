@@ -1,7 +1,7 @@
 /**
  * @file    : MainWindowLayoutTests.cs
  * @author  : rudals252
- * @brief   : 메인 창을 화면에 띄우지 않고 고정 폭으로 배치해, 긴 경로가 든 카드 문장이 가로로 넘치지 않고 줄바꿈되는지, 판정 배지 텍스트, 관리자 권한 재검사 버튼 활성·배너 표시를 검증
+ * @brief   : 메인 창을 화면에 띄우지 않고 고정 폭으로 배치해, 긴 경로가 든 카드 문장이 가로로 넘치지 않고 줄바꿈되는지, 판정 배지 텍스트, 관리자 권한 재검사 버튼 활성·배너 표시, 공식 링크 버튼 표시를 검증
  */
 
 // 기본 패키지
@@ -32,6 +32,9 @@ public sealed class MainWindowLayoutTests
     private const int PATH_SEGMENTS = 40;
     private const int MIN_WRAPPED_LINES = 2;
 
+    private const string LINK_URL = "https://www.nvidia.com/en-us/drivers/details/279803/";
+    private const string LINK_LABEL = "공식 배포 설명";
+
     private static readonly string LONG_PATH =
         @"C:\ProgramData\" + string.Join(@"\", Enumerable.Range(0, PATH_SEGMENTS).Select(i => $"very-long-folder-name-{i}"));
 
@@ -54,6 +57,7 @@ public sealed class MainWindowLayoutTests
             new ReportExporter(new PersonalDataScrubber(null, null, null)),
             new FixedExportPathPicker(null),
             new SettingsUriPolicy(NullAppLogger.Instance, _ => { }),
+            new LinkPolicy(null, NullAppLogger.Instance, _ => { }),
             new ImmediateUiDispatcher(),
             NullAppLogger.Instance,
             elevation,
@@ -134,6 +138,25 @@ public sealed class MainWindowLayoutTests
         });
     }
 
+    /// <summary>허용된 OpenLink는 카드에 이름표 버튼으로 보이고, 링크 URL은 도움말로 읽을 수 있다(누르기 전에는 열지 않음).</summary>
+    [Fact]
+    public void 공식_링크는_카드_버튼으로_보인다()
+    {
+        RunOnSta(() =>
+        {
+            var window = new MainWindow(CreateScannedViewModel());
+            var root = (FrameworkElement)window.Content;
+            root.Measure(new Size(LAYOUT_WIDTH, LAYOUT_HEIGHT));
+            root.Arrange(new Rect(0, 0, LAYOUT_WIDTH, LAYOUT_HEIGHT));
+            root.UpdateLayout();
+
+            var button = Assert.Single(Descendants<Button>(root), b => Equals(b.Content, LINK_LABEL));
+            Assert.Equal(Visibility.Visible, button.Visibility);
+            Assert.Equal(LINK_URL, AutomationProperties.GetHelpText(button));
+            window.Close();
+        });
+    }
+
     /// <summary>
     /// 창을 배치하고 관리자 권한 재검사 버튼과 배너를 찾는다.
     /// </summary>
@@ -194,6 +217,8 @@ public sealed class MainWindowLayoutTests
             return
             [
                 new Finding("fixture:long", FindingCategory.Storage, "long path fixture", [], LONG_PATH, Verdict.Info, null, null, null, null, []),
+                new Finding(
+                    "fixture:link", FindingCategory.Driver, "link fixture", [], "link evidence", Verdict.Info, null, null, null, null, [new OpenLinkAction(LINK_URL, LINK_LABEL)]),
             ];
         }
     }
