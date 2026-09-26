@@ -245,7 +245,7 @@
   <data name="FileScan_Title_Summary" xml:space="preserve"><value>파일 검사: {0}곳 관측 · {1}초</value><comment>{0}=순회한 루트 수, {1}=소요 시간(초)</comment></data>
   <data name="FileScan_Evidence_Summary" xml:space="preserve"><value>관측 용량은 파일 논리 크기의 합이며 확보 가능량이 아니에요. 보호 폴더 {0}곳(문서·사진·바탕화면·동영상·음악·감지된 동기화 폴더·Program Files·System32·Installer·WinSxS)은 내용을 검사하지 않았어요</value><comment>{0}=보호 루트 수</comment></data>
   <data name="FileScan_Detail_Skips" xml:space="preserve"><value>건너뛴 항목: 보호 제외 {0} · 접근 거부 {1} · 사용 중/변경 중 {2} · 링크(정션 등) {3} · 클라우드 자리 표시자 {4} · 시간 초과 {5}</value><comment>{0}~{5}=사유별 개수</comment></data>
-  <data name="FileScan_Detail_TimedOutVolumes" xml:space="preserve"><value>제한 시간 안에 모두 검사하지 못해 부분 집계한 볼륨: {0}</value><comment>{0}=볼륨 루트 목록</comment></data>
+  <data name="FileScan_Detail_TimedOutVolumes" xml:space="preserve"><value>시간 예산을 초과한 볼륨: {0}. 이미 관측한 항목은 유지했으며, 관측 누락 여부는 건너뛴 사유와 부분 집계 표시로 구분합니다.</value><comment>{0}=볼륨 루트 목록</comment></data>
   <data name="FileScan_Detail_HardLinks" xml:space="preserve"><value>64MiB 이상 파일은 파일 ID로 확인해 하드링크 {0}개를 한 번만 셌고, 더 작은 파일은 확인하지 않아 합계에 중복이 섞였을 수 있어요(논리 크기 추정)</value><comment>{0}=한 번만 센 하드링크 수</comment></data>
   <data name="FileScan_Detail_ProtectionUnresolved" xml:space="preserve"><value>보호 정책 항목 {0}개는 이 PC에서 위치를 찾지 못했어요(설치되지 않은 동기화 앱 등). 문서·사진·바탕화면·동영상·음악은 이때도 사용자 폴더의 기본 위치를 보호해요</value><comment>{0}=위치를 찾지 못한 항목 수</comment></data>
   <data name="FileScan_Detail_SyncCoverage" xml:space="preserve"><value>동기화 폴더는 OneDrive·Dropbox만 감지해요(Google Drive는 1차에서 감지하지 않아요)</value></data>

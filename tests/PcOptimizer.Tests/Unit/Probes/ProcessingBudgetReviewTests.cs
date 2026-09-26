@@ -15,6 +15,28 @@ namespace PcOptimizer.Tests.Unit.Probes;
 /// </summary>
 public sealed class ProcessingBudgetReviewTests
 {
+    /// <summary>마지막 조회에서 예산이 넘어도 관측 완료와 시간 초과는 별도로 보고합니다.</summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FinalLookupReportsBudgetWithoutDiscardingCompleteObservation(bool allocated)
+    {
+        var time = new ManualTimeProvider();
+        var size = FileSystemScanner.HARD_LINK_CHECK_MIN_BYTES;
+        var source = new FakeDirectoryEntrySource().Dir(@"X:\root", FakeDirectoryEntrySource.File("last.bin", size,
+            allocated ? System.IO.FileAttributes.Compressed : System.IO.FileAttributes.Normal));
+        var identities = new FakeFileIdentityReader().WithIdentity(@"X:\root\last.bin", 1).WithAllocated(@"X:\root\last.bin", 4096);
+        if (allocated) { identities.OnAllocated = _ => time.Advance(TimeSpan.FromSeconds(121)); }
+        else { identities.OnIdentity = _ => time.Advance(TimeSpan.FromSeconds(121)); }
+        var result = await new FileSystemScanner(source, identities, time).ScanAsync(
+            [new ScanTarget("root", @"X:\root")], new ResolvedProtection([]), [], TimeSpan.FromSeconds(120), default);
+        var root = Assert.Single(result.Roots);
+        Assert.True(root.TimedOut);
+        Assert.True(Assert.Single(result.Volumes).TimedOut);
+        Assert.Equal(size, root.Totals!.Bytes);
+        Assert.Equal(0, root.Totals.LookupsSkipped);
+        Assert.Equal(0, root.Totals.Skips.Timeout);
+    }
     /// <summary>파일 ID 조회 처리 중 예산(120초)을 넘기면 루트는 시간 초과로 보고된다.</summary>
     [Fact]
     public async Task IdentityProcessingBudgetOverrunIsReported()

@@ -6,9 +6,11 @@
 
 // 기본 패키지
 using System.Security;
+using System.Text;
 
 // 사용자 패키지
 using PcOptimizer.Core.Cleaning;
+using PcOptimizer.Probes.Storage;
 
 namespace PcOptimizer.Probes.Platform;
 
@@ -67,15 +69,45 @@ public sealed class SystemPathEnvironment : IPathEnvironment
     public string? ReadSmallTextFile(string path, int maxBytes)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxBytes);
         try
         {
-            var info = new FileInfo(path);
-            if (!info.Exists || info.Length > maxBytes)
+            var fullPath = Path.GetFullPath(path);
+            var parents = new Stack<string>();
+            for (var parent = Path.GetDirectoryName(fullPath); !string.IsNullOrEmpty(parent); parent = Path.GetDirectoryName(parent))
+            {
+                parents.Push(parent);
+            }
+
+            foreach (var parent in parents)
+            {
+                if (FileSystemDirectoryEntrySource.Instance.ProbeRoot(parent) != RootPresence.Directory)
+                {
+                    return null;
+                }
+            }
+
+            if (FileSystemDirectoryEntrySource.Instance.ProbeRoot(fullPath) != RootPresence.NotDirectory)
             {
                 return null;
             }
 
-            return File.ReadAllText(path);
+            using var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            if (stream.Length > maxBytes)
+            {
+                return null;
+            }
+
+            // 길이 검사 이후 파일이 증가해도 본문을 무제한 읽지 않는다.
+            var bytes = new byte[checked(maxBytes + 1)];
+            var count = stream.ReadAtLeast(bytes, bytes.Length, throwOnEndOfStream: false);
+            if (count > maxBytes)
+            {
+                return null;
+            }
+
+            using var reader = new StreamReader(new MemoryStream(bytes, 0, count), Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+            return reader.ReadToEnd();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
         {

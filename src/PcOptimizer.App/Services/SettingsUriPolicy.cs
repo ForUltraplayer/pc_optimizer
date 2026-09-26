@@ -38,7 +38,7 @@ public sealed class SettingsUriPolicy
     public const string STARTUP_APPS_SETTINGS_URI = "ms-settings:startupapps";
 
     /// <summary>Windows 업데이트 설정 URI(드라이버 후보는 고급 옵션의 선택적 업데이트에서 확인).</summary>
-    public const string WINDOWS_UPDATE_SETTINGS_URI = "ms-settings:windowsupdate";
+    public const string WINDOWS_UPDATE_SETTINGS_URI = "ms-settings:windowsupdate-optionalupdates";
 
     private const string LOG_CATEGORY = nameof(SettingsUriPolicy);
 

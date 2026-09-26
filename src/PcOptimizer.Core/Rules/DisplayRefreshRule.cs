@@ -100,7 +100,7 @@ public sealed class DisplayRefreshRule : IRule
         var id = FINDING_ID_PREFIX + target.Identity(index);
         var label = target.Label(index);
 
-        if (target.Width is not { } width || target.Height is not { } height || target.RefreshHz is not { } currentHz || target.SameModeRates is null)
+        if (target.Width is not { } width || target.Height is not { } height || target.RefreshHz is not { } currentHz || currentHz <= 1 || target.SameModeRates is null)
         {
             return Create(
                 id,

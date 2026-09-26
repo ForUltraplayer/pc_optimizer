@@ -66,18 +66,29 @@ internal sealed class TestDirectory : IDisposable
             return;
         }
 
-        foreach (var file in Directory.EnumerateFiles(Root, "*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = 0 }))
-        {
-            System.IO.File.SetAttributes(file, FileAttributes.Normal);
-        }
+        RemoveOwnedDirectory(Root);
+    }
 
-        foreach (var link in Directory.EnumerateDirectories(Root, "*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = 0 })
-            .Where(path => new DirectoryInfo(path).Attributes.HasFlag(FileAttributes.ReparsePoint))
-            .ToList())
+    /// <summary>검증된 테스트 루트 안에서만 삭제하며 링크 대상에는 들어가지 않습니다.</summary>
+    private void RemoveOwnedDirectory(string directory)
+    {
+        var full = Path.GetFullPath(directory);
+        if (full != Root && !full.StartsWith(Root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        { throw new InvalidOperationException("테스트 정리 경계 밖"); }
+        foreach (var path in Directory.EnumerateFileSystemEntries(full))
         {
-            Directory.Delete(link);
+            var attributes = System.IO.File.GetAttributes(path);
+            if (attributes.HasFlag(FileAttributes.Directory))
+            {
+                if (attributes.HasFlag(FileAttributes.ReparsePoint)) { Directory.Delete(path); }
+                else { RemoveOwnedDirectory(path); }
+            }
+            else
+            {
+                if (!attributes.HasFlag(FileAttributes.ReparsePoint)) { System.IO.File.SetAttributes(path, FileAttributes.Normal); }
+                System.IO.File.Delete(path);
+            }
         }
-
-        Directory.Delete(Root, recursive: true);
+        Directory.Delete(full);
     }
 }

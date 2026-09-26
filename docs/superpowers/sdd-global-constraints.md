@@ -1,5 +1,7 @@
 # 공통 제약 (모든 작업에 적용) — 출처: docs/superpowers/specs/2026-09-26-pc-optimizer-design.md
 
+> 2026-09-27 변경: 사용자가 확정한 [1차 공식 도구 조치](specs/2026-09-27-first-release-actions.md)가 조회 전용 원칙의 명시적 예외다. 이 파일의 Claude 공동 저자 표기는 이전 구현 세션 기록이며 다른 구현자는 실제 저자에 맞게 기록한다. 기본 테스트는 `Category!=Smoke&Category!=Online&Category!=ToolSmoke`을 사용한다.
+
 ## 스택·구조
 - C# / .NET 10 LTS (SDK 10.0.401 설치됨, `global.json`으로 고정). WPF. Windows 11 x64.
 - 프로젝트: `src/PcOptimizer.Core`(net10.0, Windows API·파일 시스템·네트워크 I/O 의존 없음), `src/PcOptimizer.Probes`(net10.0-windows), `src/PcOptimizer.App`(WPF, net10.0-windows), `tests/PcOptimizer.Tests`(xUnit, net10.0-windows).

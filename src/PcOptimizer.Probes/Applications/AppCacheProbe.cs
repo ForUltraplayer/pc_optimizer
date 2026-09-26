@@ -187,7 +187,9 @@ public sealed class AppCacheProbe : IProbe
                 && ((detection.TryGetValue(rule.Id, out var state) && state == DetectionState.Detected) || configDetected.Contains(rule.Id)))
             .ToList();
         var detectedIds = detected.Select(rule => rule.Id).ToHashSet(StringComparer.Ordinal);
-        var reportedConfigs = configs.Where(config => IsLinkedToDetected(config, catalog.Metadata, detectedIds)).ToList();
+        // 읽기 실패는 설치 탐지 근거가 아니지만, 기본 위치가 없어도 실패 사유는 보고한다.
+        var reportedConfigs = configs.Where(config => config.Reading.State == AppConfigReadState.Unreadable
+            || IsLinkedToDetected(config, catalog.Metadata, detectedIds)).ToList();
         var build = _builder.Build(detected, catalog.Metadata, configs.ToDictionary(config => config.Reading.App, StringComparer.Ordinal), IsExcludedLocation, reparse, ct);
         var squirrel = _squirrel.List(catalog.Metadata, IsExcludedLocation, reparse, ct);
         var measurable = build.Rules.Where(rule => rule.RuntimeFailure is null).ToList();

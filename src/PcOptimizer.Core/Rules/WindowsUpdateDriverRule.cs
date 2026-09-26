@@ -34,7 +34,7 @@ public sealed class WindowsUpdateDriverRule : IRule
     public const string REBOOT_FINDING_ID = "wu-drivers:reboot";
 
     /// <summary>Windows 업데이트 설정 URI(App 허용 목록과 같아야 함).</summary>
-    public const string WINDOWS_UPDATE_SETTINGS_URI = "ms-settings:windowsupdate";
+    public const string WINDOWS_UPDATE_SETTINGS_URI = "ms-settings:windowsupdate-optionalupdates";
 
     private const string LINE_SEPARATOR = "\n";
 

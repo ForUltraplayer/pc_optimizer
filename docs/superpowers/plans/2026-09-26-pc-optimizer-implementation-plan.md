@@ -1,5 +1,7 @@
 # PC Optimizer 1차 구현 계획
 
+> 2026-09-27 사용자 변경: [1차 공식 도구 조치](../specs/2026-09-27-first-release-actions.md)를 추가한다. 아래 조회 전용·자동 정리 제외 문구는 해당 허용 목록에 한해 대체된다. P7에 공식 도구 실행과 후속 관측 검증을 포함한다.
+
 - 작성일: 2026-09-26
 - 기준: [검토 수정 설계](../specs/2026-09-26-pc-optimizer-design.md)
 - 구현·리뷰 시작 및 완료 보고 전 확인: [공유 리뷰 원장](../../reviews/REVIEW_LEDGER.md). 작업 전달 시 관련 리뷰 ID를 포함하고 대응·검증 근거를 원장에 기록한다.
@@ -134,15 +136,17 @@ rules/
 
 ## P6. 온라인 드라이버 비교와 공식 링크
 
-- [ ] NVIDIA 조회를 HttpClient 어댑터 뒤에 격리하고 GPU/OS 매핑·필수 응답 필드·수치 버전·UTC 시각·HTTPS 허용 호스트를 검증한다.
-- [ ] Game Ready/Studio 중복 버전·설치 버전 누락 시 Ambiguous로 표시한다. 사용자의 계열 선택은 '설치 계열 확인'으로 바꾸지 않는다.
-- [ ] API 변경/오류/오프라인에서도 설치 드라이버 카드가 유지되도록 한다. HTTP 응답만 저장한 fixture로 기본 테스트를 실행한다.
-- [ ] WUA 비동기 검색/취소를 구현한다. 숨김·설치된 항목 제외, 정책 차단·부분 결과 표시, 서비스/정책 불변을 확인한다. 다운로드/설치 API는 구현하지 않는다.
-- [ ] AMD/Intel/OEM 공식 링크와 미지원 제조사 표시를 추가한다. 자동 다운로드나 자동 브라우저 열기는 하지 않는다.
+- [x] NVIDIA 조회를 HttpClient 어댑터 뒤에 격리하고 GPU/OS 매핑·필수 응답 필드·수치 버전·UTC 시각·HTTPS 허용 호스트를 검증한다.
+- [x] Game Ready/Studio 중복 버전·설치 버전 누락 시 Ambiguous로 표시한다. 사용자의 계열 선택은 '설치 계열 확인'으로 바꾸지 않는다.
+- [x] API 변경/오류/오프라인에서도 설치 드라이버 카드가 유지되도록 한다. HTTP 응답만 저장한 fixture로 기본 테스트를 실행한다.
+- [x] WUA 비동기 검색/취소를 구현한다. 숨김·설치된 항목 제외, 정책 차단·부분 결과 표시, 서비스/정책 불변을 확인한다. 다운로드/설치 API는 구현하지 않는다.
+- [x] AMD/Intel/OEM 공식 링크와 미지원 제조사 표시를 추가한다. 자동 다운로드나 자동 브라우저 열기는 하지 않는다.
 
 완료 조건: 온라인 확인을 사용자가 시작하기 전에는 NVIDIA/WUA 네트워크 요청이 없다. 동일 계열 비교가 불가능하면 이유를 표시하며 오래된 버전 자체를 고장으로 표현하지 않는다.
 
 ## P7. 통합 검증과 1차 배포
+
+> 2026-09-27: 자동 검증·평가 배포 완료. 기본 1113, Smoke 21, Online 3, ToolSmoke 1 통과. 사용자 승인 공식 도구 정리를 포함했다. 실제 일반 권한 UI/UAC·DPI 전환·별도 PC 및 수정분 독립 리뷰는 남아 있어 P7 전체 완료로 체크하지 않는다. [검증 보고](../../reviews/2026-09-27-validation.md) 참고.
 
 - [ ] 12개 검사 분류를 설계 표와 대조해 성공/실패/권한/네트워크 처리 누락을 점검한다.
 - [ ] 실제 PC에서 일반 권한·오프라인 검사, 취소/재검사, 사용자가 시작한 온라인 검사와 관리자 재검사를 검증한다. 다른 SID는 fixture/수동 재현 가능 범위를 기록한다.
@@ -160,7 +164,7 @@ rules/
 dotnet --info
 dotnet restore PcOptimizer.sln
 dotnet build PcOptimizer.sln --configuration Release --no-restore
-dotnet test PcOptimizer.sln --configuration Release --no-build --filter "Category!=Smoke&Category!=Online"
+dotnet test PcOptimizer.sln --configuration Release --no-build --filter "Category!=Smoke&Category!=Online&Category!=ToolSmoke"
 dotnet publish src/PcOptimizer.App/PcOptimizer.App.csproj --configuration Release --runtime win-x64 --self-contained true --output artifacts/win-x64
 ```
 

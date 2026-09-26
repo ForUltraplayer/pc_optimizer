@@ -38,6 +38,9 @@ public enum RootPresence
     /// <summary>reparse point(정션·심볼릭 링크 등)라서 따라가지 않음.</summary>
     ReparsePoint,
 
+    /// <summary>클라우드 placeholder라서 내용을 요청하지 않음.</summary>
+    Placeholder,
+
     /// <summary>디렉터리가 아님.</summary>
     NotDirectory,
 
