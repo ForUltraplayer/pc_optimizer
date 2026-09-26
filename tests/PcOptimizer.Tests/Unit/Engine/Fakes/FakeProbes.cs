@@ -338,7 +338,8 @@ internal sealed class WrongIdProbe : FakeProbe
 }
 
 /// <summary>
-/// 측정값 또는 Issue 목록이 null이거나 null 항목을 담은 잘못된 결과를 반환하는 프로브입니다.
+/// 측정값 또는 Issue 목록이 null이거나 null 항목을 담은 잘못된 결과를 반환하려는 프로브입니다.
+/// null 목록은 ProbeResult 생성자가 거부하므로 프로브 안에서 예외가 되고, null 항목은 실행기 검증에서 걸립니다.
 /// </summary>
 internal sealed class NullCollectionsProbe : FakeProbe
 {

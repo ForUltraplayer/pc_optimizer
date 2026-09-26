@@ -254,27 +254,29 @@ public sealed class ScanCoordinator
     {
         var snapshot = new ScanSnapshot(context.ScanId, results);
 
-        var findings = new List<Finding>(_ruleEvaluator.Evaluate(snapshot));
+        var ruleEvaluation = _ruleEvaluator.Evaluate(snapshot);
+        var findings = new List<Finding>(ruleEvaluation.Findings);
         findings.AddRange(ProbeResultConverter.Convert(snapshot, _probeCategories));
 
+        // 종료 중 표시는 어느 검사에서 시작한 호출이든 아직 끝나지 않았으면 유지한다(재검사에서 건너뛴 경우 포함).
         ProbeSummary[] summaries = [.. results.Select(result => new ProbeSummary(
             result.ProbeId,
             result.Status,
             result.Duration,
             result.Issues.Count,
-            _executor.IsStillRunning(result.ProbeId, context.ScanId)))];
+            _executor.IsDraining(result.ProbeId)))];
 
         var report = new ScanReport
         {
             ScanId = context.ScanId,
             StartedAtUtc = context.StartedAtUtc,
             CompletedAtUtc = _clock.UtcNow,
-            Outcome = ScanOutcomeResolver.Resolve(cancellationRequested, results),
+            Outcome = ScanOutcomeResolver.Resolve(cancellationRequested, results, ruleEvaluation.HasFailures),
             AppVersion = _versions.AppVersion,
             RulesVersion = _versions.RulesVersion,
             UserContext = context.UserContext,
-            ProbeSummaries = summaries,
-            Findings = findings,
+            ProbeSummaries = Array.AsReadOnly(summaries),
+            Findings = findings.AsReadOnly(),
         };
 
         return new ScanResult(report, snapshot);

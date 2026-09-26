@@ -49,6 +49,21 @@ public class ScanSnapshotTests
     }
 
     /// <summary>
+    /// 스냅샷의 결과 목록은 배열·가변 목록으로 캐스팅해 바꿀 수 없다.
+    /// </summary>
+    [Fact]
+    public void 결과_목록은_캐스팅으로도_바꿀_수_없다()
+    {
+        var snapshot = EngineTestData.CreateSnapshot(EngineTestData.CreateResult("a", ProbeStatus.Success));
+
+        Assert.Null(snapshot.ProbeResults as ProbeResult[]);
+        Assert.Null(snapshot.ProbeResults as List<ProbeResult>);
+        var asList = Assert.IsAssignableFrom<IList<ProbeResult>>(snapshot.ProbeResults);
+        Assert.Throws<NotSupportedException>(() => asList[0] = EngineTestData.CreateResult("x", ProbeStatus.Failed));
+        Assert.Equal("a", snapshot.ProbeResults[0].ProbeId);
+    }
+
+    /// <summary>
     /// 같은 ProbeId가 두 번 들어오면 스냅샷을 만들 수 없다.
     /// </summary>
     [Fact]

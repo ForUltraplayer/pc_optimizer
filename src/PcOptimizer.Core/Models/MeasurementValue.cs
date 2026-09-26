@@ -55,6 +55,17 @@ public sealed record TextValue(string Value) : MeasurementValue;
 
 /// <summary>
 /// 문자열 목록 측정값입니다. 빈 목록은 "조회 성공, 항목 없음"을 뜻하며 조회 실패를 대신하지 않습니다.
+/// 목록은 생성(및 with 식) 시 복사해 읽기 전용 보기로 보관합니다.
 /// </summary>
-/// <param name="Values">문자열 목록.</param>
-public sealed record TextListValue(IReadOnlyList<string> Values) : MeasurementValue;
+/// <param name="Values">문자열 목록(null 불가).</param>
+public sealed record TextListValue(IReadOnlyList<string> Values) : MeasurementValue
+{
+    private readonly IReadOnlyList<string> _values = ReadOnlyListCopy.Of(Values, nameof(Values));
+
+    /// <summary>문자열 목록(읽기 전용 복사본).</summary>
+    public IReadOnlyList<string> Values
+    {
+        get => _values;
+        init => _values = ReadOnlyListCopy.Of(value, nameof(Values));
+    }
+}

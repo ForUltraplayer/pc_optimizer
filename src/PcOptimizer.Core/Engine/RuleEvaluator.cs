@@ -41,14 +41,16 @@ public sealed class RuleEvaluator
 
     /// <summary>
     /// 모든 규칙을 스냅샷에 적용해 Finding을 모읍니다.
+    /// 예외·null 목록·null 항목을 낸 규칙은 실패로 세고 그 규칙마다 CannotVerify 하나를 추가합니다(null 항목은 버리고 나머지는 유지).
     /// </summary>
     /// <param name="snapshot">검사 스냅샷.</param>
-    /// <returns>규칙 순서대로 모은 Finding 목록.</returns>
-    public IReadOnlyList<Finding> Evaluate(ScanSnapshot snapshot)
+    /// <returns>규칙 순서대로 모은 Finding과 실패한 규칙 수.</returns>
+    public RuleEvaluationResult Evaluate(ScanSnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
 
         var findings = new List<Finding>();
+        var failedRuleCount = 0;
         foreach (var rule in _rules)
         {
             try
@@ -58,10 +60,18 @@ public sealed class RuleEvaluator
                 {
                     _logger.Error(LOG_CATEGORY, $"RuleReturnedNull rule={rule.Id} scan={snapshot.ScanId}");
                     findings.Add(CreateRuleFailureFinding(rule.Id));
+                    failedRuleCount++;
                     continue;
                 }
 
-                findings.AddRange(ruleFindings);
+                var validFindings = ruleFindings.Where(finding => finding is not null).ToArray();
+                findings.AddRange(validFindings);
+                if (validFindings.Length != ruleFindings.Count)
+                {
+                    _logger.Error(LOG_CATEGORY, $"RuleReturnedNullItem rule={rule.Id} scan={snapshot.ScanId}");
+                    findings.Add(CreateRuleFailureFinding(rule.Id));
+                    failedRuleCount++;
+                }
             }
             catch (Exception ex)
             {
@@ -69,10 +79,11 @@ public sealed class RuleEvaluator
                 // 예외 원문에는 개인 경로가 들어갈 수 있으므로 형식 이름만 기록한다.
                 _logger.Error(LOG_CATEGORY, $"RuleFailed rule={rule.Id} scan={snapshot.ScanId} error={ex.GetType().Name}");
                 findings.Add(CreateRuleFailureFinding(rule.Id));
+                failedRuleCount++;
             }
         }
 
-        return findings;
+        return new RuleEvaluationResult(findings.AsReadOnly(), failedRuleCount);
     }
 
     /// <summary>

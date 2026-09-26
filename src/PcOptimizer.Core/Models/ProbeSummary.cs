@@ -14,7 +14,8 @@ namespace PcOptimizer.Core.Models;
 /// <param name="Duration">소요 시간.</param>
 /// <param name="IssueCount">Issue 수.</param>
 /// <param name="IsStillRunning">
-/// 리포트 작성 시점에 호출이 아직 끝나지 않았는지 여부(타임아웃·취소 후 종료 중). true이면 "취소/중단 완료"로 표시하지 않는다.
+/// 리포트 작성 시점에 이 프로브의 호출(이번 검사 또는 이전 검사에서 시작한 호출)이 아직 끝나지 않았는지 여부(타임아웃·취소 후 종료 중).
+/// true이면 "취소/중단 완료"로 표시하지 않는다.
 /// </param>
 public sealed record ProbeSummary(
     string ProbeId,
