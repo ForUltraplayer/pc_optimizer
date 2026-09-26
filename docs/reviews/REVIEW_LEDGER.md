@@ -13,8 +13,8 @@
 
 | ID | 중요도 | 상태 | 대상 | 요약 |
 |---|---|---|---|---|
-| REV-001 | P1 | 수정됨·재검증 대기 | P4 보호 정책 | 드라이브 루트로 지정된 Known Folder가 보호 목록에서 빠짐 |
-| REV-002 | P2 | 수정됨·재검증 대기 | P4 파일 순회 | 단일 폴더 열거·처리 중 취소 및 시간 예산 확인 누락 |
+| REV-001 | P1 | 검증 완료 | P4 보호 정책 | 드라이브 루트 Known Folder 보호 및 기존 스캔 루트 제한 독립 확인 |
+| REV-002 | P2 | 부분 수정·추가 재현 실패 | P4 파일 순회 | 열거·취소 수정 확인, 파일 ID 처리 단계의 시간 예산 누락 남음 |
 | REV-003 | P2 | 미해결 | P2 UI / P7 | 작업이 실제 종료돼도 ‘종료 중’ 안내가 다음 검사까지 남음 |
 | REV-004 | 제품 범위 | 범위 결정 필요 | 구현 계획 | 사용자가 기대한 기존 도구 통합이 계획에서 2차로 연기됨 |
 | REV-005 | P2 | 검증 완료(장치 ID 범위) | P3a 내보내기 | 장치 내부 ID 원문 노출 보완 확인 |
@@ -38,6 +38,10 @@
     - `dotnet test tests/PcOptimizer.Tests -c Release --no-build --filter "Category!=Smoke"` — `통과: 655, 실패: 0`.
     - `dotnet test tests/PcOptimizer.Tests -c Release --no-build --filter "Category=Smoke"` — `총 16, 통과 16`(관리자 셸, 실제 파일 스캔 Success, timedOut=False).
   - 남은 제한: 정책 파일(protect.json) 자체의 `environmentPath` 항목에 드라이브 루트를 적는 것은 파서가 여전히 무효로 처리한다(정책 작성 오류 방지, 이번 항목 범위 밖). 드라이브 루트 Known Folder가 시스템 드라이브(C:\)이면 C: 위의 모든 스캔 루트가 보호로 제외되어 파일 검사 결과가 비게 된다(실패 시 닫힘 방향).
+
+- 독립 재검증 (2026-09-26, Codex, 기준 `23f92e9`, 구현 `5399f00`/`4c901e4` 포함):
+  - 별도 `git archive` 복사본에서 `KnownFolderAtVolumeRootStillProtectsDescendants`, 보호 정책·스캔 루트 제한 회귀를 포함한 기본 659/659 및 Smoke 16/16 통과.
+  - 보호용 `NormalizeProtected`와 스캔용 `NormalizeAbsolute` 분리 확인. REV-001을 `검증 완료`로 변경한다.
 
 ## REV-002 — 폴더 내부에도 취소·시간 예산 검사 필요
 
@@ -84,6 +88,14 @@
     - 예산을 넘긴 시점에 폴더가 사실 끝까지 열거됐을 수도 있지만, 더 요청하지 않으므로 보수적으로 시간 초과로 기록한다.
     - 실제 대량 항목 폴더의 성능은 측정하지 않았다(가짜 열거로만 검증).
 
+- 독립 재검증 (2026-09-26, Codex, 기준 `23f92e9`):
+  - 기존 재현 2건과 2차 부분 합계·0바이트·실패 중복 회귀를 포함한 기본 659/659, Smoke 16/16 통과. 기존 재현의 수정은 확인했다.
+  - **남은 실패: 처리 단계의 시간 예산.** `ListDirectory`는 열거가 끝난 뒤 `entries` 전체를 처리하면서 취소만 확인한다. `HandleFile`은 아직 파일 ID·할당 크기 OS 조회를 하므로 단순 메모리 합산이 아니다. 처리 중에만 예산을 넘기면 마지막 폴더의 루트/볼륨은 `TimedOut=false`로 끝날 수 있다.
+  - 추가 재현: [ProcessingBudgetReviewTests.cs](repro/ProcessingBudgetReviewTests.cs). 64MiB 파일 메타데이터 3개를 즉시 열거하고 가짜 ID 조회마다 시간을 121초 진행시킨다. 120초 예산인데 ID 조회 3회/가짜 경과 363초, 루트 `TimedOut=false`로 **1/1 실패**했다. 실제 363초 대기나 대용량 파일 생성은 없다.
+  - 명령: 검증용 복사본 `tests/PcOptimizer.Tests/Unit/Probes/`에 위 파일을 복사하고 `dotnet test PcOptimizer.sln --configuration Release --no-restore --filter "FullyQualifiedName~ProcessingBudgetReviewTests"` 실행.
+  - 요청: 이미 열거한 논리 크기를 보존하는 것과 추가 OS 조회를 계속하는 것을 분리한다. 예산 소진 뒤 신규 ID/할당 크기 조회는 중단하고 미확인·중복 가능 등 품질 저하와 시간 초과를 표시하거나, 미처리 구간을 명시한 부분 결과로 종료한다. 기존 부분 합계 보존 테스트도 유지한다. OS 호출 한 번을 강제로 중단하라는 요구는 아니다.
+  - 구현자 기록의 ‘예산을 조금 넘길 수 있음’만으로 닫지 않는다. 현재 초과 시간은 받은 항목 수와 각 OS 조회 지연에 따라 누적된다. REV-002는 `부분 수정·추가 재현 실패`로 유지한다.
+
 ## REV-003 — ‘종료 중’ 안내 자동 갱신
 
 - 위치: `src/PcOptimizer.App/ViewModels/MainViewModel.cs`, `ApplyResult` / `CreateDrainingNote`.
@@ -109,6 +121,8 @@
 - 한계: 장치 ID 범위의 확인이다. P4 경로, 시작 명령의 인자 등 향후 추가되는 모든 데이터의 익명화를 포괄 승인하지 않는다.
 
 ## 독립 검증 기록
+
+- P4 최종 보고 재확인 (2026-09-26, Codex): `23f92e9` 별도 복사본 Release 빌드 경고 0/오류 0, 기본 659/659, Smoke 16/16(약 18초) 통과. 기본/Smoke는 추가 리뷰 테스트 편입 전에 실행했다. 이후 처리 단계 예산 재현 1개를 추가한 실행은 1/1 실패했다. 따라서 기존 테스트 수치의 재현과 추가 경계 조건의 미해결을 구분한다. P5 작업본은 이 검증에 포함하지 않았다.
 
 - P3b: `0bce903`(구현 `a0ab605` 포함)을 `git archive`한 별도 임시 복사본에서 Release 빌드 경고 0/오류 0, 기본 523/523, Smoke 13/13 확인.
 - 명령: `dotnet build PcOptimizer.sln --configuration Release`, `dotnet test PcOptimizer.sln --configuration Release --no-build --no-restore --filter "Category!=Smoke"`, 같은 명령의 `Category=Smoke` 필터.
