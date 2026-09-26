@@ -1620,6 +1620,8 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 ### Task 10: 관리자 실행 시 도구 정리 조건 정리와 정리 창 문구
 
+> 2026-09-27 독립 리뷰 후속: [공유 원장](../../reviews/REVIEW_LEDGER.md)의 REV-016~018 및 REV-010과 [재현 보고서](../../reviews/2026-09-27-sp4-task9-review.md)를 브리프 작성 전에 읽을 것. 승격 거절을 제거하기 전에 SystemOnly 사용자 조치 거절 계약과 검사·사양·실행의 실제 작업 수명 관문을 반영해야 한다. 현재 정리 실행 차단을 신규 결함이 해결됐다는 근거로 삼지 않는다.
+
 **Files:**
 - Modify: `src/PcOptimizer.Probes/Actions/SystemCacheToolBackend.cs`(승격 거절 → "보호 위치 도구만 실행" 규칙으로 교체), `src/PcOptimizer.App/ViewModels/CacheToolsViewModel.cs`(문구), `Strings.resx`, `ProbeStrings.resx`
 - Test: `tests/PcOptimizer.Tests/Unit/App/CachePathInspectorTests.cs`, `CacheCleanupTests.cs`(수정)
