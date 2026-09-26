@@ -23,6 +23,9 @@ internal sealed class FakeFileIdentityReader : IFileIdentityReader
     /// <summary>ID 조회 호출 경로.</summary>
     public ConcurrentQueue<string> IdentityCalls { get; } = new();
 
+    /// <summary>할당 크기 조회 호출 경로.</summary>
+    public ConcurrentQueue<string> AllocatedCalls { get; } = new();
+
     /// <summary>ID 조회 때 호출되는 훅(처리 도중 시간이 흐르는 경우를 만든다).</summary>
     public Action<string>? OnIdentity { get; set; }
 
@@ -55,6 +58,7 @@ internal sealed class FakeFileIdentityReader : IFileIdentityReader
     /// <inheritdoc />
     public long? TryGetAllocatedSize(string path)
     {
+        AllocatedCalls.Enqueue(path);
         return _allocated.TryGetValue(path, out var bytes) ? bytes : null;
     }
 }

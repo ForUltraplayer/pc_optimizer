@@ -73,5 +73,38 @@ public sealed class ProcessingBudgetReviewTests
         Assert.Equal(1, root.Totals.Skips.Incomplete);
         Assert.Equal(ScanSkipReason.Timeout, result.GetEnumerationFailure(@"X:\root"));
         Assert.True(Assert.Single(result.Volumes).TimedOut);
+        Assert.Empty(identities.AllocatedCalls);
+    }
+
+    /// <summary>
+    /// 64MiB 이상이면서 압축된 파일 하나의 파일 ID 조회가 예산을 넘기면, 같은 파일의 할당 크기 조회는 하지 않는다
+    /// (예산을 넘긴 뒤 수행되는 OS 조회는 진행 중이던 한 번뿐). 논리 크기는 세고, 조회 생략 수와 시간 초과를 기록한다.
+    /// </summary>
+    [Fact]
+    public async Task AllocatedSizeLookupIsSkippedWhenIdentityLookupCrossesBudget()
+    {
+        var time = new ManualTimeProvider();
+        const long size = FileSystemScanner.HARD_LINK_CHECK_MIN_BYTES;
+        var source = new FakeDirectoryEntrySource().Dir(@"X:\root",
+            FakeDirectoryEntrySource.File("big-compressed.bin", size, System.IO.FileAttributes.Compressed));
+        var identities = new FakeFileIdentityReader()
+            .WithIdentity(@"X:\root\big-compressed.bin", 1)
+            .WithAllocated(@"X:\root\big-compressed.bin", 4096);
+        identities.OnIdentity = _ => time.Advance(TimeSpan.FromSeconds(121));
+        var scanner = new FileSystemScanner(source, identities, time);
+
+        var result = await scanner.ScanAsync(
+            [new ScanTarget("root", @"X:\root")], new ResolvedProtection([]), [],
+            TimeSpan.FromSeconds(120), CancellationToken.None);
+
+        var root = Assert.Single(result.Roots);
+        Assert.Single(identities.IdentityCalls);
+        Assert.Empty(identities.AllocatedCalls);
+        Assert.True(root.TimedOut);
+        Assert.Equal(size, root.Totals!.Bytes);
+        Assert.Equal(1, root.Totals.LookupsSkipped);
+        Assert.Equal(0, root.Totals.CompressedOrSparseFileCount);
+        Assert.Equal(1, root.Totals.Skips.Timeout);
+        Assert.True(Assert.Single(result.Volumes).TimedOut);
     }
 }
