@@ -94,7 +94,7 @@ Finding
 | 분류 | 검사 | 수집 방법 | 판정 |
 |---|---|---|---|
 | 디스플레이 | 활성 모니터별 현재 모드와 같은 해상도의 드라이버 보고 모드 비교 | `QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS)`로 활성 대상·현재 신호/가상 주사율을 구분하고, `EnumDisplayDevicesW` + `EnumDisplaySettingsW`로 모드 열거. EDID/WMI는 보조 정보이며 '항상 60Hz까지만 나온다'고 가정하지 않음 | 같은 해상도·방향·픽셀 형식·주사 방식에서 의미 있게 높은 모드(차이 1Hz 초과)가 있으면 Candidate '더 높은 주사율 후보'. 59.94/60은 개선으로 분류하지 않음. 복제·원격·가상 화면·DRR로 비교가 불명확하면 CannotVerify. 연결 전원 상태를 함께 표시. HDR/색심도 등 모든 조건과 안정성은 검증한 것이 아니므로 '구동 가능 확정' 문구 금지 |
-| 메모리 | 모듈별 SMBIOS 보고 속도(`Speed`)와 설정 속도(`ConfiguredClockSpeed`) | `Win32_PhysicalMemory`; 원시 값과 제공자 단위를 보존 | 유효한 값이면 Info '펌웨어가 보고한 설정 속도'. 단순 일치로 '정격'·XMP 적용·정상 최적화를 확정하지 않고, 낮다는 이유만으로 XMP 활성화를 권장하지 않음. XMP/EXPO 활성 여부는 별도 CannotVerify(Unsupported), 0/누락은 CannotVerify. 광고상 정격·프로필 검증은 1차 범위 밖 |
+| 메모리 | 모듈별 SMBIOS 보고 속도(`Speed`)와 설정 속도(`ConfiguredClockSpeed`) | `Win32_PhysicalMemory`; 원시 값과 제공자 단위를 보존 | 유효하고 비교 가능한 설정 속도 < 보고 속도: Candidate '메모리 속도 설정 확인 가능'. 두 속도 일치: Info '보고 속도와 설정 속도 일치'. 누락·0·단위 불명확: CannotVerify. 후보 설명에 "CPU·메인보드·메모리 구성에 따른 정상 제한일 수 있으며, XMP/EXPO 활성 여부는 확인되지 않았습니다"를 반드시 붙임. `Speed`를 광고상 정격이나 이 PC에서 보장되는 속도로 표현하지 않고, '정격 미달'·'XMP 꺼짐'으로 단정하지 않음. 무조건적인 XMP 활성화 권고 없음. XMP/EXPO 활성 여부 자체는 별도 CannotVerify(Unsupported) |
 | GPU 드라이버 | 어댑터별 설치 버전·날짜·하드웨어 ID, NVIDIA의 조건에 맞는 최신 후보 | `Win32_VideoController`와 PnP 장치 정보로 연결. NVIDIA 공개 웹 조회는 보장된 SDK가 아닌 변경 가능한 어댑터로 취급. pfid/psid는 정확한 GPU/OS 매핑을 검증하고, 응답 버전·날짜·제품·URL을 검증 | Game Ready/Studio 양쪽에 같은 버전이 있거나 어느 쪽에도 없으면 계열은 Ambiguous. 사용자가 계열을 선택하거나 설치 계열을 독립적으로 확인했을 때만 동일 계열 비교. 버전 문자열은 수치로 비교하고 Windows 드라이버 버전 변환도 테스트. 최신 후보가 있어도 '이 기기 권장/설치 호환성 검증 완료'로 표현하지 않음. AMD/Intel은 설치 정보 Info + 공식 링크, 최신 비교 Unsupported. 실패 시 설치 정보 보존 |
 | Windows 업데이트 드라이버 | 구성된 업데이트 서비스에서 검색된 미설치·비숨김 드라이버 | Windows Update Agent COM의 비동기 검색(`IsInstalled=0 and IsHidden=0 and Type='Driver'`), 취소 지원. 기존 관리 정책·업데이트 서비스를 변경하지 않음 | 있으면 Candidate 'Windows Update에서 제공되는 드라이버 후보' + 설정 앱 열기. 모든 제조사 최신 드라이버를 포괄한다고 주장하지 않음. 성공 결과 0건은 Info '해당 서비스에서 후보 없음'. 정책 차단·부분 검색·재부팅 관련 상태는 별도 사유 표시 |
 | 노트북 OEM | 제조사·모델 → 지원 페이지 | `Win32_ComputerSystem` + `vendor-links.json` | Info. 표에 없으면 CannotVerify(NoRule) |
@@ -162,7 +162,7 @@ supplement.ini 1차 항목: Adobe Media Cache Files, npm cache, pip cache, NuGet
 
 ## 9. 테스트
 
-- 규칙: 가짜 측정값 → 기대 Finding. 정상/후보/확인 불가 경계, null/0/false, 부분 결과와 미실행, 메모리 속도 일치/불일치에서 XMP 권고가 발생하지 않는지 검증
+- 규칙: 가짜 측정값 → 기대 Finding. 정상/후보/확인 불가 경계, null/0/false, 부분 결과와 미실행, 메모리는 설정 속도 < 보고 속도에서만 조건부 Candidate가 나오고, 일치는 Info, 누락·0은 CannotVerify이며, 어떤 경우에도 '정격 미달'·'XMP 꺼짐' 단정이나 무조건적 XMP 활성화 권고 문구가 없는지 검증
 - 디스플레이: 59.94/60, 해상도 변경 필요 모드, 인터레이스, DRR, 복제, 원격 세션, 다중 모니터·핫플러그를 fixture로 검증
 - 드라이버: 두 계열에 같은 버전, 목록에 없는 설치 버전, 정확한 장치 매핑 실패, HTML 오류 응답·스키마 변경, 네트워크 끊김, 수치 버전 비교, 허용되지 않은 URL 검증
 - 파일/파서: 알 수 없는 제외 문법, 보호 경로 아래 사용자 설정 경로, 중첩 루트·하드링크·정션, 접근 거부, 취소, 설정 파일 내 비밀 값, Steam 게임 본체 제외, Squirrel '미사용' 오판 금지를 테스트. 합계와 상위 20개 부모/자식 중복 제거도 검증
