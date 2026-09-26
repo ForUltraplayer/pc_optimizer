@@ -22,7 +22,7 @@ namespace PcOptimizer.App.ViewModels;
 /// <item>[설정 열기]는 허용 목록에 있는 설정 URI가 있을 때만 제공하고, 없으면 수동 경로 안내를 보여 줍니다.</item>
 /// <item>공식 링크 버튼은 링크 정책(<see cref="LinkPolicy"/>)을 통과한 OpenLink만 보여 주며, 누를 때 다시 확인한 뒤 엽니다(자동으로 열지 않음).</item>
 /// <item>[유지]는 현재 검사에서 카드를 접는 UI 동작일 뿐이며 설정 변경·영구 제외가 아닙니다(다음 검사에서 새 카드가 만들어짐).</item>
-/// <item>[적용]은 항상 비활성이며 '자동 조치는 다음 버전 예정' 설명을 제공합니다.</item>
+/// <item>설정별 직접 적용 버튼은 노출하지 않습니다. 공식 캐시 정리는 별도 확인 창에서 실행합니다.</item>
 /// </list>
 /// </summary>
 public sealed partial class FindingCardViewModel : ObservableObject
@@ -75,7 +75,7 @@ public sealed partial class FindingCardViewModel : ObservableObject
         HiddenLinkCount = linkActions.Length - Links.Count;
         HasKeepAction = finding.Actions.Any(action => action is KeepAction);
         HasApplyAction = finding.Actions.Any(action => action is ApplyAction);
-        CanShowDetails = Measurements.Count > 0 || finding.Actions.Any(action => action is ShowDetailsAction);
+        CanShowDetails = HasEvidence || HasDetail || Measurements.Count > 0 || finding.Actions.Any(action => action is ShowDetailsAction);
     }
 
     /// <summary>원본 Finding.</summary>
@@ -86,6 +86,8 @@ public sealed partial class FindingCardViewModel : ObservableObject
 
     /// <summary>판정.</summary>
     public Verdict Verdict => Finding.Verdict;
+
+    public bool IsCandidate => Verdict == Verdict.Candidate;
 
     /// <summary>판정 배지 텍스트.</summary>
     public string VerdictText { get; }
@@ -152,7 +154,21 @@ public sealed partial class FindingCardViewModel : ObservableObject
     public bool CanOpenSettings => SettingsUri is not null;
 
     /// <summary>설정 URI가 없어 수동 경로 안내를 보여야 하는지 여부(권장이 있을 때만).</summary>
-    public bool ShowManualPathHint => HasRecommendation && !CanOpenSettings;
+    public bool ShowManualPathHint => HasRecommendation && !CanOpenSettings && !HasLinks;
+
+    /// <summary>효과를 검증하지 않은 정보 카드에는 효과 배너를 붙이지 않습니다.</summary>
+    public bool HasCandidateBenefit => Verdict == Verdict.Candidate && !string.IsNullOrWhiteSpace(Finding.Impact?.Benefit);
+    public string? CandidateBenefit => Finding.Impact?.Benefit;
+    public string ActionModeText => CanOpenSettings ? Strings.Overview_ManualSetting
+        : HasLinks ? Strings.Overview_OfficialGuide : Strings.Overview_ReviewFirst;
+    public string SettingsButtonText => Finding.Category switch
+    {
+        FindingCategory.Display => Strings.Overview_DisplaySettings,
+        FindingCategory.Power => Strings.Overview_PowerSettings,
+        FindingCategory.Driver => Strings.Overview_UpdateSettings,
+        FindingCategory.Storage or FindingCategory.AppCache => Strings.Cleanup_OpenWindows,
+        _ => Strings.Button_OpenSettings,
+    };
 
     /// <summary>허용 목록을 통과한 공식 링크 버튼(OpenLink 순서).</summary>
     public IReadOnlyList<LinkButtonViewModel> Links { get; }

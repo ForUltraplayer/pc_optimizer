@@ -4,12 +4,14 @@
 
 ## 실행
 
-`artifacts/win-x64/PcOptimizer.App.exe`를 실행합니다. 배포 폴더 전체가 필요하며 .NET 런타임이 포함됩니다.
+최신 UI 평가판은 `artifacts/win-x64-ui/PcOptimizer.App.exe`를 실행합니다. 기존 `artifacts/win-x64`는 사용 중인 이전 UI 빌드입니다. 배포 폴더 전체가 필요하며 .NET 런타임이 포함됩니다.
 
 1. **검사 시작**: 하드웨어·설정·저장소·앱 캐시를 조회합니다. 확인 불가 이유와 관측 범위를 함께 표시합니다.
 2. **온라인 업데이트 확인**: 선택한 검사에서만 NVIDIA·Windows Update를 조회합니다. 설치는 하지 않습니다.
-3. **도구로 캐시 정리**: npm·pip·NuGet HTTP 중 하나를 선택하고 **정리 대상 확인 → 확인 후 정리**를 누릅니다. Windows 임시 파일은 저장소 설정으로 연결합니다.
+3. **공간 확보 → 정리할 캐시 확인**: npm·pip·NuGet HTTP 중 하나를 선택하고 **정리 대상 확인 → 확인 후 정리**를 누릅니다. Windows 임시 파일은 저장소 설정으로 연결합니다.
 4. 공식 도구 실행 후 같은 위치를 다시 관측하고, 정리 창을 닫으면 전체 진단을 다시 실행합니다.
+
+첫 화면의 **추천 조치**에서 기대 효과·현재 상태·할 일·주의사항을 확인합니다. 정상·참고·확인 불가와 커뮤니티 관측은 **전체 결과**에서, 원시 측정값·출처는 카드의 **자세히 보기**에서 확인합니다. 관리자 재검사와 내보내기는 창 하단의 **검사 옵션**에 있습니다. 캐시 관측 크기를 확보 용량이나 개선 후보 수에 합산하지 않습니다.
 
 자동 정리는 일반 권한에서만 지원합니다. 현재 사용자 프로필 밖으로 옮긴 캐시, 보호/동기화 경로, 링크/placeholder, 불완전하게 읽힌 대상은 자동 정리하지 않습니다. 해당 도구가 설치돼 있어야 하며 자동으로 설치하지 않습니다. pip은 PATH에서 찾은 Python의 격리 모드에서 pip 모듈을 쓸 수 있어야 합니다. 캐시 정리는 되돌릴 수 없으며 이후 설치 때 재다운로드가 필요합니다. 패키지 설치·빌드 중에는 실행하지 마세요.
 
@@ -22,7 +24,7 @@ Squirrel 버전 폴더, NuGet 전역 패키지, 드라이버 설치, 보안 설�
 ```powershell
 dotnet build -c Release
 dotnet test tests/PcOptimizer.Tests -c Release --no-build --filter "Category!=Smoke&Category!=Online&Category!=ToolSmoke"
-dotnet publish src/PcOptimizer.App/PcOptimizer.App.csproj -c Release -r win-x64 --self-contained true -o artifacts/win-x64
+dotnet publish src/PcOptimizer.App/PcOptimizer.App.csproj -c Release -r win-x64 --self-contained true -o artifacts/win-x64-ui
 ```
 
 - `Category=Smoke`: 실제 PC 조회 및 소유한 임시 캐시/링크 fixture 검사. WMI·링크 생성 권한과 npm/dotnet 설치가 필요합니다.

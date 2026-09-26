@@ -103,7 +103,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>내보내기 등 최근 동작 결과 안내(없으면 null).</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasStatusMessage))]
     private string? _statusMessage;
+
+    public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
 
     /// <summary>선택한 분류(전체 포함).</summary>
     [ObservableProperty]
@@ -420,5 +423,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             Cards.Add(card);
         }
+        NotifyOverview();
     }
 }

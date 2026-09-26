@@ -40,13 +40,14 @@ public sealed class MainViewModelTests
         IUiDispatcher? dispatcher = null,
         IElevationState? elevation = null,
         IProcessStarter? starter = null,
-        ScanLaunchMode launchMode = ScanLaunchMode.Normal)
+        ScanLaunchMode launchMode = ScanLaunchMode.Normal,
+        IEnumerable<IRule>? rules = null)
     {
         var elevationState = elevation ?? new FakeElevationState(isElevated: false);
         var options = new ScanOptions { CancellationGracePeriod = SHORT_GRACE };
         var service = new ScanService(
             probes,
-            [new MemorySpeedRule(), new PowerPlanRule()],
+            rules ?? [new MemorySpeedRule(), new PowerPlanRule()],
             options,
             new ScanReportVersions("test-app", "test-rules"),
             new FakeClock(),
@@ -78,7 +79,44 @@ public sealed class MainViewModelTests
         Assert.False(vm.CancelScanCommand.CanExecute(null));
         Assert.False(vm.ExportCommand.CanExecute(null));
         Assert.Empty(vm.Cards);
+        Assert.True(vm.IsOverview);
+        Assert.Equal(Strings.Overview_NotScanned, vm.SettingsCount);
+        Assert.Equal(Strings.Overview_Welcome, vm.OverviewTitle);
         Assert.Equal(Strings.LastMeasured_None, vm.LastMeasuredText);
+    }
+
+    [Fact]
+    public async Task OverviewDoesNotPromoteCacheObservationsOrCommunityRules()
+    {
+        using var vm = CreateViewModel([new FixtureMemoryProbe()], rules: [new OverviewFixtureRule()]);
+        await vm.StartScanCommand.ExecuteAsync(null);
+        Assert.Equal("fixture:action", Assert.Single(vm.VisibleCards).Finding.Id);
+        Assert.Equal(3, vm.LastResult!.Report.Findings.Count);
+        vm.ShowAllCommand.Execute(null);
+        Assert.Equal(2, vm.VisibleCards.Count());
+        Assert.Contains(vm.VisibleCards, c => c.Finding.Id == "fixture:cache");
+        vm.ShowCommunityDetails = true;
+        Assert.Equal(3, vm.VisibleCards.Count());
+        vm.ShowRecommendationsCommand.Execute(null);
+        Assert.Single(vm.VisibleCards);
+        Assert.Equal(3, vm.LastResult.Report.Findings.Count);
+    }
+
+    private sealed class OverviewFixtureRule : IRule
+    {
+        public string Id => "fixture.overview";
+        public IReadOnlyList<Finding> Evaluate(ScanSnapshot snapshot) =>
+        [
+            new Finding("fixture:cache", FindingCategory.AppCache, "관측한 캐시 1 GB", [], "논리 크기", Verdict.Info,
+                null, null, null, new Impact("용량 확인", "다시 내려받음"), []),
+            new Finding("fixture:action", FindingCategory.Display, "주사율 후보", [], "동일 모드 비교", Verdict.Candidate,
+                null, null, new Recommendation("설정 확인", "동일 해상도"), new Impact("화면 움직임", "전력 소비"),
+                [new OpenSettingsAction(SettingsUriPolicy.DISPLAY_SETTINGS_URI)]),
+            new Finding("fixture:community", FindingCategory.AppCache, "커뮤니티 후보", [
+                new Measurement("cache.origin", new TextValue(AppCacheProbeContract.ORIGIN_COMMUNITY), null, "fixture",
+                    DateTimeOffset.UnixEpoch, MeasurementQuality.Reported)], "커뮤니티 규칙", Verdict.Candidate,
+                null, null, new Recommendation("수동 확인", "검증 전"), null, []),
+        ];
     }
 
     /// <summary>검사가 끝나면 Finding 기준 건수·분류·카드·마지막 측정 시각을 UI 마샬러로 반영한다.</summary>
@@ -99,6 +137,14 @@ public sealed class MainViewModelTests
         Assert.Equal(DisplayText.Format(Strings.Summary_Format, 0, 1, 2, 1), vm.SummaryText);
         Assert.NotNull(vm.LastMeasuredAtUtc);
         Assert.Equal(4, vm.Cards.Count);
+        Assert.Equal(Verdict.Candidate, Assert.Single(vm.VisibleCards).Verdict);
+        Assert.Single(vm.RecommendedCards);
+        var originalReport = vm.LastResult;
+        vm.ShowAllCommand.Execute(null);
+        Assert.Equal(4, vm.VisibleCards.Count());
+        Assert.Same(originalReport, vm.LastResult);
+        vm.ShowRecommendationsCommand.Execute(null);
+        Assert.Single(vm.VisibleCards);
         Assert.Equal([null, FindingCategory.Memory, FindingCategory.Power], vm.Categories.Select(c => c.Category));
         Assert.Equal([4, 3, 1], vm.Categories.Select(c => c.Count));
         Assert.True(vm.ExportCommand.CanExecute(null));
@@ -160,6 +206,9 @@ public sealed class MainViewModelTests
         await scan.WaitAsync(WAIT_BOUND);
 
         Assert.Equal(ScanState.Cancelled, vm.State);
+        Assert.True(vm.IsResultListEmpty);
+        Assert.Equal(Strings.Overview_NoCandidates, vm.OverviewTitle);
+        Assert.Equal(1, vm.CannotVerifyCount);
         var cancelled = Assert.Single(vm.Cards);
         Assert.Equal(CannotVerifyReason.Cancelled, cancelled.Finding.CannotVerifyReason);
         Assert.True(vm.StartScanCommand.CanExecute(null));

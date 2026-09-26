@@ -38,16 +38,21 @@ public sealed class MainWindowLayoutTests
     {
         RunOnSta(() =>
         {
-            var main = new MainWindow(CreateScannedViewModel());
+            var main = new MainWindow(CreateScannedViewModel(overview: true, rule: new ImprovementRule()));
+            var idle = new MainWindow(CreateScannedViewModel(overview: true, scan: false));
+            var empty = new MainWindow(CreateScannedViewModel(overview: true));
+            var narrow = new MainWindow(CreateScannedViewModel(overview: true, rule: new ImprovementRule()));
             var tools = new CacheToolsWindow();
             tools.ViewModel.Message = "npm 캐시\n실행할 도구: C:\\Program Files\\nodejs\\node.exe\n캐시 위치: C:\\Users\\예시\\AppData\\Local\\npm-cache\n관측한 논리 크기: 123.4 MB\n이 확인 결과는 5분 동안 유효합니다.";
             foreach (var (window, name, size) in new (Window, string, Size)[]
             {
-                (main, "diagnostic", new Size(1100, 740)), (tools, "cache-tools", new Size(660, 560)),
+                (main, "diagnostic", new Size(1100, 800)), (tools, "cache-tools", new Size(720, 760)),
+                (idle, "before-scan", new Size(1100, 800)), (empty, "no-candidates", new Size(1100, 800)),
+                (narrow, "diagnostic-narrow", new Size(720, 680)),
             })
             {
                 var root = (FrameworkElement)window.Content;
-                if (root is Panel panel) { panel.Background = Brushes.White; }
+                if (root is Panel panel && panel.Background is null) { panel.Background = Brushes.White; }
                 if (root is Control control) { control.Background = Brushes.White; }
                 root.Measure(size);
                 root.Arrange(new Rect(size));
@@ -82,12 +87,13 @@ public sealed class MainWindowLayoutTests
     /// <summary>
     /// 긴 경로가 든 CannotVerify를 돌려주는 규칙이 있는 뷰모델로 검사를 한 번 실행한다.
     /// </summary>
-    private static MainViewModel CreateScannedViewModel(bool isElevated = false, ScanLaunchMode launchMode = ScanLaunchMode.Normal)
+    private static MainViewModel CreateScannedViewModel(bool isElevated = false, ScanLaunchMode launchMode = ScanLaunchMode.Normal,
+        bool overview = false, bool scan = true, IRule? rule = null)
     {
         var elevation = new FakeElevationState(isElevated);
         var service = new ScanService(
             [new ThrowingProbe("fixture.failing") { Category = FindingCategory.Storage }],
-            [new LongTextRule()],
+            [rule ?? new LongTextRule()],
             new ScanOptions(),
             new ScanReportVersions("test-app", "test-rules"),
             new FakeClock(),
@@ -104,7 +110,8 @@ public sealed class MainWindowLayoutTests
             elevation,
             new ElevationRelauncher(new RecordingProcessStarter(), elevation, () => null, NullAppLogger.Instance),
             launchMode);
-        vm.StartScanCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+        if (scan) { vm.StartScanCommand.ExecuteAsync(null).GetAwaiter().GetResult(); }
+        vm.ShowAllResults = !overview;
         return vm;
     }
 
@@ -161,14 +168,16 @@ public sealed class MainWindowLayoutTests
     {
         RunOnSta(() =>
         {
-            var window = new MainWindow(CreateScannedViewModel());
+            var model = CreateScannedViewModel();
+            model.Cards.Single(c => c.Title == "long path fixture").ToggleDetailsCommand.Execute(null);
+            var window = new MainWindow(model);
             var root = (FrameworkElement)window.Content;
             root.Measure(new Size(LAYOUT_WIDTH, LAYOUT_HEIGHT));
             root.Arrange(new Rect(0, 0, LAYOUT_WIDTH, LAYOUT_HEIGHT));
             root.UpdateLayout();
 
             var texts = Descendants<TextBlock>(root).ToList();
-            var evidence = Assert.Single(texts, t => t.Text.Contains(LONG_PATH, StringComparison.Ordinal));
+            var evidence = Assert.Single(texts, t => t.Text.Contains(LONG_PATH, StringComparison.Ordinal) && t.Visibility == Visibility.Visible);
             Assert.Equal(TextWrapping.Wrap, evidence.TextWrapping);
             Assert.True(evidence.ActualWidth <= LAYOUT_WIDTH, $"폭 {evidence.ActualWidth}");
             var singleLine = evidence.FontSize * evidence.FontFamily.LineSpacing;
@@ -203,6 +212,7 @@ public sealed class MainWindowLayoutTests
     /// </summary>
     private static (Button Button, TextBlock Banner) LayoutElevationControls(MainWindow window)
     {
+        ((Expander)window.FindName("OptionsExpander")).IsExpanded = true;
         var root = (FrameworkElement)window.Content;
         root.Measure(new Size(LAYOUT_WIDTH, LAYOUT_HEIGHT));
         root.Arrange(new Rect(0, 0, LAYOUT_WIDTH, LAYOUT_HEIGHT));
@@ -262,5 +272,25 @@ public sealed class MainWindowLayoutTests
                     "fixture:link", FindingCategory.Driver, "link fixture", [], "link evidence", Verdict.Info, null, null, null, null, [new OpenLinkAction(LINK_URL, LINK_LABEL)]),
             ];
         }
+    }
+
+    // Fictional fixtures, never a claim about the user's current PC.
+    private sealed class ImprovementRule : IRule
+    {
+        public string Id => "fixture.improvements";
+        public IReadOnlyList<Finding> Evaluate(ScanSnapshot snapshot) =>
+        [
+            new Finding("fixture:display", FindingCategory.Display, "모니터의 주사율을 더 높일 수 있습니다", [],
+                "현재 2560 × 1440 · 120 Hz → 같은 해상도의 후보 130 Hz", Verdict.Candidate, null, null,
+                new Recommendation("디스플레이 설정에서 130 Hz를 선택하고 화면을 확인하세요.", "현재 해상도와 색 깊이를 유지할 때"),
+                new Impact("화면 움직임이 더 부드럽게 보일 수 있어요", "전력 소비가 늘 수 있습니다. 화면이 불안정하면 기존 값으로 되돌리세요."),
+                [new OpenSettingsAction(SettingsUriPolicy.DISPLAY_SETTINGS_URI), new KeepAction(), new ShowDetailsAction()]),
+            new Finding("fixture:driver", FindingCategory.Driver, "설치된 드라이버보다 새로운 버전이 있습니다", [],
+                "예시 설치 버전과 공식 배포 버전을 비교했습니다.", Verdict.Candidate, null, null,
+                new Recommendation("공식 배포 설명에서 변경 내용을 확인하세요.", "기기와 운영체제에 맞는 버전인지 확인한 뒤 설치"),
+                new Impact("새 버전의 오류 수정과 호환성 개선을 받을 수 있습니다", "업데이트 효과는 프로그램과 기기에 따라 다릅니다."),
+                [new OpenLinkAction(LINK_URL, LINK_LABEL), new KeepAction()]),
+            new Finding("fixture:ok", FindingCategory.Storage, "TRIM이 활성화되어 있습니다", [], "OS 보고값", Verdict.Ok, null, null, null, null, []),
+        ];
     }
 }
