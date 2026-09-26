@@ -185,3 +185,6 @@ External review (Codex): P5 기본 803·스모크 18 독립 확인; REV-006(정�
 SESSION END 2026-09-26: 사용량 한도. 재개는 docs/HANDOFF.md 기준.
 2026-09-27: Codex가 구현 인계(89e2cbb, e75d08d, ad06cca): 1차 자동 조치(npm·pip·NuGet HTTP 캐시 정리), UI 개편, REV-002/003/006/007 수정, REV-004 사용자 결정 반영(자동 조치 1차 포함). 작업 트리에 Codex 미커밋 변경(빌드 깨짐) — 소스 미접촉.
 Independent review (Claude, fable, 9aa45b3..ad06cca): Critical 0, Important 5 → REV-008~012 원장 등록, 보고서 docs/reviews/2026-09-27-claude-independent-review.md. 판정: 일반 권한 수동 검증 진행 가능, 출시 전 REV-008~012 필수.
+Controller verify @d6f926e(HEAD, Codex 4e8a5bc 포함): Release build 0/0, default 1122/1122, smoke 21/21 (Online/ToolSmoke 미실행)
+Independent review dispatched (opus) for 4e8a5bc (UI outcomes/navigation) — read-only
+Independent review 2 (opus, 4e8a5bc): 실행기 변경 없음·안전; Important 3 → REV-013(실행 전 거절을 실패로 표시), REV-014(드라이버 타일 온라인 요청=비교 완료), REV-011 확대. 원장·보고서 커밋.
