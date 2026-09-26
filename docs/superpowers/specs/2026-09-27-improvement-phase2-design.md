@@ -191,6 +191,13 @@ ActionResult
 
 각 단계는 기존 절차(구현 → 태스크 리뷰 → 공유 원장 기록 → 독립 재검증)를 따른다. 실제 삭제·설정 변경은 이 PC의 사용자 데이터가 아닌 소유 fixture로 테스트하고, 실기 검증은 별도 평가 PC에서 한다.
 
+## 7A. 배포 (사용자 요구 2026-09-27)
+
+- GitHub Release에 zip 포터블로 배포한다. 설치 프로그램 없음. 압축을 풀면 최상위에 `PcOptimizer.exe`(단일 파일, self-contained, win-x64)와 `실행방법.txt`, `LICENSES/`, `rules/`(출처 메타데이터만)만 있어 무엇을 실행할지 분명하다.
+- 앱 아이콘은 자체 제작(스크립트 생성) 또는 라이선스가 명확한 자산(Fluent System Icons MIT)으로 만들고, 교체는 `Assets/app.ico` 파일 하나로 한다.
+- 서드파티 고지(`THIRD-PARTY-NOTICES.md`)와 winapp2 CC-BY-SA 고지를 zip에 넣는다.
+- 구버전 산출물은 저장소에 두지 않는다(`artifacts/`, `dist/` gitignore). 릴리스마다 zip 하나만 남긴다.
+
 ## 8. 범위 밖 (다음 단계)
 
 - G 미분류 대용량 폴더 삭제, I Windows.old·휴지통 비우기(되돌릴 수 없음 표시와 함께 다음 단계).
