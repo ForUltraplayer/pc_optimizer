@@ -1,11 +1,15 @@
 /**
  * @file    : SystemCacheToolBackend.cs
  * @author  : rudals252
- * @brief   : 설치된 npm·pip·dotnet HTTP 캐시만 찾고 보호 경계를 검사하여 공식 명령으로 정리. 보호 위치(Program Files 표준 경로) 도구 존재 확인은 프로세스 실행·PATH 탐색 없이 한다
+ * @brief   : 설치된 npm·pip·dotnet HTTP 캐시만 찾고 보호 경계를 검사하여 공식 명령으로 정리. SystemOnly 인스턴스는 관측 전에 거절하고, 보호 위치(Program Files 표준 경로) 도구 존재 확인은 프로세스 실행·PATH 탐색 없이 한다
  */
-using PcOptimizer.Core.Abstractions;
+
+// 기본 패키지
 using System.Security.Cryptography;
 using System.Security.Principal;
+
+// 사용자 패키지
+using PcOptimizer.Core.Abstractions;
 using PcOptimizer.Probes.Platform;
 using PcOptimizer.Probes.Storage;
 
@@ -14,16 +18,49 @@ namespace PcOptimizer.Probes.Actions;
 /// <summary>1차 공식 도구 통합 구현입니다. 자동 설치·승격·임의 명령·직접 파일 삭제는 없습니다.</summary>
 public sealed class SystemCacheToolBackend : ICacheToolBackend
 {
+    /// <summary>다른 관리자 계정으로 승격된(SystemOnly) 인스턴스라 사용자별 캐시(npm·pip·NuGet 모두 해당)를 다루지 않는다는 거절 코드입니다.</summary>
+    public const string USER_SCOPE_EXCLUDED = "UserScopeExcluded";
+
+    private const int MAX_EXECUTABLE_CANDIDATES = 3;
+    private static readonly TimeSpan INSPECTION_BUDGET = TimeSpan.FromSeconds(15);
+
     private readonly IAppLogger _logger;
+    private readonly bool _limitToSystemScope;
+    private readonly IPathEnvironment _environment;
+    private readonly IDirectoryEntrySource _entries;
     private readonly CachePathInspector _inspector;
+    private readonly Func<bool> _isElevated;
+    private readonly Func<CacheTool, IEnumerable<string>> _findExecutables;
+    private readonly Func<CacheToolLocation, bool, CancellationToken, Task<CacheProcessResult>> _run;
+    private readonly Func<string, string?, CancellationToken, Task<string>> _fingerprint;
 
     /// <summary>시스템 공급자와 개인정보를 기록하지 않는 로거를 연결합니다.</summary>
-    public SystemCacheToolBackend(IAppLogger? logger = null)
+    /// <param name="logger">앱 로거(없으면 기록하지 않음).</param>
+    /// <param name="limitToSystemScope">true면(SystemOnly) 사용자별 캐시의 조회·정리를 관측 전에 <see cref="USER_SCOPE_EXCLUDED"/>로 거절합니다.</param>
+    public SystemCacheToolBackend(IAppLogger? logger = null, bool limitToSystemScope = false)
+        : this(logger ?? NullAppLogger.Instance, limitToSystemScope, SystemPathEnvironment.Instance, FileSystemDirectoryEntrySource.Instance,
+            new CachePathInspector(SystemPathEnvironment.Instance, Win32RegistryReader.Instance, FileSystemDirectoryEntrySource.Instance,
+                IsElevated, CurrentSid, FileScanService.ReadBundledPolicy, TimeProvider.System, INSPECTION_BUDGET),
+            IsElevated, FindExecutables, (location, clear, ct) => CacheToolProcess.RunAsync(location, clear, ct, logger), FingerprintAsync)
     {
-        _logger = logger ?? NullAppLogger.Instance;
-        _inspector = new(SystemPathEnvironment.Instance, Win32RegistryReader.Instance,
-            FileSystemDirectoryEntrySource.Instance, IsElevated, CurrentSid,
-            FileScanService.ReadBundledPolicy, TimeProvider.System, TimeSpan.FromSeconds(15));
+    }
+
+    /// <summary>테스트가 파일 시스템·도구 실행·지문 계산을 가짜로 바꾸는 생성자입니다.</summary>
+    internal SystemCacheToolBackend(IAppLogger logger, bool limitToSystemScope, IPathEnvironment environment,
+        IDirectoryEntrySource entries, CachePathInspector inspector, Func<bool> isElevated,
+        Func<CacheTool, IEnumerable<string>> findExecutables,
+        Func<CacheToolLocation, bool, CancellationToken, Task<CacheProcessResult>> run,
+        Func<string, string?, CancellationToken, Task<string>> fingerprint)
+    {
+        _logger = logger;
+        _limitToSystemScope = limitToSystemScope;
+        _environment = environment;
+        _entries = entries;
+        _inspector = inspector;
+        _isElevated = isElevated;
+        _findExecutables = findExecutables;
+        _run = run;
+        _fingerprint = fingerprint;
     }
 
     /// <summary>호출 시점의 현재 사용자 SID를 읽습니다.</summary>
@@ -34,18 +71,20 @@ public sealed class SystemCacheToolBackend : ICacheToolBackend
     }
 
     /// <inheritdoc />
+    /// <remarks>SystemOnly이면 도구 탐색·파일 관측·프로세스 실행 전에 <see cref="USER_SCOPE_EXCLUDED"/>로 거절합니다.</remarks>
     public async Task<CacheToolLocation?> LocateAsync(CacheTool tool, CancellationToken ct)
     {
-        if (IsElevated()) { throw new CacheToolUnavailableException("NormalUserRequired"); }
-        foreach (var executable in FindExecutables(tool))
+        if (_limitToSystemScope) { throw new CacheToolUnavailableException(USER_SCOPE_EXCLUDED); }
+        if (_isElevated()) { throw new CacheToolUnavailableException("NormalUserRequired"); }
+        foreach (var executable in _findExecutables(tool))
         {
             ct.ThrowIfCancellationRequested();
-            if (!IsPlainPath(executable, directory: false)) { continue; }
+            if (!IsPlainPath(executable, directory: false, _entries)) { continue; }
             var script = ScriptFor(tool, executable);
-            if (script is not null && !IsPlainPath(script, directory: false)) { continue; }
-            var fingerprint = await FingerprintAsync(executable, script, ct).ConfigureAwait(false);
+            if (script is not null && !IsPlainPath(script, directory: false, _entries)) { continue; }
+            var fingerprint = await _fingerprint(executable, script, ct).ConfigureAwait(false);
             var candidate = new CacheToolLocation(tool, executable, string.Empty, fingerprint, script);
-            var result = await CacheToolProcess.RunAsync(candidate, clear: false, ct, _logger).ConfigureAwait(false);
+            var result = await _run(candidate, false, ct).ConfigureAwait(false);
             if (result.Code is "ProcessStillRunning" or "Busy") { throw new CacheToolUnavailableException(result.Code); }
             if (!result.Success) { continue; }
             var value = result.Output.Trim();
@@ -56,22 +95,27 @@ public sealed class SystemCacheToolBackend : ICacheToolBackend
                 value = value[PREFIX.Length..].Trim();
             }
             if (value.Contains('\n') || value.Contains('\r') || !Path.IsPathFullyQualified(value) || value.StartsWith("\\\\", StringComparison.Ordinal)) { continue; }
-            return candidate with { CachePath = CachePathInspector.CanonicalPath(SystemPathEnvironment.Instance, value) };
+            return candidate with { CachePath = CachePathInspector.CanonicalPath(_environment, value) };
         }
         return null;
     }
 
     /// <inheritdoc />
+    /// <remarks>SystemOnly이면 파일을 열거하지 않고 <see cref="USER_SCOPE_EXCLUDED"/>로 거절합니다.</remarks>
     public Task<CacheInspection> InspectAsync(CacheToolLocation location, CancellationToken ct)
-        => Task.Run(() => _inspector.Inspect(location, ct), ct);
+        => _limitToSystemScope
+            ? Task.FromResult(new CacheInspection(false, 0, USER_SCOPE_EXCLUDED))
+            : Task.Run(() => _inspector.Inspect(location, ct), ct);
 
     /// <inheritdoc />
+    /// <remarks>SystemOnly이면 실행 직전 관측·지문 계산·프로세스 시작 없이 Started=false로 거절합니다.</remarks>
     public async Task<CacheToolExecution> ClearAsync(CacheToolLocation location, CancellationToken ct)
     {
+        if (_limitToSystemScope) { return new(false, false, USER_SCOPE_EXCLUDED); }
         var inspection = _inspector.Inspect(location, ct);
         if (!inspection.Allowed) { return new(false, false, inspection.Reason ?? "Blocked"); }
-        if (await FingerprintAsync(location.Executable, location.Script, ct).ConfigureAwait(false) != location.Fingerprint) { return new(false, false, "ToolChanged"); }
-        var result = await CacheToolProcess.RunAsync(location, clear: true, ct, _logger).ConfigureAwait(false);
+        if (await _fingerprint(location.Executable, location.Script, ct).ConfigureAwait(false) != location.Fingerprint) { return new(false, false, "ToolChanged"); }
+        var result = await _run(location, true, ct).ConfigureAwait(false);
         return new(result.Started, result.Success, result.Code);
     }
 
@@ -157,7 +201,7 @@ public sealed class SystemCacheToolBackend : ICacheToolBackend
         var standard = ProtectedLocationExecutable(tool, programFiles) is { } executable ? Path.GetDirectoryName(executable)! : string.Empty;
         return new[] { standard }.Concat((Environment.GetEnvironmentVariable("PATH") ?? string.Empty).Split(';'))
             .Where(path => Path.IsPathFullyQualified(path) && !path.Contains("WindowsApps", StringComparison.OrdinalIgnoreCase))
-            .Select(path => Path.Combine(path, name)).Distinct(StringComparer.OrdinalIgnoreCase).Where(File.Exists).Take(3);
+            .Select(path => Path.Combine(path, name)).Distinct(StringComparer.OrdinalIgnoreCase).Where(File.Exists).Take(MAX_EXECUTABLE_CANDIDATES);
     }
 
     /// <summary>중간 폴더와 마지막 항목 모두 일반 로컬 항목이어야 합니다.</summary>

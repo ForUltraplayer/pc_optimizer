@@ -45,11 +45,11 @@ public sealed class MainWindowLayoutTests
             var idle = new MainWindow(CreateScannedViewModel(overview: true, scan: false));
             var empty = new MainWindow(CreateScannedViewModel(overview: true));
             var narrow = new MainWindow(CreateScannedViewModel(overview: true, rule: new ImprovementRule()));
-            var tools = new CacheToolsWindow();
+            var tools = new CacheToolsWindow(null, limitToSystemScope: false);
             var completed = new MainWindow(CreateScannedViewModel(overview: true, rule: new ImprovementRule()));
             ((MainViewModel)completed.DataContext).LastCleanupOutcome = new CleanupOutcomeViewModel("npm",
                 new(true, 2_000_000, "Completed") { BeforeBytes = 1_202_000_000 });
-            var outcomeTools = new CacheToolsWindow();
+            var outcomeTools = new CacheToolsWindow(null, limitToSystemScope: false);
             outcomeTools.ViewModel.Outcome = ((MainViewModel)completed.DataContext).LastCleanupOutcome;
             tools.ViewModel.Message = "npm 캐시\n실행할 도구: C:\\Program Files\\nodejs\\node.exe\n캐시 위치: C:\\Users\\예시\\AppData\\Local\\npm-cache\n관측한 논리 크기: 123.4 MB\n이 확인 결과는 5분 동안 유효합니다.";
             foreach (var (window, name, size) in new (Window, string, Size)[]

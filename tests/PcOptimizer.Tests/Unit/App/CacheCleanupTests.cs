@@ -1,11 +1,15 @@
 /**
  * @file    : CacheCleanupTests.cs
  * @author  : rudals252
- * @brief   : 자동 정리의 승인·만료·일회성·변경·보호·실패·후속 관측 경계 검증
+ * @brief   : 자동 정리의 승인·만료·일회성·변경·보호·실패·후속 관측 경계와 SystemOnly 거절·보호 위치 도구 규칙 검증
  */
 using System.IO;
+using PcOptimizer.App.Resources;
 using PcOptimizer.App.ViewModels;
+using PcOptimizer.Core.Abstractions;
+using PcOptimizer.Core.Cleaning;
 using PcOptimizer.Probes.Actions;
+using PcOptimizer.Probes.Storage;
 using PcOptimizer.Tests.Unit.Probes.Fakes;
 
 namespace PcOptimizer.Tests.Unit.App;
@@ -13,6 +17,8 @@ namespace PcOptimizer.Tests.Unit.App;
 /// <summary>사용자 캐시를 변경하지 않는 실행 계약 회귀 테스트입니다.</summary>
 public sealed class CacheCleanupTests
 {
+    private const string PROTECTED_NODE = @"C:\Program Files\nodejs\node.exe";
+
     /// <summary>실행 후 조회 실패는 0바이트로 바꾸지 않습니다.</summary>
     [Fact]
     public async Task UnverifiedAfterActionIsNotZero()
@@ -265,6 +271,120 @@ public sealed class CacheCleanupTests
     {
         var service = new CacheCleanupService(new Backend { Unavailable = "ProcessStillRunning" });
         Assert.Equal("ProcessStillRunning", (await service.PrepareAsync(CacheTool.Npm, default)).Reason);
+    }
+
+    /// <summary>SystemOnly 백엔드는 npm·pip·NuGet 모두 파일 시스템 관측·도구 실행 전에 거절하고 실행하지 않습니다(REV-016).</summary>
+    [Theory]
+    [InlineData(CacheTool.Npm)]
+    [InlineData(CacheTool.Pip)]
+    [InlineData(CacheTool.NuGetHttp)]
+    public async Task SystemOnlyBackendRefusesBeforeObservation(CacheTool tool)
+    {
+        var fixture = new ToolFixture(PROTECTED_NODE);
+        var backend = fixture.Create(limitToSystemScope: true);
+        var location = new CacheToolLocation(tool, PROTECTED_NODE, ToolFixture.CACHE, ToolFixture.FINGERPRINT);
+        var preparation = await new CacheCleanupService(backend).PrepareAsync(tool, default);
+        var inspection = await backend.InspectAsync(location, default);
+        var execution = await backend.ClearAsync(location, default);
+        Assert.Null(preparation.Plan);
+        Assert.Equal(SystemCacheToolBackend.USER_SCOPE_EXCLUDED, preparation.Reason);
+        Assert.False(inspection.Allowed);
+        Assert.Equal(SystemCacheToolBackend.USER_SCOPE_EXCLUDED, inspection.Reason);
+        Assert.False(execution.Started);
+        Assert.Equal(SystemCacheToolBackend.USER_SCOPE_EXCLUDED, execution.Code);
+        Assert.Equal(0, fixture.Observations);
+        Assert.Equal(0, fixture.Finds + fixture.Runs + fixture.Fingerprints);
+    }
+
+    /// <summary>SystemOnly 정리 창은 사용자 범위 제외 안내를 보이고 실행 이력을 만들지 않습니다.</summary>
+    [Fact]
+    public async Task SystemOnlyWindowShowsUserScopeExcluded()
+    {
+        var fixture = new ToolFixture(PROTECTED_NODE);
+        var vm = new CacheToolsViewModel(new CacheCleanupService(fixture.Create(limitToSystemScope: true)), _ => true);
+        await vm.PrepareCommand.ExecuteAsync(null);
+        Assert.Equal(Strings.Cleanup_UserScopeExcluded, vm.Message);
+        Assert.False(vm.ClearCommand.CanExecute(null));
+        Assert.Null(vm.Outcome);
+        Assert.Equal(0, fixture.Observations + fixture.Runs);
+    }
+
+    /// <summary>같은 계정(Full) 백엔드는 기존처럼 미리보기·재확인 후 정리를 실행합니다(REV-016 허용 회귀).</summary>
+    [Fact]
+    public async Task FullScopeBackendStillPreparesAndClears()
+    {
+        var fixture = new ToolFixture(PROTECTED_NODE);
+        var service = new CacheCleanupService(fixture.Create(limitToSystemScope: false));
+        var preparation = await service.PrepareAsync(CacheTool.Npm, default);
+        Assert.NotNull(preparation.Plan);
+        var result = await service.ExecuteAsync(preparation.Plan.Id, default);
+        Assert.True(result.Started);
+        Assert.True(result.ToolSucceeded);
+        Assert.Equal(1, fixture.Clears);
+    }
+
+    /// <summary>실제 백엔드를 가짜 파일 시스템·가짜 도구 실행·가짜 지문으로 감쌉니다. 실제 도구와 사용자 캐시는 건드리지 않습니다.</summary>
+    private sealed class ToolFixture
+    {
+        public const string PROFILE = @"C:\Users\tester";
+        public const string CACHE = PROFILE + @"\cache";
+        public const string FINGERPRINT = "fixture-hash";
+        private const string POLICY = """{"schemaVersion":1,"protectedRoots":[{"kind":"knownFolder","folder":"Documents"}]}""";
+        private static readonly TimeSpan BUDGET = TimeSpan.FromSeconds(15);
+        private readonly Dictionary<string, List<DirectoryEntry>> _tree = new(StringComparer.OrdinalIgnoreCase);
+        private readonly string _toolPath;
+
+        public ToolFixture(string toolPath)
+        {
+            _toolPath = toolPath;
+            AddDirectory(CACHE);
+            AddFile(toolPath);
+            AddFile(Path.Combine(Path.GetDirectoryName(toolPath)!, "node_modules", "npm", "bin", "npm-cli.js"));
+            foreach (var (directory, entries) in _tree) { Files.Dir(directory, [.. entries]); }
+            Files.OnProbeRoot = _ => Observations++;
+            Files.OnEnumerate = _ => Observations++;
+        }
+
+        public FakeDirectoryEntrySource Files { get; } = new();
+        public FakePathEnvironment Environment { get; } = new FakePathEnvironment { Profile = PROFILE }
+            .WithVariable("SystemDrive", "C:")
+            .WithKnownFolder(ProtectedKnownFolder.Documents, PROFILE + @"\Documents");
+        public int Observations { get; private set; }
+        public int Finds { get; private set; }
+        public int Runs { get; private set; }
+        public int Clears { get; private set; }
+        public int Fingerprints { get; private set; }
+
+        public SystemCacheToolBackend Create(bool limitToSystemScope = false, bool elevated = false)
+        {
+            var inspector = new CachePathInspector(Environment, new FakeRegistryReader(), Files, () => elevated, () => "S-1-5-21-1",
+                () => POLICY, new ManualTimeProvider(), BUDGET);
+            return new SystemCacheToolBackend(NullAppLogger.Instance, limitToSystemScope, Environment, Files, inspector, () => elevated,
+                _ => { Finds++; return [_toolPath]; },
+                (_, clear, _) =>
+                {
+                    Runs++;
+                    if (clear) { Clears++; }
+                    return Task.FromResult(new CacheProcessResult(true, clear ? string.Empty : CACHE, true, "Completed"));
+                },
+                (_, _, _) => { Fingerprints++; return Task.FromResult(FINGERPRINT); });
+        }
+
+        private void AddFile(string path)
+        {
+            var parent = Path.GetDirectoryName(path)!;
+            AddDirectory(parent);
+            _tree[parent].Add(FakeDirectoryEntrySource.File(Path.GetFileName(path), 1));
+        }
+
+        private void AddDirectory(string path)
+        {
+            if (_tree.ContainsKey(path)) { return; }
+            _tree[path] = [];
+            if (Path.GetDirectoryName(path) is not { } parent) { return; }
+            AddDirectory(parent);
+            _tree[parent].Add(FakeDirectoryEntrySource.Folder(Path.GetFileName(path)));
+        }
     }
 
     private sealed class Backend : ICacheToolBackend

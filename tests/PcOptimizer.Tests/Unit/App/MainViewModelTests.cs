@@ -608,6 +608,59 @@ public sealed class MainViewModelTests
         Assert.Equal(0, userProbe.InvocationCount);
     }
 
+    /// <summary>시스템 범위만 허용한 창에서는 사용자 캐시 정리로 진입하지 않아야 합니다(REV-016 재현 편입).</summary>
+    [Fact]
+    public void SystemOnlyMustNotOfferUserCacheActions()
+    {
+        using var vm = CreateReviewViewModel(UserScopeMode.SystemOnly, SpecTestFactory.Create());
+        Assert.True(vm.HasScopeBanner);
+        Assert.False(vm.CanOpenCacheTools);
+    }
+
+    /// <summary>사양 수집 중에는 조치 실행 창을 열 수 없어야 합니다(REV-018 재현 편입).</summary>
+    [Fact]
+    public async Task SpecLoadingMustBlockCacheActions()
+    {
+        var probe = new GatedSystemDetailsProbe();
+        var spec = SpecTestFactory.Create(probes: [probe]);
+        using var vm = CreateReviewViewModel(UserScopeMode.Full, spec);
+        vm.ToggleSpecCommand.Execute(null);
+        await probe.Started.WaitAsync(WAIT_BOUND);
+        try
+        {
+            Assert.True(spec.IsLoading);
+            Assert.False(vm.StartScanCommand.CanExecute(null));
+            Assert.False(vm.CanOpenCacheTools);
+        }
+        finally
+        {
+            probe.Release();
+            await spec.RefreshCommand.ExecutionTask!.WaitAsync(WAIT_BOUND);
+        }
+    }
+
+    /// <summary>사양 읽기 시작·종료 시 정리 창 진입 가능 여부 변경을 알립니다(REV-018).</summary>
+    [Fact]
+    public async Task SpecLoadingNotifiesCacheToolsGate()
+    {
+        var probe = new GatedSystemDetailsProbe();
+        var spec = SpecTestFactory.Create(probes: [probe]);
+        using var vm = CreateReviewViewModel(UserScopeMode.Full, spec);
+        var changes = new List<bool>();
+        vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(vm.CanOpenCacheTools)) { changes.Add(vm.CanOpenCacheTools); } };
+        vm.ToggleSpecCommand.Execute(null);
+        await probe.Started.WaitAsync(WAIT_BOUND);
+        probe.Release();
+        await spec.RefreshCommand.ExecutionTask!.WaitAsync(WAIT_BOUND);
+        Assert.Equal([false, true], changes);
+        Assert.True(vm.CanOpenCacheTools);
+    }
+
+    /// <summary>독립 리뷰 재현과 같은 조건(관리자 권한·보호 위치 도구 있음)으로 뷰모델을 만든다.</summary>
+    private MainViewModel CreateReviewViewModel(UserScopeMode scope, PcSpecViewModel spec)
+        => CreateViewModel([], elevation: new FakeElevationState(true), userScope: scope,
+            limitToSystemScope: scope == UserScopeMode.SystemOnly, availability: new FixedActionAvailability(true), spec: spec);
+
     /// <summary>전체 범위(대화형 사용자와 같은 계정)에서는 배너가 없다.</summary>
     [Fact]
     public void FullScopeHasNoBanner()
