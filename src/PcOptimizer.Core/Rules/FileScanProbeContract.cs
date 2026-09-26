@@ -125,6 +125,9 @@ public static class FileScanProbeContract
     /// <summary>필드: 시스템 위치 여부(불리언, 임시 위치).</summary>
     public const string FIELD_SYSTEM = "system";
 
+    /// <summary>필드: 시간 예산을 넘긴 뒤 OS 조회(파일 ID·할당 크기)를 생략하고 논리 크기만 센 파일 수(정수, 루트). 0보다 크면 중복 확인이 빠진 추정치.</summary>
+    public const string FIELD_LOOKUPS_SKIPPED = "lookupsSkipped";
+
     /// <summary>필드: 볼륨 루트(문자열, 예: "C:\").</summary>
     public const string FIELD_VOLUME = "volume";
 

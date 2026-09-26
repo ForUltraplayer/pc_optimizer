@@ -1,7 +1,7 @@
 /**
  * @file    : VolumeTraversalRun.cs
  * @author  : rudals252
- * @brief   : 볼륨 하나의 루트들을 깊이 우선으로 메타데이터만 순회(보호·placeholder·reparse를 항목마다 재확인, 디렉터리별 접근 거부·사용 중 부분 집계, 64MiB 이상 파일 ID 하드링크 중복 제거, 압축·희소 할당 크기, 폴더 안 항목마다 시간 예산·취소 확인)하고 하위 합계를 bottom-up으로 계산하는 내부 실행기
+ * @brief   : 볼륨 하나의 루트들을 깊이 우선으로 메타데이터만 순회(보호·placeholder·reparse를 항목마다 재확인, 디렉터리별 접근 거부·사용 중 부분 집계, 64MiB 이상 파일 ID 하드링크 중복 제거, 압축·희소 할당 크기, 항목마다 취소 확인, 예산 초과 시 열거 중단·받은 항목의 논리 크기는 보존하되 새 OS 조회 중단·디렉터리당 실패 사유 하나)하고 하위 합계를 bottom-up으로 계산하는 내부 실행기
  */
 
 // 기본 패키지
@@ -179,7 +179,9 @@ internal sealed class VolumeTraversalRun
     /// <list type="bullet">
     /// <item>열거 중에는 항목을 받을 때마다 취소를 확인하고, 받은 항목을 목록에 넣은 뒤 시간 예산을 확인한다.
     /// 예산을 넘기면 다음 항목을 더 요청하지 않는다(OS 열거 호출 한 번 자체는 중단할 수 없음).</item>
-    /// <item>이미 받은 항목은 예산과 관계없이 모두 처리해 합계에 넣는다(메모리에 있는 관측 결과를 버리지 않음). 처리 중에는 취소만 확인한다.</item>
+    /// <item>이미 받은 항목은 예산과 관계없이 모두 논리 크기·확장자·파일 수를 합계에 넣는다(메모리에 있는 관측 결과를 버리지 않음).
+    /// 처리 중에는 항목마다 취소를 확인하고, 파일마다 예산을 확인해 넘겼으면 그 뒤로는 새 OS 조회(파일 ID·할당 크기)를 하지 않는다.
+    /// 생략한 파일은 중복 가능·조회 생략 수로 품질을 낮춘다. 따라서 예산 초과분은 진행 중이던 OS 조회 한 번으로 제한된다.</item>
     /// <item>열거가 예외로 끝나면 그때까지 받은 항목을 처리하고 그 사유(접근 거부·사용 중)를, 예산으로 멈췄으면 시간 초과를 이 디렉터리의
     /// 실패 사유로 한 번만 기록한다(디렉터리당 사유 하나).</item>
     /// </list>
@@ -216,17 +218,24 @@ internal sealed class VolumeTraversalRun
             failure = ScanSkipReason.InUse;
         }
 
+        var lookupsAllowed = !timedOut;
         foreach (var entry in entries)
         {
             _ct.ThrowIfCancellationRequested();
             if (entry.IsDirectory)
             {
                 HandleDirectory(directory, entry, stack, created);
+                continue;
             }
-            else
+
+            if (lookupsAllowed && IsOverBudget())
             {
-                HandleFile(directory, entry, pattern);
+                // 처리 단계에서 예산을 넘겼다: 논리 크기는 계속 세되 새 OS 조회는 하지 않는다.
+                lookupsAllowed = false;
+                timedOut = true;
             }
+
+            HandleFile(directory, entry, pattern, lookupsAllowed);
         }
 
         if (timedOut)
@@ -276,8 +285,9 @@ internal sealed class VolumeTraversalRun
 
     /// <summary>
     /// 파일 항목: placeholder·reparse는 건드리지 않고 세고, 64MiB 이상은 파일 ID로 하드링크 중복을 거르며, 압축·희소 파일은 할당 크기도 기록한다.
+    /// OS 조회가 허용되지 않으면(예산 초과 뒤) 조회 없이 논리 크기만 세고, 조회가 필요했던 파일은 중복 가능·조회 생략 수로 표시한다.
     /// </summary>
-    private void HandleFile(DirectoryNode directory, DirectoryEntry entry, PatternAccumulator? pattern)
+    private void HandleFile(DirectoryNode directory, DirectoryEntry entry, PatternAccumulator? pattern, bool lookupsAllowed)
     {
         if ((entry.Attributes & PLACEHOLDER_ATTRIBUTES) != 0)
         {
@@ -292,9 +302,13 @@ internal sealed class VolumeTraversalRun
         }
 
         var length = entry.Length;
-        var fullPath = length >= FileSystemScanner.HARD_LINK_CHECK_MIN_BYTES || (entry.Attributes & COMPRESSED_OR_SPARSE) != 0
-            ? Path.Join(directory.Path, entry.Name)
-            : null;
+        var needsLookup = length >= FileSystemScanner.HARD_LINK_CHECK_MIN_BYTES || (entry.Attributes & COMPRESSED_OR_SPARSE) != 0;
+        if (needsLookup && !lookupsAllowed)
+        {
+            directory.LookupsSkipped++;
+        }
+
+        var fullPath = needsLookup && lookupsAllowed ? Path.Join(directory.Path, entry.Name) : null;
         var unverified = true;
         if (fullPath is not null && length >= FileSystemScanner.HARD_LINK_CHECK_MIN_BYTES && _identities.TryGetIdentity(fullPath) is { } identity)
         {
@@ -372,6 +386,7 @@ internal sealed class VolumeTraversalRun
                     CompressedOrSparseAllocatedBytes = parentTotals.CompressedOrSparseAllocatedBytes + child.CompressedOrSparseAllocatedBytes,
                     Skips = parentTotals.Skips.Add(child.Skips),
                     DuplicatesPossible = parentTotals.DuplicatesPossible || child.DuplicatesPossible,
+                    LookupsSkipped = parentTotals.LookupsSkipped + child.LookupsSkipped,
                 };
             }
         }

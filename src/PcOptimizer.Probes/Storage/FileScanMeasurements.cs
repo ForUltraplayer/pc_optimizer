@@ -135,6 +135,7 @@ internal static class FileScanMeasurements
             Add(FileScanProbeContract.FIELD_DIRECTORY_COUNT, new IntegerValue(totals.DirectoryCount), quality: totals.IsPartial ? MeasurementQuality.Partial : MeasurementQuality.Observed);
             Add(FileScanProbeContract.FIELD_PARTIAL, new BooleanValue(totals.IsPartial));
             Add(FileScanProbeContract.FIELD_DUPLICATES_POSSIBLE, new BooleanValue(totals.DuplicatesPossible));
+            Add(FileScanProbeContract.FIELD_LOOKUPS_SKIPPED, new IntegerValue(totals.LookupsSkipped));
             Add(FileScanProbeContract.FIELD_COMPRESSED_SPARSE_COUNT, new IntegerValue(totals.CompressedOrSparseFileCount));
             Add(FileScanProbeContract.FIELD_COMPRESSED_SPARSE_LOGICAL, new IntegerValue(totals.CompressedOrSparseLogicalBytes), FileScanProbeContract.UNIT_BYTES);
             Add(FileScanProbeContract.FIELD_COMPRESSED_SPARSE_ALLOCATED, new IntegerValue(totals.CompressedOrSparseAllocatedBytes), FileScanProbeContract.UNIT_BYTES);
