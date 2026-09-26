@@ -1,7 +1,7 @@
 /**
  * @file    : SystemCacheToolBackend.cs
  * @author  : rudals252
- * @brief   : 설치된 npm·pip·dotnet HTTP 캐시만 찾고 보호 경계를 검사하여 공식 명령으로 정리. SystemOnly 인스턴스는 관측 전에 거절하고, 보호 위치(Program Files 표준 경로) 도구 존재 확인은 프로세스 실행·PATH 탐색 없이 한다
+ * @brief   : 설치된 npm·pip·dotnet HTTP 캐시만 찾고 보호 경계를 검사하여 공식 명령으로 정리. 관리자 권한 앱이므로 보호 위치(Program Files 계열) 도구만 실행하고, SystemOnly 인스턴스는 관측 전에 거절한다. 보호 위치 도구 존재 확인은 프로세스 실행·PATH 탐색 없이 한다
  */
 
 // 기본 패키지
@@ -15,11 +15,17 @@ using PcOptimizer.Probes.Storage;
 
 namespace PcOptimizer.Probes.Actions;
 
-/// <summary>1차 공식 도구 통합 구현입니다. 자동 설치·승격·임의 명령·직접 파일 삭제는 없습니다.</summary>
+/// <summary>
+/// 1차 공식 도구 통합 구현입니다. 자동 설치·승격·임의 명령·직접 파일 삭제는 없습니다.
+/// 앱은 항상 관리자 권한으로 실행되므로 사용자 쓰기 가능 위치의 도구는 실행하지 않습니다(PATH 탐색 결과 포함).
+/// </summary>
 public sealed class SystemCacheToolBackend : ICacheToolBackend
 {
     /// <summary>다른 관리자 계정으로 승격된(SystemOnly) 인스턴스라 사용자별 캐시(npm·pip·NuGet 모두 해당)를 다루지 않는다는 거절 코드입니다.</summary>
     public const string USER_SCOPE_EXCLUDED = "UserScopeExcluded";
+
+    /// <summary>도구 실행 파일(또는 npm 진입 파일)이 보호 위치(Program Files 계열) 밖에 있어 관리자 권한 앱이 실행하지 않는다는 거절 코드입니다.</summary>
+    public const string TOOL_NOT_IN_PROTECTED_LOCATION = "ToolNotInProtectedLocation";
 
     private const int MAX_EXECUTABLE_CANDIDATES = 3;
     private static readonly TimeSpan INSPECTION_BUDGET = TimeSpan.FromSeconds(15);
@@ -29,7 +35,6 @@ public sealed class SystemCacheToolBackend : ICacheToolBackend
     private readonly IPathEnvironment _environment;
     private readonly IDirectoryEntrySource _entries;
     private readonly CachePathInspector _inspector;
-    private readonly Func<bool> _isElevated;
     private readonly Func<CacheTool, IEnumerable<string>> _findExecutables;
     private readonly Func<CacheToolLocation, bool, CancellationToken, Task<CacheProcessResult>> _run;
     private readonly Func<string, string?, CancellationToken, Task<string>> _fingerprint;
@@ -40,14 +45,14 @@ public sealed class SystemCacheToolBackend : ICacheToolBackend
     public SystemCacheToolBackend(IAppLogger? logger = null, bool limitToSystemScope = false)
         : this(logger ?? NullAppLogger.Instance, limitToSystemScope, SystemPathEnvironment.Instance, FileSystemDirectoryEntrySource.Instance,
             new CachePathInspector(SystemPathEnvironment.Instance, Win32RegistryReader.Instance, FileSystemDirectoryEntrySource.Instance,
-                IsElevated, CurrentSid, FileScanService.ReadBundledPolicy, TimeProvider.System, INSPECTION_BUDGET),
-            IsElevated, FindExecutables, (location, clear, ct) => CacheToolProcess.RunAsync(location, clear, ct, logger), FingerprintAsync)
+                ProtectedProgramRoot, CurrentSid, FileScanService.ReadBundledPolicy, TimeProvider.System, INSPECTION_BUDGET),
+            FindExecutables, (location, clear, ct) => CacheToolProcess.RunAsync(location, clear, ct, logger), FingerprintAsync)
     {
     }
 
     /// <summary>테스트가 파일 시스템·도구 실행·지문 계산을 가짜로 바꾸는 생성자입니다.</summary>
     internal SystemCacheToolBackend(IAppLogger logger, bool limitToSystemScope, IPathEnvironment environment,
-        IDirectoryEntrySource entries, CachePathInspector inspector, Func<bool> isElevated,
+        IDirectoryEntrySource entries, CachePathInspector inspector,
         Func<CacheTool, IEnumerable<string>> findExecutables,
         Func<CacheToolLocation, bool, CancellationToken, Task<CacheProcessResult>> run,
         Func<string, string?, CancellationToken, Task<string>> fingerprint)
@@ -57,11 +62,24 @@ public sealed class SystemCacheToolBackend : ICacheToolBackend
         _environment = environment;
         _entries = entries;
         _inspector = inspector;
-        _isElevated = isElevated;
         _findExecutables = findExecutables;
         _run = run;
         _fingerprint = fingerprint;
     }
+
+    /// <summary>
+    /// 보호 위치 이름(<see cref="CachePathInspector.PROTECTED_PROGRAM_ROOTS"/>)별 실제 경로입니다. 프로세스 환경 변수는 사용자 환경(HKCU)으로
+    /// 바꿀 수 있으므로 읽지 않고, 같은 폴더를 Known Folder API로 읽습니다. %ProgramW6432%는 64비트 프로세스의 Program Files와 같습니다.
+    /// </summary>
+    /// <param name="name">보호 위치 이름.</param>
+    /// <returns>경로. 알 수 없으면 null(검사에서 건너뜀).</returns>
+    internal static string? ProtectedProgramRoot(string name) => name switch
+    {
+        CachePathInspector.PROGRAM_FILES => Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+        CachePathInspector.PROGRAM_FILES_X86 => Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+        CachePathInspector.PROGRAM_W6432 => Environment.Is64BitProcess ? Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) : null,
+        _ => null,
+    };
 
     /// <summary>호출 시점의 현재 사용자 SID를 읽습니다.</summary>
     private static string? CurrentSid()
@@ -71,16 +89,31 @@ public sealed class SystemCacheToolBackend : ICacheToolBackend
     }
 
     /// <inheritdoc />
-    /// <remarks>SystemOnly이면 도구 탐색·파일 관측·프로세스 실행 전에 <see cref="USER_SCOPE_EXCLUDED"/>로 거절합니다.</remarks>
+    /// <remarks>
+    /// SystemOnly이면 도구 탐색·파일 관측·프로세스 실행 전에 <see cref="USER_SCOPE_EXCLUDED"/>로 거절합니다.
+    /// 보호 위치 밖의 후보(PATH 탐색 결과 포함)는 조회 명령도 실행하지 않고 건너뛰며, 보호 위치 후보가 하나도 없이 그런 후보만 있으면
+    /// <see cref="TOOL_NOT_IN_PROTECTED_LOCATION"/>로 거절합니다.
+    /// </remarks>
     public async Task<CacheToolLocation?> LocateAsync(CacheTool tool, CancellationToken ct)
     {
-        if (_limitToSystemScope) { throw new CacheToolUnavailableException(USER_SCOPE_EXCLUDED); }
-        if (_isElevated()) { throw new CacheToolUnavailableException("NormalUserRequired"); }
+        if (_limitToSystemScope)
+        {
+            _logger.Info(nameof(SystemCacheToolBackend), $"CacheToolRefused tool={tool} code={USER_SCOPE_EXCLUDED}");
+            throw new CacheToolUnavailableException(USER_SCOPE_EXCLUDED);
+        }
+        var outsideProtected = false;
+        var insideProtected = false;
         foreach (var executable in _findExecutables(tool))
         {
             ct.ThrowIfCancellationRequested();
-            if (!IsPlainPath(executable, directory: false, _entries)) { continue; }
             var script = ScriptFor(tool, executable);
+            if (!_inspector.IsProtectedProgramLocation(executable) || (script is not null && !_inspector.IsProtectedProgramLocation(script)))
+            {
+                outsideProtected = true;
+                continue;
+            }
+            insideProtected = true;
+            if (!IsPlainPath(executable, directory: false, _entries)) { continue; }
             if (script is not null && !IsPlainPath(script, directory: false, _entries)) { continue; }
             var fingerprint = await _fingerprint(executable, script, ct).ConfigureAwait(false);
             var candidate = new CacheToolLocation(tool, executable, string.Empty, fingerprint, script);
@@ -97,6 +130,11 @@ public sealed class SystemCacheToolBackend : ICacheToolBackend
             if (value.Contains('\n') || value.Contains('\r') || !Path.IsPathFullyQualified(value) || value.StartsWith("\\\\", StringComparison.Ordinal)) { continue; }
             return candidate with { CachePath = CachePathInspector.CanonicalPath(_environment, value) };
         }
+        if (outsideProtected && !insideProtected)
+        {
+            _logger.Info(nameof(SystemCacheToolBackend), $"CacheToolRefused tool={tool} code={TOOL_NOT_IN_PROTECTED_LOCATION}");
+            throw new CacheToolUnavailableException(TOOL_NOT_IN_PROTECTED_LOCATION);
+        }
         return null;
     }
 
@@ -108,7 +146,11 @@ public sealed class SystemCacheToolBackend : ICacheToolBackend
             : Task.Run(() => _inspector.Inspect(location, ct), ct);
 
     /// <inheritdoc />
-    /// <remarks>SystemOnly이면 실행 직전 관측·지문 계산·프로세스 시작 없이 Started=false로 거절합니다.</remarks>
+    /// <remarks>
+    /// SystemOnly이면 실행 직전 관측·지문 계산·프로세스 시작 없이 Started=false로 거절합니다.
+    /// 실행 직전 검사(<see cref="CachePathInspector.Inspect"/>)가 도구 보호 위치를 다시 확인하므로 보호 위치 밖이면
+    /// <see cref="TOOL_NOT_IN_PROTECTED_LOCATION"/>로 시작하지 않습니다.
+    /// </remarks>
     public async Task<CacheToolExecution> ClearAsync(CacheToolLocation location, CancellationToken ct)
     {
         if (_limitToSystemScope) { return new(false, false, USER_SCOPE_EXCLUDED); }
@@ -117,13 +159,6 @@ public sealed class SystemCacheToolBackend : ICacheToolBackend
         if (await _fingerprint(location.Executable, location.Script, ct).ConfigureAwait(false) != location.Fingerprint) { return new(false, false, "ToolChanged"); }
         var result = await _run(location, true, ct).ConfigureAwait(false);
         return new(result.Started, result.Success, result.Code);
-    }
-
-    /// <summary>현재 사용자 권한을 재확인합니다.</summary>
-    private static bool IsElevated()
-    {
-        using var identity = WindowsIdentity.GetCurrent();
-        return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
     }
 
     /// <summary>실행 파일과 고정 npm 진입 파일이 바뀌면 계획을 무효로 만드는 지문입니다.</summary>

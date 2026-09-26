@@ -231,7 +231,7 @@ public sealed class ScanServiceTests
 
     /// <summary>
     /// 다른 SID(다른 관리자 계정)로 승격되면 시스템 범위 프로브만 실행하고, 사용자 범위 프로브는 호출하지 않은 채
-    /// Skipped(Unsupported)와 "원래 계정으로 로그인해 실행" 안내 상세로 남긴다(관리자 계정의 HKCU를 원래 사용자 결과로 보이지 않음).
+    /// Skipped(Unsupported)와 "관리자 계정으로 로그인해서 실행" 안내 상세로 남긴다(관리자 계정의 HKCU를 원래 사용자 결과로 보이지 않음).
     /// </summary>
     [Fact]
     public async Task 다른_SID면_시스템_범위만_실행한다()
@@ -252,7 +252,7 @@ public sealed class ScanServiceTests
         Assert.Equal(Verdict.CannotVerify, skipped.Verdict);
         Assert.Equal(CannotVerifyReason.Unsupported, skipped.CannotVerifyReason);
         Assert.Equal(CoreStrings.ProbeIssue_UserScopeExcluded, skipped.Detail);
-        Assert.Contains("원래 계정으로 로그인해 실행", skipped.Detail, StringComparison.Ordinal);
+        Assert.Contains("관리자 계정으로 로그인해서 실행하면 전부 검사할 수 있어요", skipped.Detail, StringComparison.Ordinal);
         Assert.Empty(skipped.Measured);
     }
 }

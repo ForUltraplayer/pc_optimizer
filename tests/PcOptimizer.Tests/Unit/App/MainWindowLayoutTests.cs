@@ -507,7 +507,7 @@ public sealed class MainWindowLayoutTests
         });
     }
 
-    /// <summary>다른 관리자 계정으로 실행되면(시스템 범위만) 원래 계정으로 로그인해 실행하라는 배너가 보인다.</summary>
+    /// <summary>다른 관리자 계정으로 실행되면(시스템 범위만) 관리자 계정으로 로그인해서 실행하라는 배너가 보인다.</summary>
     [Fact]
     public void 시스템_범위만이면_범위_배너가_보인다()
     {

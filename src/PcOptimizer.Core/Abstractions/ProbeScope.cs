@@ -11,7 +11,7 @@ namespace PcOptimizer.Core.Abstractions;
 /// </summary>
 /// <remarks>
 /// 표준 계정에서 UAC에 다른 관리자 계정을 입력하면 실행 사용자가 바뀝니다. 이때 <see cref="User"/> 범위 프로브는
-/// 관리자 계정의 HKCU·프로필을 읽게 되므로 실행하지 않고 원래 계정으로 로그인해 실행하도록 안내합니다.
+/// 관리자 계정의 HKCU·프로필을 읽게 되므로 실행하지 않고 관리자 계정으로 로그인해서 실행하도록 안내합니다.
 /// </remarks>
 public enum ProbeScope
 {

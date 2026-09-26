@@ -1,7 +1,7 @@
 /**
  * @file    : CacheToolsViewModel.cs
  * @author  : rudals252
- * @brief   : 공식 도구 캐시 정리의 선택·미리보기·확인·실행·후속 관측 화면
+ * @brief   : 공식 도구 캐시 정리의 선택·미리보기·확인·실행·후속 관측 화면. 사용자 폴더 도구는 터미널 직접 실행 명령을 안내한다
  */
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -13,6 +13,10 @@ namespace PcOptimizer.App.ViewModels;
 /// <summary>사용자 확인 뒤에만 캐시 도구를 실행합니다.</summary>
 public sealed partial class CacheToolsViewModel : ObservableObject
 {
+    /// <summary>사용자 폴더에 설치된 도구를 사용자가 터미널에서 직접 실행할 공식 명령(<see cref="CacheTool"/> 순서)입니다.</summary>
+    private static readonly IReadOnlyList<string> DIRECT_COMMANDS =
+        ["npm cache clean --force", "python -m pip cache purge", "dotnet nuget locals http-cache --clear"];
+
     private readonly CacheCleanupService _service;
     private readonly Func<string, bool> _confirm;
     private CacheCleanupPlan? _plan;
@@ -74,9 +78,10 @@ public sealed partial class CacheToolsViewModel : ObservableObject
         Message = Strings.Cleanup_Checking;
         try
         {
-            var result = await _service.PrepareAsync((CacheTool)SelectedTool, CancellationToken.None);
+            var tool = (CacheTool)SelectedTool;
+            var result = await _service.PrepareAsync(tool, CancellationToken.None);
             _plan = result.Plan;
-            Message = _plan is null ? FailureText(result.Reason) : FormatPreview(_plan);
+            Message = _plan is null ? FailureText(result.Reason, tool) : FormatPreview(_plan);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException) { Message = Strings.Cleanup_QueryFailed; }
         finally { IsBusy = false; }
@@ -97,7 +102,7 @@ public sealed partial class CacheToolsViewModel : ObservableObject
             var result = await _service.ExecuteAsync(plan.Id, CancellationToken.None);
             if (!result.Started)
             {
-                var reason = FailureText(result.Code);
+                var reason = FailureText(result.Code, plan.Location.Tool);
                 Message = reason == Strings.Cleanup_NotExecuted ? reason : Strings.Cleanup_NotExecuted + " " + reason;
                 return;
             }
@@ -107,7 +112,7 @@ public sealed partial class CacheToolsViewModel : ObservableObject
                 ? DisplayText.Format(Strings.Cleanup_Done, result.RemainingBytes is { } bytes
                     ? (bytes / 1_000_000d).ToString("N1", System.Globalization.CultureInfo.CurrentCulture) + " MB"
                     : Strings.Cleanup_Unverified)
-                : FailureText(result.Code);
+                : FailureText(result.Code, plan.Location.Tool);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -120,10 +125,11 @@ public sealed partial class CacheToolsViewModel : ObservableObject
         Tools[(int)plan.Location.Tool], plan.Location.Executable, plan.Location.CachePath,
         (plan.ObservedBytes / 1_000_000d).ToString("N1", System.Globalization.CultureInfo.CurrentCulture));
 
-    private static string FailureText(string? code) => code switch
+    private static string FailureText(string? code, CacheTool tool) => code switch
     {
-        "NormalUserRequired" or "ToolUnavailable" => Strings.Cleanup_Unavailable,
+        "ToolUnavailable" => Strings.Cleanup_Unavailable,
         SystemCacheToolBackend.USER_SCOPE_EXCLUDED => Strings.Cleanup_UserScopeExcluded,
+        SystemCacheToolBackend.TOOL_NOT_IN_PROTECTED_LOCATION => DisplayText.Format(Strings.Cleanup_ToolUserWritable, DIRECT_COMMANDS[(int)tool]),
         "PlanExpired" or "TargetChanged" or "ToolChanged" => Strings.Cleanup_Changed,
         "OutsideUserProfile" => Strings.Cleanup_OutsideProfile,
         "Busy" => Strings.Cleanup_Busy,

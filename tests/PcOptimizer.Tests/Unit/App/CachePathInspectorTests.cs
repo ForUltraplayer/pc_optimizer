@@ -1,7 +1,7 @@
 /**
  * @file    : CachePathInspectorTests.cs
  * @author  : rudals252
- * @brief   : 실제 실행 전 보호 관문의 별칭·권한·경로·링크·예산·HTTP 캐시 경계 검증
+ * @brief   : 실제 실행 전 보호 관문의 별칭·도구 보호 위치·경로·링크·예산·HTTP 캐시 경계 검증
  */
 using System.IO;
 using PcOptimizer.Core.Cleaning;
@@ -19,16 +19,23 @@ public sealed class CachePathInspectorTests
     private const string CACHE = PROFILE + @"\cache";
     private const string DOCUMENTS = PROFILE + @"\Private Documents";
     private const string POLICY = """{"schemaVersion":1,"protectedRoots":[{"kind":"knownFolder","folder":"Documents"}]}""";
+    private const string TOOL_FOLDER = @"C:\Program Files\Python";
+    private const string USER_TOOLS = PROFILE + @"\tools";
     private readonly FakeDirectoryEntrySource _files = new FakeDirectoryEntrySource()
-        .Dir(@"C:\").Dir(@"C:\Users").Dir(PROFILE).Dir(CACHE)
-        .Dir(@"C:\tools", FakeDirectoryEntrySource.File("python.exe", 10));
+        .Dir(@"C:\").Dir(@"C:\Users").Dir(PROFILE).Dir(CACHE).Dir(@"C:\Program Files")
+        .Dir(TOOL_FOLDER, FakeDirectoryEntrySource.File("python.exe", 10));
     private readonly AliasEnvironment _environment = new();
     private readonly ManualTimeProvider _time = new();
-    private bool _elevated;
+    private readonly Dictionary<string, string?> _programRoots = new(StringComparer.Ordinal)
+    {
+        ["ProgramFiles"] = @"C:\Program Files",
+        ["ProgramFiles(x86)"] = @"C:\Program Files (x86)",
+        ["ProgramW6432"] = @"C:\Program Files",
+    };
     private static CacheToolLocation Location(string path = CACHE, CacheTool tool = CacheTool.Pip)
-        => new(tool, @"C:\tools\python.exe", path, "fixture");
+        => new(tool, TOOL_FOLDER + @"\python.exe", path, "fixture");
     private CachePathInspector Inspector(int maxEntries = 100000, string policy = POLICY, IDirectoryEntrySource? source = null)
-        => new(_environment, new FakeRegistryReader(), source ?? _files, () => _elevated, () => "S-1-5-21-1",
+        => new(_environment, new FakeRegistryReader(), source ?? _files, name => _programRoots.GetValueOrDefault(name), () => "S-1-5-21-1",
             () => policy, _time, TimeSpan.FromSeconds(15), maxEntries);
 
     /// <summary>일반 캐시만 허용하며 파일 본문 없이 논리 크기를 관측합니다.</summary>
@@ -40,14 +47,57 @@ public sealed class CachePathInspectorTests
         Assert.Equal(new CacheInspection(true, 0, null), Inspector().Inspect(Location(CACHE + @"\new"), default));
     }
 
-    /// <summary>관리자 권한과 보호 정책 로딩 실패는 파일 열거 전에 거절합니다.</summary>
-    [Theory]
-    [InlineData(true, POLICY, "NormalUserRequired")]
-    [InlineData(false, "{}", "ProtectionUnavailable")]
-    public void RejectsAuthorityOrMissingPolicy(bool elevated, string policy, string reason)
+    /// <summary>보호 정책 로딩 실패는 파일 열거 전에 거절합니다.</summary>
+    [Fact]
+    public void RejectsMissingPolicy()
     {
-        _elevated = elevated;
-        Assert.Equal(reason, Inspector(policy: policy).Inspect(Location(), default).Reason);
+        Assert.Equal("ProtectionUnavailable", Inspector(policy: "{}").Inspect(Location(), default).Reason);
+        Assert.Empty(_files.Enumerated);
+    }
+
+    /// <summary>도구 경로는 정규화(8.3 별칭 해소·상대 구간 제거) 뒤 Program Files 계열 폴더 아래일 때만 보호 위치로 인정합니다.</summary>
+    [Theory]
+    [InlineData(@"C:\Program Files\nodejs\node.exe", true)]
+    [InlineData(@"c:\program files\nodejs\node.exe", true)]
+    [InlineData(@"C:\PROGRA~1\nodejs\node.exe", true)]
+    [InlineData(@"C:\Program Files (x86)\Python\python.exe", true)]
+    [InlineData(@"C:\Program Files\..\Users\kim\node.exe", false)]
+    [InlineData(@"C:\Program Files Evil\node.exe", false)]
+    [InlineData(@"C:\Program Files", false)]
+    [InlineData(@"C:\Users\kim\AppData\Roaming\nvm\v20\node.exe", false)]
+    [InlineData(@"C:\UNKNOW~1\node.exe", false)]
+    [InlineData(@"\\server\share\Program Files\node.exe", false)]
+    [InlineData(@"node.exe", false)]
+    public void ProtectedProgramLocationUsesCanonicalPrefix(string path, bool expected)
+    {
+        Assert.Equal(expected, Inspector().IsProtectedProgramLocation(path));
+    }
+
+    /// <summary>비어 있거나 없거나 드라이브 루트·상대 경로인 Program Files 값은 건너뛰고, 남은 값만 인정합니다.</summary>
+    [Fact]
+    public void EmptyOrUnsafeProgramRootsAreSkipped()
+    {
+        _programRoots["ProgramFiles"] = "";
+        _programRoots.Remove("ProgramFiles(x86)");
+        _programRoots["ProgramW6432"] = @"C:\";
+        Assert.False(Inspector().IsProtectedProgramLocation(@"C:\Program Files\nodejs\node.exe"));
+        Assert.False(Inspector().IsProtectedProgramLocation(@"C:\Users\kim\node.exe"));
+        _programRoots["ProgramW6432"] = "Program Files";
+        Assert.False(Inspector().IsProtectedProgramLocation(@"C:\Program Files\nodejs\node.exe"));
+        _programRoots["ProgramFiles(x86)"] = @"D:\Apps (x86)";
+        Assert.True(Inspector().IsProtectedProgramLocation(@"D:\Apps (x86)\nodejs\node.exe"));
+    }
+
+    /// <summary>보호 위치 밖의 실행 파일이나 npm 진입 파일은 캐시를 열거하기 전에 거절합니다.</summary>
+    [Theory]
+    [InlineData(USER_TOOLS + @"\python.exe", null)]
+    [InlineData(TOOL_FOLDER + @"\python.exe", USER_TOOLS + @"\npm-cli.js")]
+    public void RejectsToolOutsideProtectedLocation(string executable, string? script)
+    {
+        _files.Dir(PROFILE, FakeDirectoryEntrySource.Folder("cache"), FakeDirectoryEntrySource.Folder("tools"))
+            .Dir(USER_TOOLS, FakeDirectoryEntrySource.File("python.exe", 10), FakeDirectoryEntrySource.File("npm-cli.js", 10));
+        var result = Inspector().Inspect(new(CacheTool.Pip, executable, CACHE, "fixture", script), default);
+        Assert.Equal(SystemCacheToolBackend.TOOL_NOT_IN_PROTECTED_LOCATION, result.Reason);
         Assert.Empty(_files.Enumerated);
     }
 
@@ -129,7 +179,7 @@ public sealed class CachePathInspectorTests
     {
         _files.Deny(CACHE);
         Assert.False(Inspector().Inspect(Location(), default).Allowed);
-        _files.Deny(@"C:\tools");
+        _files.Deny(TOOL_FOLDER);
         Assert.Equal("ToolChanged", Inspector().Inspect(Location(), default).Reason);
     }
 
@@ -179,7 +229,7 @@ public sealed class CachePathInspectorTests
         public string? GetKnownFolderPath(ProtectedKnownFolder folder) => folder == ProtectedKnownFolder.Documents ? Documents : null;
         public string? GetUserProfilePath() => ShortProfile ? @"C:\Users\TESTER~1" : PROFILE;
         public string NormalizePath(string path) => PathScope.Normalize(path.Replace("PRIVAT~1", "Private Documents", StringComparison.OrdinalIgnoreCase)
-            .Replace("TESTER~1", "tester", StringComparison.OrdinalIgnoreCase));
+            .Replace("TESTER~1", "tester", StringComparison.OrdinalIgnoreCase).Replace("PROGRA~1", "Program Files", StringComparison.OrdinalIgnoreCase));
         public string? ReadSmallTextFile(string path, int maxBytes) => null;
     }
 }

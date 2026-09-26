@@ -61,7 +61,7 @@ public sealed class ScanService
     /// <param name="isElevated">현재 프로세스가 관리자 권한인지 판정하는 함수.</param>
     /// <param name="limitToSystemScope">
     /// 시스템 범위 프로브만 실행할지 여부(기본 false). 대화형 로그온 사용자와 다른 관리자 계정으로 실행 중이면(또는 확인 불가) true이며,
-    /// 사용자별 프로브는 호출하지 않고 원래 계정으로 로그인해 실행하라는 안내와 함께 건너뜁니다.
+    /// 사용자별 프로브는 호출하지 않고 관리자 계정으로 로그인해서 실행하라는 안내와 함께 건너뜁니다.
     /// </param>
     public ScanService(
         IEnumerable<IProbe> probes,
