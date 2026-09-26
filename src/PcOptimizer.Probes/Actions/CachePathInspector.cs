@@ -51,7 +51,16 @@ internal sealed class CachePathInspector(IPathEnvironment environment, IRegistry
     /// </summary>
     /// <param name="path">도구 실행 파일 또는 npm 진입 파일 경로.</param>
     /// <returns>보호 위치 아래이면 true. 정규화할 수 없는 경로는 false.</returns>
-    internal bool IsProtectedProgramLocation(string path)
+    internal bool IsProtectedProgramLocation(string path) => IsProtectedProgramLocation(environment, programRoot, path);
+
+    /// <summary>
+    /// <see cref="IsProtectedProgramLocation(string)"/>의 공용 판정입니다. 정리 창 노출 판정도 실행 규칙과 같은 이 함수를 씁니다.
+    /// </summary>
+    /// <param name="environment">경로 정규화 환경.</param>
+    /// <param name="programRoot">보호 위치 이름별 경로(없으면 null).</param>
+    /// <param name="path">도구 실행 파일 또는 npm 진입 파일 경로.</param>
+    /// <returns>보호 위치 아래이면 true.</returns>
+    internal static bool IsProtectedProgramLocation(IPathEnvironment environment, Func<string, string?> programRoot, string path)
     {
         string canonical;
         try { canonical = CanonicalPath(environment, path); }

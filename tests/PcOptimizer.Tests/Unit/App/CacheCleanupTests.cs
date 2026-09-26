@@ -280,6 +280,52 @@ public sealed class CacheCleanupTests
         Assert.Contains("--offline", CacheToolProcess.Arguments(location, true));
     }
 
+    /// <summary>
+    /// 관리자 권한 도구는 사용자 쓰기 가능 폴더가 아니라 System32에서 실행해 작업 폴더 기준 설정(dotnet global.json·npm .npmrc·pip 모듈)을
+    /// 사용자가 심을 수 없게 합니다. 조회와 정리 모두 같습니다.
+    /// </summary>
+    [Theory]
+    [InlineData(CacheTool.Npm, false)]
+    [InlineData(CacheTool.Npm, true)]
+    [InlineData(CacheTool.Pip, false)]
+    [InlineData(CacheTool.Pip, true)]
+    [InlineData(CacheTool.NuGetHttp, false)]
+    [InlineData(CacheTool.NuGetHttp, true)]
+    public void ToolsRunFromSystemDirectory(CacheTool tool, bool clear)
+    {
+        var location = new Backend().Location with { Tool = tool };
+        var start = CacheToolProcess.CreateStartInfo(location, clear);
+        var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile).TrimEnd('\\');
+        Assert.Equal(Environment.GetFolderPath(Environment.SpecialFolder.System), start.WorkingDirectory);
+        Assert.False(string.Equals(profile, start.WorkingDirectory, StringComparison.OrdinalIgnoreCase));
+        Assert.False(start.WorkingDirectory.StartsWith(profile + "\\", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain("ToolWork", start.WorkingDirectory, StringComparison.OrdinalIgnoreCase);
+        Assert.False(start.UseShellExecute);
+        Assert.Equal(location.Executable, start.FileName);
+        Assert.Equal(CacheToolProcess.Arguments(location, clear), start.ArgumentList);
+    }
+
+    /// <summary>PATH 앞쪽의 사용자 폴더 후보가 많아도 뒤쪽 보호 위치 후보를 후보 목록에서 빼지 않습니다.</summary>
+    [Fact]
+    public void CandidateListKeepsProtectedEntryAfterManyUserEntries()
+    {
+        var path = @"C:\Users\kim\Py1;C:\Users\kim\Py2;C:\Users\kim\Py3;C:\Users\kim\Py4;C:\Program Files\Python312";
+        var candidates = SystemCacheToolBackend.CandidateExecutables(CacheTool.Pip, name => name == "ProgramFiles" ? @"C:\Program Files" : null, path);
+        Assert.Contains(@"C:\Program Files\Python312\python.exe", candidates);
+    }
+
+    /// <summary>후보 상한은 보호 위치 판정 뒤에 적용해 사용자 폴더 후보가 상한을 소모하지 않습니다.</summary>
+    [Fact]
+    public async Task CandidateCapAppliesAfterProtectedLocationFilter()
+    {
+        const string PROTECTED_PYTHON = @"C:\Program Files\Python312\python.exe";
+        var fixture = new ToolFixture(@"C:\Users\kim\Py1\python.exe", @"C:\Users\kim\Py2\python.exe", @"C:\Users\kim\Py3\python.exe",
+            @"C:\Users\kim\Py4\python.exe", PROTECTED_PYTHON);
+        var preparation = await new CacheCleanupService(fixture.Create()).PrepareAsync(CacheTool.Pip, default);
+        Assert.Equal(PROTECTED_PYTHON, preparation.Plan!.Location.Executable);
+        Assert.Equal([PROTECTED_PYTHON], fixture.RunExecutables);
+    }
+
     /// <summary>계획 만료·대상 변경·보호·시작 실패는 실행 결과나 재검사 요청을 만들지 않습니다.</summary>
     [Theory]
     [InlineData("expired")]
