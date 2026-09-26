@@ -183,3 +183,5 @@ Task P6: dispatched next (opus)
 Task P6: implementer DONE_WITH_CONCERNS (commits 8180165, 5231f28; 자체 보고 1085/1085 + smoke 18/18 + online 3/3). 리뷰 미실시 — 사용량 한도로 중단. HANDOFF: docs/HANDOFF.md
 External review (Codex): P5 기본 803·스모크 18 독립 확인; REV-006(정션 아래 설정 파일 본문 읽음), REV-007(접근 거부 설정 파일을 설정 없음 처리) 재현 — P5 fix round 4 필요. 앱 캐시 카드 수는 106장(97은 이전 라운드 수치).
 SESSION END 2026-09-26: 사용량 한도. 재개는 docs/HANDOFF.md 기준.
+2026-09-27: Codex가 구현 인계(89e2cbb, e75d08d, ad06cca): 1차 자동 조치(npm·pip·NuGet HTTP 캐시 정리), UI 개편, REV-002/003/006/007 수정, REV-004 사용자 결정 반영(자동 조치 1차 포함). 작업 트리에 Codex 미커밋 변경(빌드 깨짐) — 소스 미접촉.
+Independent review (Claude, fable, 9aa45b3..ad06cca): Critical 0, Important 5 → REV-008~012 원장 등록, 보고서 docs/reviews/2026-09-27-claude-independent-review.md. 판정: 일반 권한 수동 검증 진행 가능, 출시 전 REV-008~012 필수.
