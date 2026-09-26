@@ -1622,6 +1622,14 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 > 2026-09-27 독립 리뷰 후속: [공유 원장](../../reviews/REVIEW_LEDGER.md)의 REV-016~018 및 REV-010과 [재현 보고서](../../reviews/2026-09-27-sp4-task9-review.md)를 브리프 작성 전에 읽을 것. 승격 거절을 제거하기 전에 SystemOnly 사용자 조치 거절 계약과 검사·사양·실행의 실제 작업 수명 관문을 반영해야 한다. 현재 정리 실행 차단을 신규 결함이 해결됐다는 근거로 삼지 않는다.
 
+**2026-09-27 REV-016·018 반영(컨트롤러 룰링, Codex 독립 리뷰 후속):** 아래 항목을 이 Task의 필수 범위에 추가한다. 승격 거절(`NormalUserRequired`) 제거는 (a)(b)가 먼저 통과한 뒤에만 한다.
+
+- (a) **UI 관문(REV-016·018)**: `MainViewModel.CanOpenCacheTools`는 `CacheToolsAvailable && !IsScanning && !HasDrainingNote && !IsSystemOnly && !Spec.IsLoading`. `OnSpecPropertyChanged`에서 `IsLoading` 변경 시 `CanOpenCacheTools`/`OpenCacheToolsCommand` 알림도 갱신한다. 테스트는 `docs/reviews/repro/Sp4Task9ReviewTests.cs`의 `SystemOnlyMustNotOfferUserCacheActions`, `SpecLoadingMustBlockCacheActions`를 이름·단언 그대로 `tests/PcOptimizer.Tests/Unit/App/MainViewModelTests.cs`에 편입한다(헬퍼는 기존 AppTestDoubles 사용).
+- (b) **실행기 관문(REV-016)**: Probes는 App 형식을 참조할 수 없으므로 `SystemCacheToolBackend(IAppLogger? logger = null, bool limitToSystemScope = false)` 인자를 추가하고, `CacheToolsWindow(IAppLogger?, bool limitToSystemScope)`가 `MainViewModel.IsSystemOnly`를 전달한다. `limitToSystemScope`가 true면 `LocateAsync`·`ClearAsync` 모두 관측·실행 전에 코드 상수 `USER_SCOPE_EXCLUDED = "UserScopeExcluded"`로 거절한다(npm·pip·NuGet은 전부 사용자별 캐시). 정리 창 문구 `Cleanup_UserScopeExcluded`="다른 관리자 계정으로 실행 중이라 이 계정의 캐시는 정리하지 않아요." 테스트: SystemOnly 거절(Started=false, 파일 시스템 관측 0회), Full 허용 회귀.
+- (c) **보호 위치 검사 확장**: 도구 경로는 `CachePathInspector`의 기존 정규화(8.3 별칭·링크 해소, CanonicalPath)를 거친 뒤 접두 비교한다. pip는 `python.exe -m pip` 형태이므로 python.exe 경로를 검사한다. `%ProgramFiles%`·`%ProgramFiles(x86)%`·`%ProgramW6432%` 중 비어 있는 값은 건너뛴다.
+- (d) **문구 정정**: 표준 계정은 항상 다른 관리자 자격 증명으로 승격되므로 "원래 계정으로 로그인"은 해결책이 아니다. `Banner_SystemOnly`와 `CoreStrings.ProbeIssue_UserScopeExcluded`의 안내 부분을 "관리자 계정으로 로그인해서 실행하면 전부 검사할 수 있어요"로 바꾼다(앞부분 "다른 관리자 계정으로 실행 중이라 이 계정의 항목은 검사하지 않았어요"는 유지). `README.md`의 "관리자 재검사" 문장과 `docs/superpowers/specs/2026-09-27-first-release-actions.md:10`의 "일반 사용자 권한만 허용… 다른 SID 재검사 인스턴스" 문장을 새 모델(항상 관리자·보호 위치 도구만·SystemOnly 거절)로 정정한다.
+- (e) 원장 `docs/reviews/REVIEW_LEDGER.md`의 REV-016·018에 **대응 기록**(커밋·테스트 이름)을 쓴다. 상태는 "수정됨·재검증 대기"로 두고 "검증 완료"로 바꾸지 않는다.
+
 **Files:**
 - Modify: `src/PcOptimizer.Probes/Actions/SystemCacheToolBackend.cs`(승격 거절 → "보호 위치 도구만 실행" 규칙으로 교체), `src/PcOptimizer.App/ViewModels/CacheToolsViewModel.cs`(문구), `Strings.resx`, `ProbeStrings.resx`
 - Test: `tests/PcOptimizer.Tests/Unit/App/CachePathInspectorTests.cs`, `CacheCleanupTests.cs`(수정)
@@ -1829,3 +1837,32 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 - **스펙 커버리지**: 배포(스펙 §7A: GitHub zip 포터블, 파일 수 최소, 실행 파일 명확, 아이콘)는 Task 12. §0 항상 관리자(Task 9), 사용자 쓰기 가능 도구 미실행(Task 10), 표준 계정 시스템 범위(Task 9); §3 카드 형식·안전 배지(Task 1~4), 요약 타일·도구 노출 조건(Task 5), 승격 버튼·배너 제거(Task 9); §3.2 사양 섹션 9항목·확인 불가·캡처·공유·익명화(Task 6~8); §7 1단계 순서 준수. 고급 탭·되돌리기 목록·확인/결과 창 일반화는 SP1·SP2 계획으로 미룸(스펙 §3에 명시된 항목이나 이 단계 범위 밖).
 - **자리표시자**: 코드 블록에 실제 내용. Task 7 빌더 9개는 라벨·형식 규칙을 주석으로 명시했고 구현자가 그대로 옮긴다.
 - **형식 일관성**: `Explanation(What, Effect, Caution)`, `SafetyLevel {Safe, Caution, Irreversible}`, `IActionAvailability.CanExecuteInApp(Finding)`, `UserScopeMode {Full, SystemOnly}`, `PcSpecService.BuildSnapshot(IReadOnlyDictionary<string, ProbeResult>, DateTimeOffset)`, `PcSpecTextFormatter.Format(snapshot, includeIdentity, machineName, userName)` — 전 작업에서 동일하게 사용.
+
+### Task 13: 실행 수명 공유와 종료 견고성 (REV-017·REV-010, 실행 순서 10 → 13 → 11 → 12)
+
+> 2026-09-27 컨트롤러 룰링: Codex 독립 리뷰([보고서](../../reviews/2026-09-27-sp4-task9-review.md), [재현 소스](../../reviews/repro/Sp4Task9ReviewTests.cs))의 REV-017·REV-010 잔여를 SP4 안에서 해결한다. 포터블 배포(Task 12) 전에 끝낸다.
+
+**Files:**
+- Modify: `src/PcOptimizer.App/Services/PcSpecService.cs`(프로브별 진행 중 Task 추적·재진입 차단·종료 대기 노출), `src/PcOptimizer.App/ViewModels/PcSpecViewModel.cs`(`IsDraining`), `src/PcOptimizer.App/ViewModels/MainViewModel.cs`(`CanStartScan`·`CanOpenCacheTools`·사양 새로 고침 관문에 `Spec.IsDraining`과 `HasDrainingNote` 양방향 반영), `src/PcOptimizer.App/Resources/Strings.resx`(`Spec_DrainingNote`="이전 사양 읽기가 끝나기를 기다리는 중이에요."), `src/PcOptimizer.Probes/Actions/CacheProcessGuard.cs`(AggregateException 처리)
+- Test: `tests/PcOptimizer.Tests/Unit/App/PcSpecTests.cs`, `MainViewModelTests.cs`, `tests/PcOptimizer.Tests/Unit/Probes/CacheProcessGuardTests.cs`(없으면 생성)
+
+**Interfaces:**
+- Produces: `PcSpecService.HasLiveProbes`(bool, 타임아웃 뒤에도 끝나지 않은 프로브 Task가 있으면 true), `PcSpecService.WaitForDrainAsync(CancellationToken)`(살아 있는 Task가 모두 끝날 때까지 대기), `PcSpecViewModel.IsDraining`(bool, 알림 속성), `MainViewModel.CanStartScan`·`CanOpenCacheTools`는 `Spec.IsDraining`이면 false, `PcSpecViewModel.Refresh`는 `IsDraining` 또는 검사 진행/종료 중이면 실행하지 않음.
+- 계약(REV-017): 같은 `IProbe` 인스턴스는 일반 검사와 사양 수집이 공유한다. 사양 수집에서 타임아웃된 프로브 Task는 서비스가 `probeId → Task` 사전에 보존하고, 그 Task가 끝나기 전에는 같은 프로브를 다시 호출하지 않는다(건너뛰고 `SpecProbeStillRunning probe={id}` 경고 로그). 반대 방향(검사 종료 중 → 사양)은 `MainViewModel`이 `HasDrainingNote`일 때 `Spec.SetBusy(true)`를 유지해 새로 고침을 막는다.
+- 계약(REV-010): `CacheProcessGuard.StopAsync`의 `kill()`이 `AggregateException`을 던지면 `Flatten()`한 내부 예외가 전부 `InvalidOperationException`/`Win32Exception`일 때 `KillFailed`(형식 이름만 로그)로 처리하고 종료 대기(`wait()`)를 계속한다. 그 밖의 내부 예외는 기존대로 전파한다. 바깥 catch도 같은 규칙으로 `ProcessStillRunning`을 기록하고 false를 반환한다. 시작 이력·핸들 소유권·익명 로그는 그대로 보존한다.
+
+- [ ] **Step 1: 실패하는 테스트 작성** — 재현 소스의 `TimedOutSpecMustNotReenterLiveSharedProbe`(PcSpecTests로), `AggregateKillFailureMustNotEscapeGuard`(CacheProcessGuardTests로)를 이름·단언 그대로 편입하고, `MainViewModelTests`에 `사양_종료_대기_중에는_검사와_정리를_시작하지_않는다`(Spec.IsDraining=true ⇒ StartScan.CanExecute=false, CanOpenCacheTools=false), `검사_종료_대기_중에는_사양_새로_고침을_하지_않는다`(HasDrainingNote=true ⇒ Spec.RefreshCommand.CanExecute=false)를 추가한다.
+- [ ] **Step 2: 실패 확인** — 두 편입 테스트가 원장 기록대로 실패(Expected 1/Actual 2, AggregateException 전파)하는지 확인.
+- [ ] **Step 3: 구현** — 위 인터페이스 계약대로. `PcSpecService`는 `ConcurrentDictionary<string, Task>`로 살아 있는 Task를 보관하고 완료 시 제거한다. `CaptureAsync` 반환 후에도 `HasLiveProbes`가 true면 `PcSpecViewModel.IsDraining`을 true로 두고 `WaitForDrainAsync` 완료 시 false로 되돌린다(UI 스레드 디스패처 사용). 매직 값 금지(타임아웃·대기는 기존 상수 재사용).
+- [ ] **Step 4: 통과 확인** — `--filter "FullyQualifiedName~PcSpecTests|FullyQualifiedName~MainViewModelTests|FullyQualifiedName~CacheProcessGuardTests"` PASS, 기본 필터 전체 PASS, Smoke PASS.
+- [ ] **Step 5: 원장 대응 기록** — `docs/reviews/REVIEW_LEDGER.md` REV-017·REV-010에 커밋·테스트 이름·남은 한계를 쓴다. 상태는 "수정됨·재검증 대기".
+- [ ] **Step 6: 커밋**
+
+```bash
+git add src tests docs/reviews/REVIEW_LEDGER.md
+git -c user.name=rudals252 -c user.email=jwr300028@gmail.com commit -m "SP4: 사양 수집·검사 실행 수명 공유와 종료 예외 처리(REV-017·REV-010)
+
+Co-Authored-By: <실제 모델> <noreply@anthropic.com>"
+```
+
+---
