@@ -29,7 +29,7 @@
 | REV-014 | P2 | 수정됨·재검증 대기 | UI 개요 | SP4 Task 5: 드라이버 타일 제거, 온라인 완료 판정에서 로컬 Driver CannotVerify 제외(온라인 공급자·NVIDIA 비교 규칙만), 온라인 상태는 옵션 영역 `LastOnlineCheckText`만 |
 | REV-015 | 제품 범위 | 수정됨·재검증 대기 | 개요 화면 | SP4 Task 5: 제안 1·2항(요약 타일 '바로 할 수 있는 것/직접 해야 하는 것', 0이면 숨김, 정리 창은 보호 위치 도구 있을 때만) 구현. 3·4항은 후속 단계 |
 | REV-016 | P1(Task 10 선행) | 수정됨·재검증 대기 | Task 9→10 사용자 범위 | SP4 Task 10 `0c80a8b`: UI `CanOpenCacheTools`에 !IsSystemOnly, `SystemCacheToolBackend(limitToSystemScope)`가 Locate·Inspect·Clear를 관측 전 `UserScopeExcluded`로 거절. 승격 거절 제거는 이후 `34670c5` |
-| REV-017 | P2 | 수정됨·재검증 대기 | SP4 사양 수집 | SP4 Task 13 `3d286be`: 살아 있는 사양 프로브 Task를 probeId별 보관·재호출 차단, `Spec.IsDraining`으로 검사·정리 차단, 검사 종료 중(HasDrainingNote)엔 사양 새로 고침 차단 |
+| REV-017 | P2 | 수정됨·재검증 대기 | SP4 사양 수집 | SP4 Task 13 `3d286be`: 살아 있는 사양 프로브 Task를 probeId별 보관·재호출 차단, `Spec.IsDraining`으로 검사·정리 차단, 검사 종료 중(HasDrainingNote)엔 사양 새로 고침 차단. 최종 리뷰 후속 `ec3547e`: 프로브를 Task.Run으로 시작(이전에는 동기 실제 프로브에 추적이 적용되지 않았음) |
 | REV-018 | P2 | 수정됨·재검증 대기 | SP4 실행 상호 배제 | SP4 Task 10 `0c80a8b`: `CanOpenCacheTools`에 !Spec.IsLoading, IsLoading 변경 시 CanOpenCacheTools 알림. SP4 Task 13 `3d286be`: `CanOpenCacheTools`·`CanStartScan`에 `!Spec.IsDraining` 관문·변경 알림 추가 |
 
 ## REV-001 — 보호 경로와 스캔 경로의 검증 정책을 분리
@@ -446,6 +446,11 @@
   - 검증(Release, `3d286be` 작업 트리): 빌드 경고 0·오류 0, 기본 필터 1245/1245, Smoke 22/22, 대상 3개 클래스 61/61 5회 반복 통과. Online/ToolSmoke·앱 GUI 미실행.
   - 남은 제한: 끝나지 않는 프로브는 영원히 IsDraining=true로 남아 검사·정리·사양 새로 고침이 앱 재시작까지 막힌다(HasDrainingNote와 같은 의미, 컨트롤러 결정). 검사 종료 중 사양 화면에는 기존 `Spec_BusyScanning`("검사 중에는…") 문구가 보인다. 검사 측이 사양 측 보관 Task를 직접 보지는 않고 UI 관문(`CanStartScan`)으로만 막는다 — UI 밖에서 `ScanService`를 직접 부르는 경로는 없음(App.xaml.cs 확인). 동시 `CaptureAsync` 두 개가 같은 프로브를 동시에 보관하는 경합은 뷰모델의 IsLoading 관문으로만 배제된다. 독립 재검증 필요.
   - 수정 라운드 1 (Task 13 리뷰 발견 1·2·4·6): 결과 화면 개요 카드에 `MainViewModel.HasSpecDrainingNote`(=`Spec.IsDraining`, 변경 알림) 바인딩 `Spec_DrainingNote` 안내(`SpecDrainingNoteMain`) — 검사 시작·정리 버튼 비활성 사유 표시. `TrackIfLive`가 대기 직후 이미 실패로 끝난 Task의 예외도 관측(`SpecProbeLateFailure`). 테스트 `MainWindowLayoutTests.SpecDrainingNoteShowsOnResultsOverview`(RED: XAML 원복 시 `Assert.Single() Failure`), `MainViewModelTests.SpecDrainingNotifiesScanGateAndMainNote`(IsDraining 전이마다 StartScan CanExecuteChanged false→true·HasSpecDrainingNote 알림), 기존 `사양_종료_대기_중에는_…`에 HasSpecDrainingNote 단언. 기본 1247/1247, Smoke 22/22, 빌드 0/0. 리뷰 발견 3(검사 종료 중 사양 화면 문구)·5(서비스 계층 상호 배제)는 이월. 상태 유지 `수정됨·재검증 대기`.
+- 대응 기록 (2026-09-27, Claude Opus 5.5 구현자, SP4 최종 리뷰 후속 필수 2): 상태 유지 `수정됨·재검증 대기`.
+  - 최종 리뷰 발견: 실제 사양 프로브 8개는 모두 동기 WMI 조회 뒤 `Task.FromResult`를 돌려주므로 `PcSpecService.RunProbeAsync`가 `probe.RunAsync`를 호출 스레드(UI)에서 끝까지 실행했다. **이 수정 전에는 위 타임아웃·살아 있는 실행 추적(`TrackIfLive`·`HasLiveProbes`·`IsDraining`)이 실제 프로브에는 한 번도 적용되지 않았다**(기존 테스트는 비동기로 멈추는 대역만 써서 통과). WMI가 멈추면 앱 전체가 응답하지 않을 수 있었다.
+  - 커밋 `ec3547e`: `running = Task.Run(() => probe.RunAsync(context, timeout.Token), CancellationToken.None);`(`ProbeExecutor`와 같은 방식). 사양 섹션 순서·타임아웃 값은 변경 없음.
+  - 테스트: `PcSpecTests.SynchronouslyBlockingProbeTimesOutAndStaysTracked`(Core의 동기 차단 대역 `BlockingProbe`로 CaptureAsync가 프로브 타임아웃 뒤 반환하고 `HasLiveProbes == true`, 풀면 종료 대기 완료), `ViewModelRefreshExecuteReturnsWhileProbeBlocks`(`RefreshCommand.Execute`가 프로브가 막고 있는 동안 곧바로 반환). 두 테스트 모두 수정 전 코드가 영구히 멈추지 않도록 3초 뒤 대역을 푸는 안전장치를 두고, 안전장치가 풀기 전에 반환해야 통과한다. RED(수정 전): `동기 차단 프로브가 CaptureAsync 호출 스레드를 막았다`, `새로 고침 Execute가 동기 차단 프로브에 막혔다`(각 3초). `MainWindowLayoutTests.SpecToggleSwapsMainContent`는 사양 읽기가 동기로 끝난다는 가정에 의존해 창을 만들기 전에 사양을 한 번 읽어 두도록 고쳤다(전환은 여전히 창이 있는 상태에서 바인딩으로 확인).
+  - 검증: 최종 리뷰 후속 절 참조. 실제 WMI가 멈추는 PC에서의 재현은 하지 않았다. 독립 재검증 필요.
 
 ## REV-018 — 사양 읽기 중 정리 창 진입 가드 누락
 
@@ -488,3 +493,18 @@
   - pip 캐시 정리의 실제 프로세스 실행 스모크(`Category=ToolSmoke`)는 이번 라운드에 실행하지 않았다(테스트용 Python 경로 지정이 필요해 기본 검증 범위 밖). `Category=Online`도 재실행하지 않았다.
   - 일반(비관리자) 셸에서의 UAC 프롬프트, 표준 계정이 다른 관리자 자격 증명으로 승격했을 때의 실제 SystemOnly 배너·정리 버튼 비활성화, Program Files에 Python만 있는 PC에서의 정리 버튼 노출, .NET 미설치 PC, 모니터 DPI·키보드 전환은 여전히 수동 검증 대기다.
 - 이 절은 구현 세션 자체 검증이다. 독립 검토자(Codex)가 별도로 확인하기 전에는 위 REV 항목을 `검증 완료`로 바꾸지 않는다.
+
+## 2026-09-27 최종 리뷰 후속 (Claude Opus 5.5 구현자, 구현 세션 자체 검증)
+
+- 근거: `.superpowers/sdd/2026-09-27-sp4-format-and-admin/final-review.md`(범위 `e1c965c..888305b`)의 "병합 전 필수" 1~3과 컨트롤러가 이번 라운드에 편입한 "이월 가능" 4·5. 커밋 `ec3547e`(코드·테스트·스펙 §0). 이 절은 구현자 자체 검증이며 독립 재검증이 아니다.
+  1. [Critical] 공식 링크가 관리자 권한 브라우저로 열림: `LinkPolicy`가 `UseShellExecute` 대신 `UnelevatedShellLauncher`로 Windows 폴더 `explorer.exe`(셸 없이, 작업 폴더 Windows)에 검증한 `AbsoluteUri`를 인자 하나로만 넘긴다. 시작 실패 시 카드에 `Link_OpenFailedCopyFormat`(주소 포함, 선택 가능한 읽기 전용 글상자). `SettingsUriPolicy`(`ms-settings:`, 패키지 앱 활성화)는 브라우저를 띄우지 않아 변경하지 않았다. 테스트 `LinkPolicyTests.기본_실행기는_비승격_셸에_검증한_URL만_넘긴다`·`거부한_링크는_셸을_시작하지_않는다`·`비승격_셸_시작_실패는_Failed다`, `FindingCardLinkTests.실행_실패는_안내한다`. RED: 새 형식 없음으로 컴파일 실패.
+  2. [Important] 사양 수집 UI 스레드 동기 실행: REV-017 대응 기록 참조.
+  3. [Important] 검사 전 "직접 해야 하는 것 0건": 요약 타일 묶음(`SummaryTiles`)을 `HasCards`(=`LastResult is not null`)일 때만 표시. 테스트 `MainWindowLayoutTests.SummaryTilesAreHiddenBeforeScanAndShownAfterResult`. RED: `Assert.Equal() Failure: Values differ`(검사 전 Visible).
+  4. [Honesty] SID 확인 불가 시 사실과 다른 배너: `UserScopeResolver.IsUnresolved`(어느 SID든 null)를 `App.xaml.cs`에서 `MainViewModel`(선택 인자 `userScopeUnresolved`)로 넘겨 `Banner_ScopeUnknown`을 표시. 알려진 경우의 `Resolve` 판정표는 변경 없음. 테스트 `UserScopeResolverTests.DetectsUnresolvedScope`, `MainViewModelTests.UnresolvedSystemOnlyShowsScopeUnknownBanner`·`FullScopeIgnoresUnresolvedFlag`, `MainWindowLayoutTests.사용자_확인_불가면_확인_불가_배너가_보인다`. RED: 컴파일 실패. 셸 토큰 SID 대체 수단과 Entra 실기 확인은 하지 않았다(이월).
+  5. [Defense] (a) `PcOptimizer.App.csproj`에 `StartupHookSupport=false`(빌드 산출 runtimeconfig에 `System.StartupHookProvider.IsSupported: false` 확인), `PackagingTests` 단언 추가. (b) `CacheToolProcess.CreateStartInfo`가 상수 `INJECTION_ENVIRONMENT_VARIABLES`(DOTNET_STARTUP_HOOKS·DOTNET_ADDITIONAL_DEPS·DOTNET_SHARED_STORE·NODE_OPTIONS·PYTHONSTARTUP·PYTHONPATH·PYTHONHOME)와 접두사 `STRIPPED_ENVIRONMENT_PREFIXES`(기존 DOTNET_·CORECLR_·COR_·NODE_·PYTHON에 COMPlus_ 추가)를 지운다. NUGET_*·NPM_CONFIG_*·PIP_*는 컨트롤러 판정대로 유지. 테스트 `CacheToolEnvironmentTests.InjectionCapableVariablesAreRemovedAndOthersKept`(현재 프로세스에 심어도 빠지고 무관한 변수·캐시 위치 변수는 남음, 병렬 비활성 컬렉션). RED: `COMPlus_EnableDiagnostics가 남아 있다`, `StartupHookSupport` 문자열 불일치.
+- 검증(Release, 작업 트리 = `ec3547e`):
+  - `dotnet build PcOptimizer.sln --configuration Release` — 경고 0, 오류 0.
+  - `dotnet test PcOptimizer.sln --configuration Release --no-build --filter "Category!=Smoke&Category!=Online&Category!=ToolSmoke"` — 통과 1279, 실패 0.
+  - `dotnet test PcOptimizer.sln --configuration Release --no-build --filter "Category=Smoke"` — 통과 22, 실패 0.
+  - Online/ToolSmoke와 앱 GUI 실행은 하지 않았다. 실제 브라우저가 비승격으로 열리는지, 링크 실패 안내 글상자의 모양은 실기 확인하지 못했다.
+- 관련 REV: REV-017 상태 유지 `수정됨·재검증 대기`(위 절 기록). REV-015(요약 타일)는 검사 전 숨김이 추가됐을 뿐 상태 변경 없음. `검증 완료`는 독립 검토자만 기록한다.
