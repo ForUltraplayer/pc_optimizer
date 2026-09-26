@@ -6,6 +6,7 @@
 
 // 사용자 패키지
 using PcOptimizer.Core.Models;
+using PcOptimizer.Core.Resources;
 
 namespace PcOptimizer.Core.Engine;
 
@@ -69,9 +70,9 @@ public static class ProbeResultConverter
         var reason = result.Issues.Count > 0 ? result.Issues[0].Reason : DefaultReasonFor(result.Status);
         var title = result.Status switch
         {
-            ProbeStatus.Skipped => CannotVerifyTexts.TITLE_SKIPPED,
-            ProbeStatus.Cancelled => CannotVerifyTexts.TITLE_CANCELLED,
-            _ => CannotVerifyTexts.TITLE_FAILED,
+            ProbeStatus.Skipped => CoreStrings.CannotVerify_Title_Skipped,
+            ProbeStatus.Cancelled => CoreStrings.CannotVerify_Title_Cancelled,
+            _ => CoreStrings.CannotVerify_Title_Failed,
         };
 
         return new Finding(
@@ -96,9 +97,9 @@ public static class ProbeResultConverter
         return new Finding(
             id: PARTIAL_FINDING_ID_PREFIX + result.ProbeId,
             category: category,
-            title: CannotVerifyTexts.TITLE_PARTIAL,
+            title: CoreStrings.CannotVerify_Title_Partial,
             measured: [],
-            evidence: CannotVerifyTexts.EVIDENCE_PARTIAL_DATA,
+            evidence: CoreStrings.CannotVerify_Evidence_PartialData,
             verdict: Verdict.CannotVerify,
             cannotVerifyReason: CannotVerifyReason.PartialData,
             detail: null,

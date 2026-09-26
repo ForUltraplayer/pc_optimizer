@@ -7,6 +7,7 @@
 // 사용자 패키지
 using PcOptimizer.Core.Abstractions;
 using PcOptimizer.Core.Models;
+using PcOptimizer.Core.Resources;
 
 namespace PcOptimizer.Core.Engine;
 
@@ -82,9 +83,9 @@ public sealed class RuleEvaluator
         return new Finding(
             id: RULE_FAILURE_FINDING_ID_PREFIX + ruleId,
             category: FindingCategory.Unclassified,
-            title: CannotVerifyTexts.TITLE_RULE_FAILED,
+            title: CoreStrings.CannotVerify_Title_RuleFailed,
             measured: [],
-            evidence: CannotVerifyTexts.EVIDENCE_RULE_FAILED,
+            evidence: CoreStrings.CannotVerify_Evidence_RuleFailed,
             verdict: Verdict.CannotVerify,
             cannotVerifyReason: CannotVerifyReason.ProbeError,
             detail: null,

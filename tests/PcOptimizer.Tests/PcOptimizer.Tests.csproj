@@ -5,6 +5,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <!-- App(WPF) 뷰모델·서비스를 테스트하기 위해 WPF 참조가 필요하다 -->
+    <UseWPF>true</UseWPF>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,6 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\PcOptimizer.Core\PcOptimizer.Core.csproj" />
     <ProjectReference Include="..\..\src\PcOptimizer.Probes\PcOptimizer.Probes.csproj" />
+    <ProjectReference Include="..\..\src\PcOptimizer.App\PcOptimizer.App.csproj" />
   </ItemGroup>
 
 </Project>
