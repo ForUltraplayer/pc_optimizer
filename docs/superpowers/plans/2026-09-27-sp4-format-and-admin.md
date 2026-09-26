@@ -1342,6 +1342,8 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
             view.UpdateLayout();
             Assert.True(view.DesiredSize.Width <= 720);
             Assert.Contains(FindTextBlocks(view), t => t.Text == Strings.Spec_Anonymized);
+            // fastfetch 스타일: 섹션 제목 뒤에 항목 줄이 한 열로 이어지고 2열 Grid가 없다
+            Assert.DoesNotContain(FindVisualChildren<Grid>(view), g => g.ColumnDefinitions.Count >= 2 && g.RowDefinitions.Count >= 2);
         });
     }
 ```
@@ -1409,7 +1411,7 @@ public sealed class PcSpecTextFormatter
 
 `IClipboard.cs`/`WpfClipboard.cs`(`System.Windows.Clipboard.SetText`). `PcSpecViewModel.cs`: `RefreshAsync`가 `IsLoading=true` → `service.CaptureAsync` → 섹션 VM 구성 → `IsLoading=false`; `CopyText`는 `formatter.Format(_snapshot, IncludeIdentity, _machineName, _userName)`를 클립보드에; `SaveText`는 `picker.PickSavePath("pc-spec-yyyyMMdd.txt")` 후 UTF-8(BOM 없음) 저장; `SaveImage`는 `captureTargetProvider()`가 준 `FrameworkElement`를 `RenderTargetBitmap`(96 DPI, 요소 실제 크기)으로 렌더하고 `PngBitmapEncoder`로 저장 — 렌더 대상 요소 하단에 익명화 표기 `TextBlock`이 포함되도록 뷰에서 그 요소를 `x:Name="CaptureRoot"`로 감싼다. 저장 실패는 형식 이름만 로그·`StatusMessage`. `machineName`/`userName`은 생성자 인자(App에서 `Environment.MachineName`, `Environment.UserName` 전달; 테스트는 고정 문자열).
 
-`PcSpecView.xaml`: 상단 버튼 줄([새로 고침] [텍스트 복사] [TXT 저장] [이미지 저장] [식별 정보 포함 토글]) + `StatusMessage` + `ItemsControl`(섹션별 `Border` 타일, 제목, 확인 불가 섹션은 "확인 불가 — dxdiag 또는 HWiNFO64로 확인" 문구, 항목은 2열 `Grid`) + 하단 `TextBlock`(익명화/식별 포함 표기, `Spec_MoreDetails` 안내). 모든 `TextBlock`은 `TextWrapping="Wrap"`.
+`PcSpecView.xaml`(**사용자 확정 2026-09-27: fastfetch처럼 한 열, 칸 나누지 않음**): 상단 버튼 줄([새로 고침] [텍스트 복사] [TXT 저장] [이미지 저장] [식별 정보 포함 토글]) + `StatusMessage` + 하나의 세로 `ItemsControl`. 섹션 제목은 굵은 한 줄(`[운영체제]`처럼), 그 아래 항목은 `라벨: 값` 한 줄씩(라벨은 회색·고정 폭 `MinWidth=120`, 값은 본문색), 확인 불가 항목은 값 자리에 `Spec_ValueUnknown`. 확인 불가 섹션은 제목 아래 "확인 불가 — dxdiag 또는 HWiNFO64로 확인" 한 줄. 타일·2열 `Grid` 없음. 화면 텍스트와 `PcSpecTextFormatter.Format` 출력이 같은 줄 구성이어야 한다(테스트: 화면의 `TextBlock` 줄 순서 == 텍스트 출력의 줄 순서). 하단 `TextBlock`(익명화/식별 포함 표기, `Spec_MoreDetails` 안내). 모든 `TextBlock`은 `TextWrapping="Wrap"`, 값이 길면 라벨 아래로 줄바꿈.
 
 `MainWindow.xaml`: 상단 바에 "내 PC 사양" 토글 버튼(`ShowSpec` 명령), 본문 `ScrollViewer` 안에 `<views:PcSpecView DataContext="{Binding Spec}" Visibility="{Binding IsSpecVisible, ...}" />`를 추가하고 기존 결과 영역은 `IsSpecVisible`이 false일 때만 표시. `MainViewModel`에 `PcSpecViewModel Spec`, `bool IsSpecVisible`, `ShowSpecCommand`/`ShowResultsCommand`를 추가하고 `ShowSpec` 최초 진입 시 `Spec.RefreshCommand`를 실행한다.
 
