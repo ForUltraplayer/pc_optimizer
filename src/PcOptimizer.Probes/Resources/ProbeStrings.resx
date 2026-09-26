@@ -89,4 +89,14 @@
   <data name="AppCache_AccessDenied" xml:space="preserve"><value>앱 캐시 위치의 항목 {0}개에 접근하지 못해 크기에 포함하지 못했어요</value><comment>{0}=개수</comment></data>
   <data name="AppCache_InUse" xml:space="preserve"><value>사용 중이거나 검사 중에 바뀐 앱 캐시 항목 {0}개는 크기에 포함하지 못했어요</value><comment>{0}=개수</comment></data>
   <data name="AppCache_Timeout" xml:space="preserve"><value>제한 시간 안에 앱 캐시 위치 {0}곳을 모두 확인하지 못해 일부만 집계했어요</value><comment>{0}=위치 수</comment></data>
+
+  <!-- 드라이버 온라인 조회(P6) -->
+  <data name="Nvidia_LookupFailed" xml:space="preserve"><value>NVIDIA 최신 목록을 받지 못했어요 ({0})</value><comment>{0}=요약 코드(예: http.status500, driverList.url), 예외 원문 아님</comment></data>
+  <data name="Nvidia_StudioUnavailable" xml:space="preserve"><value>NVIDIA Studio 목록을 받지 못해 계열 판단을 보류했어요 ({0})</value><comment>{0}=요약 코드</comment></data>
+  <data name="Nvidia_VersionUnknown" xml:space="preserve"><value>일부 NVIDIA 어댑터의 설치 버전을 NVIDIA 표기로 바꾸지 못해 조회하지 않았어요</value></data>
+  <data name="Wua_Unavailable" xml:space="preserve"><value>Windows Update Agent를 사용할 수 없어요 ({0})</value><comment>{0}=요약 코드 또는 HRESULT(16진수)</comment></data>
+  <data name="Wua_SearchFailed" xml:space="preserve"><value>Windows Update 검색이 실패했어요 ({0})</value><comment>{0}=HRESULT(16진수) 또는 결과 코드</comment></data>
+  <data name="Wua_PartialResult" xml:space="preserve"><value>Windows Update 검색이 일부 오류와 함께 끝났어요 (결과 코드 {0})</value><comment>{0}=결과 코드</comment></data>
+  <data name="Wua_Aborted" xml:space="preserve"><value>Windows Update 검색이 중단됐어요</value></data>
+  <data name="Wua_DetailsUnavailable" xml:space="preserve"><value>드라이버 업데이트 {0}개의 세부 정보(모델·제조사·날짜)를 읽지 못했어요</value><comment>{0}=개수</comment></data>
 </root>

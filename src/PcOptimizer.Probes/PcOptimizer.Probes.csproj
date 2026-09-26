@@ -30,6 +30,8 @@
     <EmbeddedResource Include="..\..\rules\sources.json" Link="rules\sources.json" LogicalName="PcOptimizer.Rules.sources.json" />
     <!-- 포함 보호 정책(스펙 §5.2): 규칙과 같은 이유로 리소스로만 읽는다. 없거나 손상되면 파일 순회를 하지 않는다 -->
     <EmbeddedResource Include="..\..\rules\protect.json" Link="rules\protect.json" LogicalName="PcOptimizer.Rules.protect.json" />
+    <!-- 공식 드라이버·제조사 지원 링크 허용 표(스펙 §2·§7): 같은 이유로 리소스로만 읽는다. 없거나 검증에 실패하면 링크를 붙이지 않고 확인 불가로 표시한다 -->
+    <EmbeddedResource Include="..\..\rules\vendor-links.json" Link="rules\vendor-links.json" LogicalName="PcOptimizer.Rules.vendor-links.json" />
   </ItemGroup>
 
   <ItemGroup>

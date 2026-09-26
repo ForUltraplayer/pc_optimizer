@@ -50,7 +50,9 @@ public sealed record KeepAction : FindingAction;
 public sealed record ApplyAction : FindingAction;
 
 /// <summary>
-/// 허용된 외부 링크를 여는 동작입니다.
+/// 허용된 외부 링크를 여는 동작입니다. 화면은 허용 목록(공식 링크 표·NVIDIA 허용 호스트) 검증을 통과한 URL만 버튼으로 보여 주며,
+/// 사용자가 버튼을 누를 때만 엽니다(자동으로 열거나 내려받지 않음).
 /// </summary>
 /// <param name="Url">열 링크 URL.</param>
-public sealed record OpenLinkAction(string Url) : FindingAction;
+/// <param name="Label">버튼 이름표(없으면 화면의 기본 문구).</param>
+public sealed record OpenLinkAction(string Url, string? Label = null) : FindingAction;

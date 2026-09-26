@@ -160,11 +160,11 @@ rules/
 dotnet --info
 dotnet restore PcOptimizer.sln
 dotnet build PcOptimizer.sln --configuration Release --no-restore
-dotnet test PcOptimizer.sln --configuration Release --no-build --filter "Category!=Smoke"
+dotnet test PcOptimizer.sln --configuration Release --no-build --filter "Category!=Smoke&Category!=Online"
 dotnet publish src/PcOptimizer.App/PcOptimizer.App.csproj --configuration Release --runtime win-x64 --self-contained true --output artifacts/win-x64
 ```
 
-실제 PC Smoke는 별도 명시적으로 실행하며 기본 테스트에서 OS 전체 스캔·네트워크 요청·UAC를 띄우지 않는다. 테스트 유형은 실제 구현에 맞춰 프로젝트 설정에서 고정한다. 단위 테스트가 통과해도 실제 PC 수집/화면/권한 검증을 대신하지 않는다.
+실제 PC Smoke(`--filter "Category=Smoke"`)와 실제 NVIDIA 조회·Windows Update 검색을 하는 온라인 테스트(`--filter "Category=Online"`, P6부터)는 각각 별도 명시적으로 실행하며 기본 테스트에서 OS 전체 스캔·네트워크 요청·UAC를 띄우지 않는다. 온라인 테스트는 Smoke 필터에도 포함되지 않는다. 테스트 유형은 실제 구현에 맞춰 프로젝트 설정에서 고정한다. 단위 테스트가 통과해도 실제 PC 수집/화면/권한 검증을 대신하지 않는다.
 
 ## 4. 완료 판단
 
