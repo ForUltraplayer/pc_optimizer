@@ -255,6 +255,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>종료 중 안내가 있는지 여부.</summary>
     public bool HasDrainingNote => DrainingNote is not null;
 
+    /// <summary>
+    /// 이전 사양 읽기의 프로브가 아직 끝나지 않아(<see cref="PcSpecViewModel.IsDraining"/>) 검사 시작·정리 창이 막혀 있음을
+    /// 결과 화면에도 알릴지 여부.
+    /// </summary>
+    public bool HasSpecDrainingNote => Spec.IsDraining;
+
     /// <summary>표시할 결과가 있는지 여부.</summary>
     public bool HasCards => LastResult is not null;
 
@@ -442,6 +448,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             StartScanCommand.NotifyCanExecuteChanged();
             OnPropertyChanged(nameof(CanOpenCacheTools));
+            OnPropertyChanged(nameof(HasSpecDrainingNote));
         }
     }
 

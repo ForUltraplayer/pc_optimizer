@@ -1,7 +1,7 @@
 /**
  * @file    : MainWindowLayoutTests.cs
  * @author  : rudals252
- * @brief   : 메인 창을 화면에 띄우지 않고 고정 폭으로 배치해, 긴 경로가 든 카드 문장이 가로로 넘치지 않고 줄바꿈되는지, 판정 배지 텍스트, 관리자 권한 재검사 버튼 없음과 다른 관리자 계정 실행 시 시스템 범위 안내 배너 표시, 공식 링크 버튼 표시, 카드의 안전 배지·설명 3줄 렌더, 요약 타일 두 개(바로 할 수 있는 것은 0이면 숨김)와 정리 창 버튼 노출 조건, 내 PC 사양 화면(한 열 나열·화면 줄 == 텍스트 줄·720px 폭·익명화 표기·PNG 저장·본문 전환)을 검증
+ * @brief   : 메인 창을 화면에 띄우지 않고 고정 폭으로 배치해, 긴 경로가 든 카드 문장이 가로로 넘치지 않고 줄바꿈되는지, 판정 배지 텍스트, 관리자 권한 재검사 버튼 없음과 다른 관리자 계정 실행 시 시스템 범위 안내 배너 표시, 공식 링크 버튼 표시, 카드의 안전 배지·설명 3줄 렌더, 요약 타일 두 개(바로 할 수 있는 것은 0이면 숨김)와 정리 창 버튼 노출 조건, 사양 프로브 종료 대기 안내의 결과 화면 표시·숨김, 내 PC 사양 화면(한 열 나열·화면 줄 == 텍스트 줄·720px 폭·익명화 표기·PNG 저장·본문 전환)을 검증
  */
 
 // 기본 패키지
@@ -452,6 +452,38 @@ public sealed class MainWindowLayoutTests
             Assert.Contains(Strings.Overview_DoManuallyHelp, texts);
             Assert.Contains(Strings.Overview_DoNowHelp, FindTextBlocks(doNow).Select(t => t.Text));
             Assert.All(FindTextBlocks(doManually), t => Assert.Equal(TextWrapping.Wrap, t.TextWrapping));
+            window.Close();
+        });
+    }
+
+    /// <summary>사양 프로브 종료 대기 중(Spec.IsDraining)에는 결과 화면 개요 카드에 비활성 사유 문구가 보이고, 끝나면 숨는다(REV-017).</summary>
+    [Fact]
+    public void SpecDrainingNoteShowsOnResultsOverview()
+    {
+        RunOnSta(() =>
+        {
+            var model = CreateScannedViewModel(overview: true, rule: new ImprovementRule(), availability: new FixedActionAvailability(false, true));
+            var window = new MainWindow(model);
+            var root = (FrameworkElement)window.Content;
+            var size = new Size(CARD_LAYOUT_WIDTH, CARD_LAYOUT_HEIGHT);
+            root.Measure(size);
+            root.Arrange(new Rect(size));
+            root.UpdateLayout();
+            var note = Assert.Single(Descendants<TextBlock>(root), t => AutomationProperties.GetAutomationId(t) == "SpecDrainingNoteMain");
+            Assert.Equal(Strings.Spec_DrainingNote, note.Text);
+            Assert.Equal(Visibility.Collapsed, note.Visibility);
+
+            model.Spec.IsDraining = true;
+            root.UpdateLayout();
+            Assert.Equal(Visibility.Visible, note.Visibility);
+            Assert.True(note.ActualWidth > 0 && note.ActualWidth <= CARD_LAYOUT_WIDTH, $"폭 {note.ActualWidth}");
+            var toolsButton = Assert.Single(Descendants<Button>(root), b => AutomationProperties.GetAutomationId(b) == "OpenCacheToolsButton");
+            Assert.False(toolsButton.IsEnabled);
+
+            model.Spec.IsDraining = false;
+            root.UpdateLayout();
+            Assert.Equal(Visibility.Collapsed, note.Visibility);
+            Assert.True(toolsButton.IsEnabled);
             window.Close();
         });
     }

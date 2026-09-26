@@ -243,11 +243,22 @@ public sealed partial class PcSpecService
 
     /// <summary>
     /// 기다리기를 멈춘 프로브 실행이 아직 끝나지 않았으면 프로브 ID로 보관하고, 끝나면 제거한다(완료 전 재호출 차단).
+    /// 대기가 끝난 직후 이미 실패로 끝난 실행도 예외를 읽어 관측한다(미관측 예외로 남기지 않음).
     /// </summary>
     private void TrackIfLive(string probeId, Task? running)
     {
-        if (running is null || running.IsCompleted)
+        if (running is null)
         {
+            return;
+        }
+
+        if (running.IsCompleted)
+        {
+            if (running.IsFaulted)
+            {
+                _logger.Warn(LOG_CATEGORY, $"SpecProbeLateFailure probe={probeId} type={running.Exception!.GetBaseException().GetType().Name}");
+            }
+
             return;
         }
 

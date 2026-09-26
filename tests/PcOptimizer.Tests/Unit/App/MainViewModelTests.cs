@@ -674,14 +674,42 @@ public sealed class MainViewModelTests
             Assert.True(spec.IsDraining);
             Assert.False(vm.StartScanCommand.CanExecute(null));
             Assert.False(vm.CanOpenCacheTools);
+            Assert.True(vm.HasSpecDrainingNote);
 
             probe.Release.TrySetResult();
             await drained.Task.WaitAsync(WAIT_BOUND);
             Assert.False(spec.IsDraining);
             Assert.True(vm.StartScanCommand.CanExecute(null));
             Assert.True(vm.CanOpenCacheTools);
+            Assert.False(vm.HasSpecDrainingNote);
         }
         finally { probe.Release.TrySetResult(); }
+    }
+
+    /// <summary>
+    /// Spec.IsDraining이 바뀔 때마다 검사 시작 명령의 CanExecuteChanged와 결과 화면 안내(HasSpecDrainingNote)·정리 창 관문 변경을 알린다(REV-017).
+    /// </summary>
+    [Fact]
+    public void SpecDrainingNotifiesScanGateAndMainNote()
+    {
+        var spec = SpecTestFactory.Create();
+        using var vm = CreateReviewViewModel(UserScopeMode.Full, spec);
+        var canExecuteChanges = new List<bool>();
+        var properties = new List<string?>();
+        vm.StartScanCommand.CanExecuteChanged += (_, _) => canExecuteChanges.Add(vm.StartScanCommand.CanExecute(null));
+        vm.PropertyChanged += (_, e) => properties.Add(e.PropertyName);
+
+        spec.IsDraining = true;
+        Assert.Equal([false], canExecuteChanges);
+        Assert.Contains(nameof(vm.HasSpecDrainingNote), properties);
+        Assert.Contains(nameof(vm.CanOpenCacheTools), properties);
+        Assert.True(vm.HasSpecDrainingNote);
+
+        properties.Clear();
+        spec.IsDraining = false;
+        Assert.Equal([false, true], canExecuteChanges);
+        Assert.Contains(nameof(vm.HasSpecDrainingNote), properties);
+        Assert.False(vm.HasSpecDrainingNote);
     }
 
     /// <summary>검사 프로브가 아직 종료 중이면(HasDrainingNote) 사양 새로 고침을 막고, 늦게 끝나면 다시 허용한다(REV-017 반대 방향).</summary>

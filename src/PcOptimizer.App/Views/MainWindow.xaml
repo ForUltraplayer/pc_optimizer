@@ -1,7 +1,7 @@
 <!--
 @file    : MainWindow.xaml
 @author  : rudals252
-@brief   : 추천 조치와 검사 결과, "바로 할 수 있는 것/직접 해야 하는 것" 요약 타일, 보호 위치 도구가 있을 때만 보이는 정리 창 버튼, 다른 관리자 계정으로 실행 중일 때의 시스템 범위 안내 배너를 표시하고, 머리글의 "내 PC 사양" 버튼으로 본문을 사양 화면과 번갈아 보여 주는 메인 창
+@brief   : 추천 조치와 검사 결과, "바로 할 수 있는 것/직접 해야 하는 것" 요약 타일, 보호 위치 도구가 있을 때만 보이는 정리 창 버튼, 다른 관리자 계정으로 실행 중일 때의 시스템 범위 안내 배너, 검사·사양 프로브 종료 대기 안내(검사 시작·정리 버튼 비활성 사유)를 표시하고, 머리글의 "내 PC 사양" 버튼으로 본문을 사양 화면과 번갈아 보여 주는 메인 창
 -->
 <ui:FluentWindow x:Class="PcOptimizer.App.Views.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -183,6 +183,8 @@
 
                         <TextBlock TextWrapping="Wrap" Text="{Binding DrainingNote}" FontWeight="SemiBold" Margin="0,6,0,0" AutomationProperties.AutomationId="DrainingNote"
                                    Visibility="{Binding HasDrainingNote, Converter={StaticResource BoolToVisibility}}" />
+                        <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Spec_DrainingNote}" FontWeight="SemiBold" Margin="0,6,0,0" AutomationProperties.AutomationId="SpecDrainingNoteMain"
+                                   Visibility="{Binding HasSpecDrainingNote, Converter={StaticResource BoolToVisibility}}" />
                     </StackPanel>
                 </Border>
                 <!-- Rows=1이면 숨긴(Collapsed) 타일을 빼고 열을 나누므로, 바로 할 수 있는 것이 0이면 직접 해야 하는 것 타일이 전체 폭을 쓴다. -->
