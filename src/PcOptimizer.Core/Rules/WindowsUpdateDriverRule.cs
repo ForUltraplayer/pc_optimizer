@@ -38,6 +38,9 @@ public sealed class WindowsUpdateDriverRule : IRule
 
     private const string LINE_SEPARATOR = "\n";
 
+    /// <summary>Candidate 안전 수준(설치는 Windows 설정에서 하며 재부팅이 필요할 수 있음).</summary>
+    private static readonly SafetyLevel CANDIDATE_SAFETY = SafetyLevel.Caution;
+
     /// <inheritdoc />
     public string Id => RULE_ID;
 
@@ -103,7 +106,9 @@ public sealed class WindowsUpdateDriverRule : IRule
             detail: SnapshotValues.Format(CoreStrings.Wu_Detail_Candidates, string.Join(LINE_SEPARATOR, lines)),
             recommendation: new Recommendation(CoreStrings.Wu_Recommendation_Text, CoreStrings.Wu_Recommendation_Condition),
             impact: new Impact(CoreStrings.Wu_Impact_Benefit, CoreStrings.Wu_Impact_SideEffect),
-            actions: [new OpenSettingsAction(WINDOWS_UPDATE_SETTINGS_URI), new ShowDetailsAction()]);
+            actions: [new OpenSettingsAction(WINDOWS_UPDATE_SETTINGS_URI), new ShowDetailsAction()],
+            explanation: new Explanation(CoreStrings.WuDriver_Explain_What, CoreStrings.WuDriver_Explain_Effect, CoreStrings.WuDriver_Explain_Caution),
+            safety: CANDIDATE_SAFETY);
     }
 
     /// <summary>

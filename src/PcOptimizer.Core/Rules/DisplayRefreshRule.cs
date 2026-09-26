@@ -49,6 +49,9 @@ public sealed class DisplayRefreshRule : IRule
     private const string HZ_FORMAT = "0.##";
     private const int DISPLAY_INDEX_OFFSET = 1;
 
+    /// <summary>Candidate 안전 수준(설정 변경만, 15초 뒤 자동 되돌림).</summary>
+    private static readonly SafetyLevel CANDIDATE_SAFETY = SafetyLevel.Safe;
+
     /// <inheritdoc />
     public string Id => RULE_ID;
 
@@ -232,7 +235,11 @@ public sealed class DisplayRefreshRule : IRule
             detail: detail,
             recommendation: recommendation,
             impact: impact,
-            actions: actions);
+            actions: actions,
+            explanation: candidate
+                ? new Explanation(CoreStrings.Display_Explain_What, CoreStrings.Display_Explain_Effect, CoreStrings.Display_Explain_Caution)
+                : null,
+            safety: candidate ? CANDIDATE_SAFETY : null);
     }
 
     /// <summary>

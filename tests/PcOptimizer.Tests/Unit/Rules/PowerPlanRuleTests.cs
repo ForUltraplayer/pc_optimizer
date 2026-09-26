@@ -78,6 +78,12 @@ public sealed class PowerPlanRuleTests
         Assert.DoesNotContain(CoreStrings.Power_Chassis_Desktop, finding.Evidence, StringComparison.Ordinal);
     }
 
+    /// <summary>Candidate를 내는 스냅샷(노트북·배터리 동작·고성능 계획)을 만든다.</summary>
+    public static ScanSnapshot CandidateSnapshot()
+    {
+        return RuleTestData.PowerSnapshot(PowerProbeContract.HIGH_PERFORMANCE_SCHEME_GUID, PLAN_NAME, [LAPTOP], AC_OFFLINE, BATTERY_HIGH);
+    }
+
     /// <summary>노트북 섀시 + 배터리 있음 + 배터리로 동작 + 고성능/최고 성능 계획이면 조건부 Candidate.</summary>
     [Theory]
     [InlineData(PowerProbeContract.HIGH_PERFORMANCE_SCHEME_GUID, LAPTOP)]

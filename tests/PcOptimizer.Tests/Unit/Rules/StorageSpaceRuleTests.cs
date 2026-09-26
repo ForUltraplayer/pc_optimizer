@@ -61,6 +61,12 @@ public sealed class StorageSpaceRuleTests
         Assert.Equal(expectCandidate ? Verdict.Candidate : Verdict.Info, finding.Verdict);
     }
 
+    /// <summary>Candidate를 내는 스냅샷(여유 공간이 기준 미만인 C 드라이브)을 만든다.</summary>
+    public static ScanSnapshot CandidateSnapshot()
+    {
+        return HardwareRuleTestData.Snapshot(HardwareRuleTestData.VolumeResult(null, new FakeVolume("C", 100 * GIB, 5 * GIB)));
+    }
+
     /// <summary>후보는 '여유 공간 적음'이며 제품 휴리스틱임을 근거에 밝히고 저장소 설정 열기를 제공한다.</summary>
     [Fact]
     public void 후보는_휴리스틱임을_밝힌다()

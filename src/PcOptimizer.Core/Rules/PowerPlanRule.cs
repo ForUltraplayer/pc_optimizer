@@ -45,6 +45,9 @@ public sealed class PowerPlanRule : IRule
         PowerProbeContract.ULTIMATE_PERFORMANCE_SCHEME_GUID,
     };
 
+    /// <summary>Candidate 안전 수준(언제든 이전 계획으로 되돌릴 수 있음).</summary>
+    private static readonly SafetyLevel CANDIDATE_SAFETY = SafetyLevel.Safe;
+
     /// <inheritdoc />
     public string Id => RULE_ID;
 
@@ -119,7 +122,9 @@ public sealed class PowerPlanRule : IRule
                 detail: null,
                 recommendation: new Recommendation(CoreStrings.Power_Recommendation_Text, CoreStrings.Power_Recommendation_Condition),
                 impact: new Impact(CoreStrings.Power_Impact_Benefit, CoreStrings.Power_Impact_SideEffect),
-                actions: [new ShowDetailsAction(), new OpenSettingsAction(POWER_SETTINGS_URI), new KeepAction(), new ApplyAction()]));
+                actions: [new ShowDetailsAction(), new OpenSettingsAction(POWER_SETTINGS_URI), new KeepAction(), new ApplyAction()],
+                explanation: new Explanation(CoreStrings.Power_Explain_What, CoreStrings.Power_Explain_Effect, CoreStrings.Power_Explain_Caution),
+                safety: CANDIDATE_SAFETY));
         }
 
         return findings;

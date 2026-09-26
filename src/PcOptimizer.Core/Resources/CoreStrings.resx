@@ -446,4 +446,30 @@
   <data name="Wu_Title_Reboot" xml:space="preserve"><value>재부팅을 기다리는 업데이트가 있어요</value></data>
   <data name="Wu_Evidence_Reboot" xml:space="preserve"><value>Windows Update가 재부팅이 필요하다고 보고했어요. 재부팅한 뒤 다시 검사하면 드라이버 후보가 달라질 수 있어요</value></data>
   <data name="Wu_UntitledUpdate" xml:space="preserve"><value>(제목 없음)</value></data>
+
+  <!-- Candidate 초보자용 설명 3줄(SP4 Task 2, 스펙 §8) -->
+  <data name="Display_Explain_What" xml:space="preserve"><value>화면이 1초에 몇 번 새로 그려지는지(주사율)를 정합니다.</value></data>
+  <data name="Display_Explain_Effect" xml:space="preserve"><value>마우스 이동과 스크롤이 눈에 띄게 부드러워집니다.</value></data>
+  <data name="Display_Explain_Caution" xml:space="preserve"><value>같은 해상도에서만 바꾸며, 화면이 안 나오면 15초 뒤 되돌아옵니다.</value></data>
+  <data name="Memory_Explain_What" xml:space="preserve"><value>메모리가 낼 수 있는 속도보다 낮게 설정돼 있는지 봅니다.</value></data>
+  <data name="Memory_Explain_Effect" xml:space="preserve"><value>BIOS에서 메모리 프로필을 켜면 게임·작업 반응이 빨라질 수 있습니다.</value></data>
+  <data name="Memory_Explain_Caution" xml:space="preserve"><value>BIOS 설정은 앱이 바꾸지 않으며, 구성에 따라 정상 제한일 수 있습니다.</value></data>
+  <data name="Power_Explain_What" xml:space="preserve"><value>Windows가 성능과 절전 중 무엇을 우선할지 정하는 전원 계획입니다.</value></data>
+  <data name="Power_Explain_Effect" xml:space="preserve"><value>배터리 사용 시간이 늘거나 반응 속도가 빨라집니다.</value></data>
+  <data name="Power_Explain_Caution" xml:space="preserve"><value>언제든 이전 계획으로 되돌릴 수 있습니다.</value></data>
+  <data name="Storage_Explain_What" xml:space="preserve"><value>드라이브에 남은 공간이 얼마나 적은지 봅니다.</value></data>
+  <data name="Storage_Explain_Effect" xml:space="preserve"><value>여유 공간이 생기면 업데이트 실패와 느려짐이 줄어듭니다.</value></data>
+  <data name="Storage_Explain_Caution" xml:space="preserve"><value>정리 전 어떤 파일이 지워지는지 확인하세요.</value></data>
+  <data name="DiskHealth_Explain_What" xml:space="preserve"><value>저장장치가 Windows에 보고한 상태를 봅니다.</value></data>
+  <data name="DiskHealth_Explain_Effect" xml:space="preserve"><value>이상 징후를 미리 알면 데이터를 잃기 전에 백업할 수 있습니다.</value></data>
+  <data name="DiskHealth_Explain_Caution" xml:space="preserve"><value>정상 보고가 고장 없음을 뜻하지는 않습니다.</value></data>
+  <data name="Trim_Explain_What" xml:space="preserve"><value>SSD가 지운 공간을 스스로 정리하도록 알려주는 설정입니다.</value></data>
+  <data name="Trim_Explain_Effect" xml:space="preserve"><value>켜져 있으면 SSD 쓰기 속도가 오래 유지됩니다.</value></data>
+  <data name="Trim_Explain_Caution" xml:space="preserve"><value>장치가 지원해야 효과가 있으며, 앱은 설정만 봅니다.</value></data>
+  <data name="DriverUpdate_Explain_What" xml:space="preserve"><value>그래픽 드라이버의 같은 계열 최신 버전이 있는지 봅니다.</value></data>
+  <data name="DriverUpdate_Explain_Effect" xml:space="preserve"><value>게임 호환성과 안정성이 좋아질 수 있습니다.</value></data>
+  <data name="DriverUpdate_Explain_Caution" xml:space="preserve"><value>설치 중 화면이 깜빡이고 재부팅이 필요할 수 있습니다.</value></data>
+  <data name="WuDriver_Explain_What" xml:space="preserve"><value>Windows 업데이트가 제공하는 드라이버 후보를 봅니다.</value></data>
+  <data name="WuDriver_Explain_Effect" xml:space="preserve"><value>장치 인식 문제나 오류가 줄어들 수 있습니다.</value></data>
+  <data name="WuDriver_Explain_Caution" xml:space="preserve"><value>설치는 Windows 설정에서 하며 재부팅이 필요할 수 있습니다.</value></data>
 </root>

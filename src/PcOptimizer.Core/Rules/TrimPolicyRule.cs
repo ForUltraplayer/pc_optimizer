@@ -32,6 +32,9 @@ public sealed class TrimPolicyRule : IRule
     /// <summary>파일 시스템별 Finding ID 접두사(뒤에 소문자 파일 시스템 이름이 붙음).</summary>
     public const string FINDING_ID_PREFIX = "trim-policy:";
 
+    /// <summary>Candidate 안전 수준(레지스트리 정책 값 변경, 되돌리기는 가능하나 확인이 필요).</summary>
+    private static readonly SafetyLevel CANDIDATE_SAFETY = SafetyLevel.Caution;
+
     /// <inheritdoc />
     public string Id => RULE_ID;
 
@@ -128,6 +131,10 @@ public sealed class TrimPolicyRule : IRule
             detail: null,
             recommendation: recommendation,
             impact: impact,
-            actions: actions);
+            actions: actions,
+            explanation: verdict == Verdict.Candidate
+                ? new Explanation(CoreStrings.Trim_Explain_What, CoreStrings.Trim_Explain_Effect, CoreStrings.Trim_Explain_Caution)
+                : null,
+            safety: verdict == Verdict.Candidate ? CANDIDATE_SAFETY : null);
     }
 }

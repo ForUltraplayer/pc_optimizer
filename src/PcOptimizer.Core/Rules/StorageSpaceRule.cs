@@ -49,6 +49,9 @@ public sealed class StorageSpaceRule : IRule
     private const string PERCENT_FORMAT = "0.0";
     private const string DRIVE_SUFFIX = ":";
 
+    /// <summary>Candidate 안전 수준(파일을 지우지 않고 정리 안내만 제공).</summary>
+    private static readonly SafetyLevel CANDIDATE_SAFETY = SafetyLevel.Safe;
+
     /// <inheritdoc />
     public string Id => RULE_ID;
 
@@ -211,6 +214,10 @@ public sealed class StorageSpaceRule : IRule
             detail: null,
             recommendation: recommendation,
             impact: impact,
-            actions: actions);
+            actions: actions,
+            explanation: verdict == Verdict.Candidate
+                ? new Explanation(CoreStrings.Storage_Explain_What, CoreStrings.Storage_Explain_Effect, CoreStrings.Storage_Explain_Caution)
+                : null,
+            safety: verdict == Verdict.Candidate ? CANDIDATE_SAFETY : null);
     }
 }

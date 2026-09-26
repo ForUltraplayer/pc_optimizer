@@ -68,13 +68,18 @@ public sealed class DisplayRefreshRuleTests
         return RULE.Evaluate(HardwareRuleTestData.Snapshot([.. results]));
     }
 
+    /// <summary>Candidate를 내는 스냅샷(같은 조건에서 1Hz 넘게 높은 모드가 있는 모니터 A)을 만든다.</summary>
+    public static ScanSnapshot CandidateSnapshot()
+    {
+        var display = new FakeDisplay(PATH_A, Name: "모니터 A", RefreshHz: 120, SignalHz: 120, SameModeRates: [60, 100, 120, 130]);
+        return HardwareRuleTestData.Snapshot(HardwareRuleTestData.DisplayResult(false, display));
+    }
+
     /// <summary>같은 조건에서 1Hz 넘게 높은 모드가 있으면 조건부 Candidate를 내고 설정 열기를 제공한다.</summary>
     [Fact]
     public void 같은_조건의_더_높은_주사율은_후보다()
     {
-        var display = new FakeDisplay(PATH_A, Name: "모니터 A", RefreshHz: 120, SignalHz: 120, SameModeRates: [60, 100, 120, 130]);
-
-        var finding = Assert.Single(Evaluate(false, null, display));
+        var finding = Assert.Single(RULE.Evaluate(CandidateSnapshot()));
 
         Assert.Equal(Verdict.Candidate, finding.Verdict);
         Assert.Equal(FindingCategory.Display, finding.Category);
