@@ -1,12 +1,13 @@
 /**
  * @file    : ScanServiceSmokeTests.cs
  * @author  : rudals252
- * @brief   : [Smoke] 기본 구성 검사 서비스를 이 PC에서 끝까지 실행하고 익명화 JSON을 임시 폴더에 내보내 메모리·전원·디스플레이·드라이버·그래픽·보안·저장소 Finding과 개인정보 제거를 확인
+ * @brief   : [Smoke] 기본 구성 검사 서비스를 이 PC에서 끝까지 실행하고 익명화 JSON을 임시 폴더에 내보내 메모리·전원·디스플레이·드라이버·그래픽·보안·저장소 Finding과 개인정보·장치 ID 제거를 확인
  */
 
 // 기본 패키지
 using System.IO;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 // 사용자 패키지
 using PcOptimizer.App.Services;
@@ -66,5 +67,11 @@ public sealed class ScanServiceSmokeTests(ITestOutputHelper output)
         Assert.DoesNotContain(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(Environment.MachineName, json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("\"" + Environment.UserName + "\"", json, StringComparison.OrdinalIgnoreCase);
+
+        // 장치 내부 ID(모니터 장치 경로·PnP 인스턴스/하드웨어 ID·볼륨 경로·중괄호 GUID)는 토큰으로 바뀌어 원문이 남지 않는다.
+        Assert.DoesNotMatch(new Regex(@"VEN_|DISPLAY#|Volume\{|(?<![A-Za-z0-9_])(?:PCI|ROOT|DISPLAY|USB|SWD)\\\\|\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1)), json);
+        Assert.Contains(DisplayRefreshRule.FINDING_ID_PREFIX + "display-1", json, StringComparison.Ordinal);
+        Assert.Contains(InstalledDriverRule.FINDING_ID_PREFIX + "pnp-", json, StringComparison.Ordinal);
+        Assert.Contains(DiskHealthRule.FINDING_ID_PREFIX + "guid-", json, StringComparison.Ordinal);
     }
 }

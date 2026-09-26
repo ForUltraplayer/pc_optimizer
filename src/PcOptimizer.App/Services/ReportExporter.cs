@@ -1,7 +1,7 @@
 /**
  * @file    : ReportExporter.cs
  * @author  : rudals252
- * @brief   : 검사 리포트를 스키마 버전이 있는 JSON으로 내보내며, 기본 내보내기는 모든 문자열 값의 개인 경로·사용자명·PC명을 치환
+ * @brief   : 검사 리포트를 스키마 버전이 있는 JSON으로 내보내며, 기본 내보내기는 모든 문자열 값의 장치 내부 ID를 내보내기 단위 토큰으로, 개인 경로·사용자명·PC명을 자리표시자로 치환
  */
 
 // 기본 패키지
@@ -19,8 +19,9 @@ namespace PcOptimizer.App.Services;
 
 /// <summary>
 /// 검사 리포트 JSON 내보내기입니다. 자동 업로드는 없고 사용자가 고른 경로에만 저장합니다.
-/// 기본(익명화) 내보내기는 직렬화한 JSON 트리의 모든 문자열 값을 <see cref="PersonalDataScrubber"/>로 치환하므로
-/// 새 필드가 생겨도 치환에서 빠지지 않습니다. 모델에는 SID·장치 일련번호 필드가 없습니다.
+/// 기본(익명화) 내보내기는 직렬화한 JSON 트리의 모든 문자열 값을 먼저 <see cref="DeviceIdTokenizer"/>(내보내기마다 새로 만듦)로
+/// 장치 내부 ID를 토큰으로 바꾸고, 이어서 <see cref="PersonalDataScrubber"/>로 개인 정보를 치환하므로 새 필드가 생겨도 치환에서 빠지지 않습니다.
+/// 모델에는 SID·장치 일련번호 필드가 없습니다.
 /// </summary>
 public sealed class ReportExporter
 {
@@ -76,7 +77,7 @@ public sealed class ReportExporter
 
         var root = JsonSerializer.SerializeToNode(report, SERIALIZER_OPTIONS)?.AsObject()
             ?? throw new InvalidOperationException("리포트를 JSON으로 바꾸지 못했습니다.");
-        ScrubStrings(root);
+        ScrubStrings(root, new DeviceIdTokenizer());
         root[EXPORT_KIND_PROPERTY] = EXPORT_KIND_ANONYMIZED;
         return root.ToJsonString(SERIALIZER_OPTIONS);
     }
@@ -97,8 +98,9 @@ public sealed class ReportExporter
 
     /// <summary>
     /// JSON 트리의 모든 문자열 값을 치환한다(속성 이름은 모델 고정 이름이므로 그대로 둔다).
+    /// 같은 토큰화기를 트리 전체에 써서 같은 장치 ID가 모든 필드에서 같은 토큰이 되게 한다.
     /// </summary>
-    private void ScrubStrings(JsonNode? node)
+    private void ScrubStrings(JsonNode? node, DeviceIdTokenizer tokenizer)
     {
         switch (node)
         {
@@ -107,11 +109,11 @@ public sealed class ReportExporter
                 {
                     if (obj[key] is JsonValue value && value.TryGetValue<string>(out var text))
                     {
-                        obj[key] = _scrubber.Scrub(text);
+                        obj[key] = _scrubber.Scrub(tokenizer.Tokenize(text));
                     }
                     else
                     {
-                        ScrubStrings(obj[key]);
+                        ScrubStrings(obj[key], tokenizer);
                     }
                 }
 
@@ -121,11 +123,11 @@ public sealed class ReportExporter
                 {
                     if (array[index] is JsonValue value && value.TryGetValue<string>(out var text))
                     {
-                        array[index] = _scrubber.Scrub(text);
+                        array[index] = _scrubber.Scrub(tokenizer.Tokenize(text));
                     }
                     else
                     {
-                        ScrubStrings(array[index]);
+                        ScrubStrings(array[index], tokenizer);
                     }
                 }
 
