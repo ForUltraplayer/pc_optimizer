@@ -61,14 +61,14 @@ internal sealed class ProbeExecutor
     }
 
     /// <summary>
-    /// 지정한 검사에서 시작한 프로브 호출이 아직 끝나지 않았는지 확인합니다.
+    /// 어느 검사에서 시작했든 그 프로브의 호출이 아직 끝나지 않았는지(종료 중인지) 확인합니다.
+    /// 재검사에서 건너뛴 프로브도 이전 호출이 끝날 때까지 "종료 중"으로 표시하기 위함입니다.
     /// </summary>
     /// <param name="probeId">프로브 ID.</param>
-    /// <param name="scanId">검사 ID.</param>
-    /// <returns>아직 끝나지 않았으면 true.</returns>
-    public bool IsStillRunning(string probeId, Guid scanId)
+    /// <returns>종료 중이면 true.</returns>
+    public bool IsDraining(string probeId)
     {
-        return _draining.TryGetValue(probeId, out var drainingScanId) && drainingScanId == scanId;
+        return _draining.ContainsKey(probeId);
     }
 
     /// <summary>

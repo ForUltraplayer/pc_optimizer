@@ -23,7 +23,8 @@ public class ScanOutcomeResolverTests
     {
         var outcome = ScanOutcomeResolver.Resolve(
             cancellationRequested: false,
-            [EngineTestData.CreateResult("a", ProbeStatus.Success), EngineTestData.CreateResult("b", ProbeStatus.Success)]);
+            [EngineTestData.CreateResult("a", ProbeStatus.Success), EngineTestData.CreateResult("b", ProbeStatus.Success)],
+            ruleFailuresOccurred: false);
 
         Assert.Equal(ScanOutcome.Completed, outcome);
     }
@@ -42,7 +43,8 @@ public class ScanOutcomeResolverTests
             [
                 EngineTestData.CreateResult("a", ProbeStatus.Success),
                 EngineTestData.CreateResult("b", ProbeStatus.Skipped, issues: [new Issue(reason, "정책")]),
-            ]);
+            ],
+            ruleFailuresOccurred: false);
 
         Assert.Equal(ScanOutcome.Completed, outcome);
     }
@@ -63,13 +65,28 @@ public class ScanOutcomeResolverTests
             [
                 EngineTestData.CreateResult("a", ProbeStatus.Success),
                 EngineTestData.CreateResult("b", status, issues: [new Issue(reason, "사유")]),
-            ]);
+            ],
+            ruleFailuresOccurred: false);
 
         Assert.Equal(ScanOutcome.Partial, outcome);
     }
 
     /// <summary>
-    /// 사용자가 취소했으면 다른 결과와 관계없이 Cancelled다.
+    /// 프로브가 모두 성공해도 판정 규칙이 실패했으면 Partial이다.
+    /// </summary>
+    [Fact]
+    public void 규칙이_실패하면_Partial이다()
+    {
+        var outcome = ScanOutcomeResolver.Resolve(
+            cancellationRequested: false,
+            [EngineTestData.CreateResult("a", ProbeStatus.Success)],
+            ruleFailuresOccurred: true);
+
+        Assert.Equal(ScanOutcome.Partial, outcome);
+    }
+
+    /// <summary>
+    /// 사용자가 취소했으면 프로브 실패·규칙 실패와 관계없이 Cancelled다.
     /// </summary>
     [Fact]
     public void 사용자가_취소하면_Cancelled다()
@@ -79,7 +96,8 @@ public class ScanOutcomeResolverTests
             [
                 EngineTestData.CreateResult("a", ProbeStatus.Success),
                 EngineTestData.CreateResult("b", ProbeStatus.Failed, issues: [new Issue(CannotVerifyReason.Timeout, "시간 초과")]),
-            ]);
+            ],
+            ruleFailuresOccurred: true);
 
         Assert.Equal(ScanOutcome.Cancelled, outcome);
     }

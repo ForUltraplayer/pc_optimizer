@@ -435,6 +435,73 @@ public class ScanCoordinatorTests
     }
 
     /// <summary>
+    /// 규칙이 예외를 던지거나 null을 돌려주면, 프로브가 모두 성공해도 검사 결과는 Completed가 아니라 Partial이다.
+    /// </summary>
+    [Fact]
+    public async Task 규칙_실패가_있으면_검사_결과는_Partial이다()
+    {
+        foreach (IRule brokenRule in new IRule[] { new ThrowingRule("broken"), new NullReturningRule("broken") })
+        {
+            var coordinator = CreateCoordinator([new SuccessProbe("ok")], rules: [brokenRule]);
+
+            var result = await coordinator.RunScanAsync(CreateContext(), CancellationToken.None);
+
+            Assert.Equal(ProbeStatus.Success, SummaryOf(result, "ok").Status);
+            Assert.Single(result.Report.Findings, f => f.Id == RuleEvaluator.RULE_FAILURE_FINDING_ID_PREFIX + "broken");
+            Assert.Equal(ScanOutcome.Partial, result.Report.Outcome);
+        }
+    }
+
+    /// <summary>
+    /// 규칙이 null 항목을 섞어 돌려주면 null은 리포트에 들어가지 않고, 정상 Finding은 유지되며,
+    /// 그 규칙의 실패 Finding이 정확히 하나 생기고 검사 결과는 Partial이다.
+    /// </summary>
+    [Fact]
+    public async Task 규칙이_돌려준_null_항목은_리포트에_들어가지_않고_규칙_실패로_드러난다()
+    {
+        var coordinator = CreateCoordinator([new SuccessProbe("ok")], rules: [new NullItemRule("null-item")]);
+
+        var result = await coordinator.RunScanAsync(CreateContext(), CancellationToken.None);
+
+        Assert.DoesNotContain(result.Report.Findings, f => f is null);
+        Assert.Single(result.Report.Findings, f => f?.Id == NullItemRule.VALID_FINDING_ID);
+        Assert.Single(result.Report.Findings, f => f?.Id == RuleEvaluator.RULE_FAILURE_FINDING_ID_PREFIX + "null-item");
+        Assert.Equal(ScanOutcome.Partial, result.Report.Outcome);
+    }
+
+    /// <summary>
+    /// 이전 검사에서 시작한 호출이 아직 종료 중이면, 다시 검사했을 때 건너뛴 요약에도 IsStillRunning이 유지된다.
+    /// 호출이 끝난 뒤의 검사에서는 다시 실행되고 IsStillRunning이 false다.
+    /// </summary>
+    [Fact]
+    public async Task 재검사에서도_이전_검사의_종료_중_표시가_유지된다()
+    {
+        var delayed = new DelayedProbe("delayed");
+        var logger = new RecordingLogger();
+        var coordinator = CreateCoordinator([delayed], logger: logger);
+
+        var first = await coordinator.RunScanAsync(CreateContext(), CancellationToken.None);
+        Assert.True(SummaryOf(first, "delayed").IsStillRunning);
+
+        var second = await coordinator.RunScanAsync(CreateContext(), CancellationToken.None);
+        var secondSummary = SummaryOf(second, "delayed");
+        Assert.Equal(ProbeStatus.Skipped, secondSummary.Status);
+        Assert.True(secondSummary.IsStillRunning);
+        Assert.Contains("delayed", coordinator.DrainingProbeIds);
+
+        delayed.Complete();
+        await logger.WaitForEntryAsync(e => IsLateDiscard(e, "delayed")).WaitAsync(SIGNAL_WAIT);
+
+        var thirdScan = coordinator.RunScanAsync(CreateContext(), CancellationToken.None);
+        await delayed.WhenInvokedAsync(2).WaitAsync(SIGNAL_WAIT);
+        delayed.Complete();
+        var third = await thirdScan.WaitAsync(SCAN_UPPER_BOUND);
+        var thirdSummary = SummaryOf(third, "delayed");
+        Assert.Equal(ProbeStatus.Success, thirdSummary.Status);
+        Assert.False(thirdSummary.IsStillRunning);
+    }
+
+    /// <summary>
     /// 부분 결과의 측정값은 규칙에 전달되고, 부분 수집 사실은 CannotVerify(PartialData)로 함께 남는다.
     /// </summary>
     [Fact]

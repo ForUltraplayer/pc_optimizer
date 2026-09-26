@@ -39,14 +39,14 @@ public sealed class ScanSnapshot
         }
 
         ScanId = scanId;
-        ProbeResults = results;
+        ProbeResults = Array.AsReadOnly(results);
         _resultsById = byId.ToFrozenDictionary(StringComparer.Ordinal);
     }
 
     /// <summary>검사 ID.</summary>
     public Guid ScanId { get; }
 
-    /// <summary>프로브 결과(등록 순서).</summary>
+    /// <summary>프로브 결과(등록 순서, 캐스팅으로도 바꿀 수 없는 읽기 전용 보기).</summary>
     public IReadOnlyList<ProbeResult> ProbeResults { get; }
 
     /// <summary>

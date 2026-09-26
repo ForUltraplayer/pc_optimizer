@@ -1,7 +1,7 @@
 /**
  * @file    : FakeRules.cs
  * @author  : rudals252
- * @brief   : 규칙 평가 테스트용 가짜 규칙(측정값을 Info로 옮기는 규칙, 예외를 던지는 규칙)
+ * @brief   : 규칙 평가 테스트용 가짜 규칙(측정값을 Info로 옮기는 규칙, 예외·null·null 항목을 내는 결함 규칙)
  */
 
 // 사용자 패키지
@@ -78,5 +78,59 @@ internal sealed class ThrowingRule : IRule
     public IReadOnlyList<Finding> Evaluate(ScanSnapshot snapshot)
     {
         throw new InvalidOperationException("규칙 결함");
+    }
+}
+
+/// <summary>
+/// null 목록을 돌려주는 결함 규칙입니다.
+/// </summary>
+internal sealed class NullReturningRule : IRule
+{
+    /// <summary>가짜 규칙을 만든다.</summary>
+    public NullReturningRule(string id)
+    {
+        Id = id;
+    }
+
+    /// <inheritdoc />
+    public string Id { get; }
+
+    /// <inheritdoc />
+    public IReadOnlyList<Finding> Evaluate(ScanSnapshot snapshot) => null!;
+}
+
+/// <summary>
+/// 정상 Finding 하나와 null 항목 하나를 함께 돌려주는 결함 규칙입니다.
+/// </summary>
+internal sealed class NullItemRule : IRule
+{
+    /// <summary>정상적으로 돌려주는 Finding의 ID.</summary>
+    public const string VALID_FINDING_ID = "null-item-rule:valid";
+
+    /// <summary>가짜 규칙을 만든다.</summary>
+    public NullItemRule(string id)
+    {
+        Id = id;
+    }
+
+    /// <inheritdoc />
+    public string Id { get; }
+
+    /// <inheritdoc />
+    public IReadOnlyList<Finding> Evaluate(ScanSnapshot snapshot)
+    {
+        var valid = new Finding(
+            id: VALID_FINDING_ID,
+            category: FindingCategory.Display,
+            title: "정상 Finding",
+            measured: [],
+            evidence: "가짜 규칙",
+            verdict: Verdict.Info,
+            cannotVerifyReason: null,
+            detail: null,
+            recommendation: null,
+            impact: null,
+            actions: []);
+        return [valid, null!];
     }
 }
