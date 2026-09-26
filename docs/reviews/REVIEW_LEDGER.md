@@ -13,8 +13,8 @@
 
 | ID | 중요도 | 상태 | 대상 | 요약 |
 |---|---|---|---|---|
-| REV-001 | P1 | 미해결 | P4 보호 정책 | 드라이브 루트로 지정된 Known Folder가 보호 목록에서 빠짐 |
-| REV-002 | P2 | 미해결 | P4 파일 순회 | 단일 폴더 열거·처리 중 취소 및 시간 예산 확인 누락 |
+| REV-001 | P1 | 수정됨·재검증 대기 | P4 보호 정책 | 드라이브 루트로 지정된 Known Folder가 보호 목록에서 빠짐 |
+| REV-002 | P2 | 수정됨·재검증 대기 | P4 파일 순회 | 단일 폴더 열거·처리 중 취소 및 시간 예산 확인 누락 |
 | REV-003 | P2 | 미해결 | P2 UI / P7 | 작업이 실제 종료돼도 ‘종료 중’ 안내가 다음 검사까지 남음 |
 | REV-004 | 제품 범위 | 범위 결정 필요 | 구현 계획 | 사용자가 기대한 기존 도구 통합이 계획에서 2차로 연기됨 |
 | REV-005 | P2 | 검증 완료(장치 ID 범위) | P3a 내보내기 | 장치 내부 ID 원문 노출 보완 확인 |
@@ -28,7 +28,16 @@
 - 기대: 드라이브 전체를 **스캔 대상으로 금지**하는 것과, 드라이브 전체를 **보호 대상으로 인정**하는 것은 구분해야 한다.
 - 재현: [IndependentReviewTests.cs](repro/IndependentReviewTests.cs)의 `KnownFolderAtVolumeRootStillProtectsDescendants`. 임시 복사본 실행 결과 실패(Expected true, Actual false).
 - 완료 근거: 위 테스트 통과, 일반 보호 경로 및 스캔 루트 금지 정책 회귀 확인.
-- 대응 기록: 아직 없음.
+- 대응 기록 (2026-09-26, P4 리뷰 1차 수정, 구현자):
+  - 변경: `src/PcOptimizer.Probes/Storage/PathTemplate.cs`(보호 루트용 `ResolveProtected`/`NormalizeProtected` 추가 — 드라이브 루트 허용, UNC·상대 경로는 계속 거부; 스캔 루트용 `NormalizeAbsolute`는 드라이브 루트 금지 유지), `src/PcOptimizer.Probes/Storage/ProtectionPolicyResolver.cs`(Known Folder·환경 경로·동기화 루트 해석에 보호용 정규화 사용). 커밋 `5399f00`.
+  - 회귀 테스트: 재현 테스트를 `tests/PcOptimizer.Tests/Unit/Probes/IndependentReviewTests.cs`로 편입(단언 유지). `KnownFolderAtVolumeRootStillProtectsDescendants` 통과. 스캔 루트 금지는 `ScanRootCatalogTests.다른_프로필과_볼륨_루트는_거부한다`(C:\·UNC·다른 프로필 → Rejected)가 계속 통과. 일반 보호 경로는 `ProtectionPolicyResolverTests` 전부 통과.
+  - 명령(작업 루트, Release):
+    - `dotnet test tests/PcOptimizer.Tests -c Release --filter "FullyQualifiedName~IndependentReviewTests"` — 수정 전 `실패: 3, 통과: 0`(Expected True / Actual False, OperationCanceledException 기대 불일치), 수정 후 전부 통과.
+    - `dotnet test tests/PcOptimizer.Tests -c Release --filter "FullyQualifiedName~ProtectionPolicyResolverTests|FullyQualifiedName~FileScanRulesTests|FullyQualifiedName~PathTokenizerTests|FullyQualifiedName~ReportExporterTests|FullyQualifiedName~FileScanServiceTests|FullyQualifiedName~FileScanProbeTests|FullyQualifiedName~IndependentReviewTests|FullyQualifiedName~FileSystemScannerTests|FullyQualifiedName~ScanRootCatalogTests"` — `통과: 80, 실패: 0`.
+    - `dotnet build -c Release` — 경고 0개, 오류 0개.
+    - `dotnet test tests/PcOptimizer.Tests -c Release --no-build --filter "Category!=Smoke"` — `통과: 655, 실패: 0`.
+    - `dotnet test tests/PcOptimizer.Tests -c Release --no-build --filter "Category=Smoke"` — `총 16, 통과 16`(관리자 셸, 실제 파일 스캔 Success, timedOut=False).
+  - 남은 제한: 정책 파일(protect.json) 자체의 `environmentPath` 항목에 드라이브 루트를 적는 것은 파서가 여전히 무효로 처리한다(정책 작성 오류 방지, 이번 항목 범위 밖). 드라이브 루트 Known Folder가 시스템 드라이브(C:\)이면 C: 위의 모든 스캔 루트가 보호로 제외되어 파일 검사 결과가 비게 된다(실패 시 닫힘 방향).
 
 ## REV-002 — 폴더 내부에도 취소·시간 예산 검사 필요
 
@@ -39,7 +48,16 @@
 - 기대: 항목 열거·처리 중에도 협력적 취소와 예산을 확인한다. 예산 초과는 관측된 부분 합계와 시간 초과로 기록한다. OS 호출 한 번 자체를 강제로 중단할 수 있다는 뜻은 아니다.
 - 재현: [IndependentReviewTests.cs](repro/IndependentReviewTests.cs)의 `CancellationInsideOnlyDirectoryIsObserved`, `BudgetExceededInsideOnlyDirectoryIsReported`. 임시 복사본에서 두 테스트 모두 실패.
 - 완료 근거: 두 재현 테스트 통과, 큰 단일 폴더와 열거 중 부분 결과 처리를 검증.
-- 대응 기록: 아직 없음.
+- 대응 기록 (2026-09-26, P4 리뷰 1차 수정, 구현자):
+  - 변경: `src/PcOptimizer.Probes/Storage/VolumeTraversalRun.cs` `ListDirectory` — 항목 열거 루프와 처리 루프에서 항목마다 `ThrowIfCancellationRequested`와 볼륨 예산을 확인. 예산 초과 시 그때까지 관측한 항목만 집계하고 해당 디렉터리를 `Timeout`으로 기록, 실행기·루트의 `TimedOut=true`. 커밋 `5399f00`.
+  - 회귀 테스트: `IndependentReviewTests.CancellationInsideOnlyDirectoryIsObserved`, `BudgetExceededInsideOnlyDirectoryIsReported` 통과. 기존 `FileSystemScannerTests.시간_예산을_넘기면_부분_집계로_멈춘다`는 열거 도중 예산을 넘긴 폴더(d2)가 이제 관측 항목 없이 Timeout으로 남도록 기대값을 갱신(합계 41, Timeout 2, d2 열거 실패 사유 Timeout).
+  - 명령(작업 루트, Release):
+    - `dotnet test tests/PcOptimizer.Tests -c Release --filter "FullyQualifiedName~IndependentReviewTests"` — 수정 전 `실패: 3, 통과: 0`(Expected True / Actual False, OperationCanceledException 기대 불일치), 수정 후 전부 통과.
+    - `dotnet test tests/PcOptimizer.Tests -c Release --filter "FullyQualifiedName~ProtectionPolicyResolverTests|FullyQualifiedName~FileScanRulesTests|FullyQualifiedName~PathTokenizerTests|FullyQualifiedName~ReportExporterTests|FullyQualifiedName~FileScanServiceTests|FullyQualifiedName~FileScanProbeTests|FullyQualifiedName~IndependentReviewTests|FullyQualifiedName~FileSystemScannerTests|FullyQualifiedName~ScanRootCatalogTests"` — `통과: 80, 실패: 0`.
+    - `dotnet build -c Release` — 경고 0개, 오류 0개.
+    - `dotnet test tests/PcOptimizer.Tests -c Release --no-build --filter "Category!=Smoke"` — `통과: 655, 실패: 0`.
+    - `dotnet test tests/PcOptimizer.Tests -c Release --no-build --filter "Category=Smoke"` — `총 16, 통과 16`(관리자 셸, 실제 파일 스캔 Success, timedOut=False).
+  - 남은 제한: 확인은 협력적이다. OS 열거 호출 한 번(FindNextFile 묶음)이나 파일 ID·할당 크기 조회 한 번은 중간에 끊을 수 없으므로 그 호출이 끝난 뒤 다음 항목에서 멈춘다. 큰 단일 폴더의 실제 대량 항목(수십만 개) 성능 측정은 하지 않았다(가짜 열거로만 검증).
 
 ## REV-003 — ‘종료 중’ 안내 자동 갱신
 
