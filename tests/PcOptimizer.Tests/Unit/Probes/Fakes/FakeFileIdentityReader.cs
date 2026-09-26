@@ -23,6 +23,9 @@ internal sealed class FakeFileIdentityReader : IFileIdentityReader
     /// <summary>ID 조회 호출 경로.</summary>
     public ConcurrentQueue<string> IdentityCalls { get; } = new();
 
+    /// <summary>ID 조회 때 호출되는 훅(처리 도중 시간이 흐르는 경우를 만든다).</summary>
+    public Action<string>? OnIdentity { get; set; }
+
     /// <summary>
     /// 파일 ID를 등록한다(같은 번호면 같은 파일 = 하드링크).
     /// </summary>
@@ -45,6 +48,7 @@ internal sealed class FakeFileIdentityReader : IFileIdentityReader
     public FileIdentity? TryGetIdentity(string path)
     {
         IdentityCalls.Enqueue(path);
+        OnIdentity?.Invoke(path);
         return _identities.TryGetValue(path, out var identity) ? identity : null;
     }
 

@@ -124,6 +124,7 @@ internal static class FileScanMeasurements
             }
 
             Add(FileScanProbeContract.FIELD_VOLUME, new TextValue(traversed.VolumeRoot));
+            Add(FileScanProbeContract.FIELD_TIMED_OUT, new BooleanValue(traversed.TimedOut));
             if (traversed.Totals is not { } totals)
             {
                 continue;
