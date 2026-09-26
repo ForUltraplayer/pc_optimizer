@@ -338,4 +338,28 @@
   <data name="Spec_PowerKind" xml:space="preserve"><value>형태</value></data>
   <data name="Spec_PowerSource" xml:space="preserve"><value>전원 공급</value></data>
   <data name="Spec_PowerPlan" xml:space="preserve"><value>전원 계획</value></data>
+  <data name="Spec_NavOpen" xml:space="preserve"><value>내 PC 사양</value></data>
+  <data name="Spec_NavBack" xml:space="preserve"><value>결과로 돌아가기</value></data>
+  <data name="Spec_Refresh" xml:space="preserve"><value>새로 고침</value></data>
+  <data name="Spec_CopyText" xml:space="preserve"><value>텍스트 복사</value></data>
+  <data name="Spec_SaveText" xml:space="preserve"><value>TXT 저장</value></data>
+  <data name="Spec_SaveImage" xml:space="preserve"><value>이미지 저장</value></data>
+  <data name="Spec_IncludeIdentity" xml:space="preserve"><value>식별 정보 포함</value></data>
+  <data name="Spec_Anonymized" xml:space="preserve"><value>익명화됨(PC 이름·사용자명 제외)</value></data>
+  <data name="Spec_Identified" xml:space="preserve"><value>식별 정보 포함(PC 이름·사용자명)</value></data>
+  <data name="Spec_TextHeader" xml:space="preserve"><value>PC 사양 · {0} · {1}</value><comment>{0}=캡처 시각(현지 yyyy-MM-dd HH:mm), {1}=익명화 표기</comment></data>
+  <data name="Spec_MachineName" xml:space="preserve"><value>PC 이름</value></data>
+  <data name="Spec_UserName" xml:space="preserve"><value>사용자명</value></data>
+  <data name="Spec_SectionUnavailable" xml:space="preserve"><value>확인 불가 — dxdiag 또는 HWiNFO64로 확인</value></data>
+  <data name="Spec_Loading" xml:space="preserve"><value>사양을 읽는 중이에요…</value></data>
+  <data name="Spec_BusyScanning" xml:space="preserve"><value>검사 중에는 사양을 새로 고칠 수 없어요. 검사가 끝나면 다시 시도하세요.</value></data>
+  <data name="Spec_RefreshFailed" xml:space="preserve"><value>사양을 읽지 못했어요 ({0})</value><comment>{0}=예외 형식 이름</comment></data>
+  <data name="Spec_Copied" xml:space="preserve"><value>사양 텍스트를 클립보드에 복사했어요.</value></data>
+  <data name="Spec_CopyFailed" xml:space="preserve"><value>클립보드에 복사하지 못했어요 ({0})</value><comment>{0}=예외 형식 이름</comment></data>
+  <data name="Spec_Saved" xml:space="preserve"><value>사양을 저장했어요: {0}</value><comment>{0}=파일 이름(전체 경로 아님)</comment></data>
+  <data name="Spec_SaveFailed" xml:space="preserve"><value>사양을 저장하지 못했어요 ({0})</value><comment>{0}=예외 형식 이름</comment></data>
+  <data name="Spec_ImageUnavailable" xml:space="preserve"><value>사양 화면이 표시된 뒤에 이미지로 저장할 수 있어요.</value></data>
+  <data name="Spec_DialogTitle" xml:space="preserve"><value>내 PC 사양 저장</value></data>
+  <data name="Spec_TextFilter" xml:space="preserve"><value>텍스트 파일 (*.txt)|*.txt</value></data>
+  <data name="Spec_ImageFilter" xml:space="preserve"><value>PNG 이미지 (*.png)|*.png</value></data>
 </root>

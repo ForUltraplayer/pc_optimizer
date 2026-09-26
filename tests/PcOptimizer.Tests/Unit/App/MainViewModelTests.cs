@@ -1,7 +1,7 @@
 /**
  * @file    : MainViewModelTests.cs
  * @author  : rudals252
- * @brief   : 메인 화면 모델의 상태 전이·Finding 기준 건수·바로 할 수 있는 것/직접 해야 하는 것 요약·정리 창 노출 조건·온라인 비교 완료 판정·분류 필터·취소 후 재검사·종료 중 표시·내보내기·관리자 권한 재검사(버튼 활성, UAC 취소 시 결과 보존, 실패 안내, 배너)를 가짜 프로브와 즉시 실행 마샬러로 검증
+ * @brief   : 메인 화면 모델의 상태 전이·Finding 기준 건수·바로 할 수 있는 것/직접 해야 하는 것 요약·정리 창 노출 조건·온라인 비교 완료 판정·분류 필터·취소 후 재검사·종료 중 표시·내보내기·관리자 권한 재검사(버튼 활성, UAC 취소 시 결과 보존, 실패 안내, 배너)·내 PC 사양 전환(첫 진입 새로 고침, 검사 중 새로 고침 막기)을 가짜 프로브와 즉시 실행 마샬러로 검증
  */
 
 // 기본 패키지
@@ -67,7 +67,49 @@ public sealed class MainViewModelTests
             elevationState,
             new ElevationRelauncher(starter ?? new RecordingProcessStarter(), elevationState, () => APP_PATH, NullAppLogger.Instance),
             launchMode,
-            availability ?? new FixedActionAvailability(false));
+            availability ?? new FixedActionAvailability(false),
+            SpecTestFactory.Create());
+    }
+
+    /// <summary>"내 PC 사양" 버튼은 본문을 사양 화면으로 바꾸고 첫 진입에서만 사양을 읽으며, 다시 누르면 결과로 돌아간다.</summary>
+    [Fact]
+    public async Task SpecToggleSwapsContentAndLoadsOnce()
+    {
+        var vm = CreateViewModel([new FixtureMemoryProbe()]);
+        Assert.False(vm.IsSpecVisible);
+        Assert.True(vm.IsResultsVisible);
+        Assert.Equal(Strings.Spec_NavOpen, vm.SpecToggleText);
+
+        await vm.ToggleSpecCommand.ExecuteAsync(null);
+
+        Assert.True(vm.IsSpecVisible);
+        Assert.False(vm.IsResultsVisible);
+        Assert.Equal(Strings.Spec_NavBack, vm.SpecToggleText);
+        Assert.Equal(9, vm.Spec.Sections.Count);
+        var loadedAt = vm.Spec.Snapshot;
+        Assert.NotNull(loadedAt);
+
+        await vm.ToggleSpecCommand.ExecuteAsync(null);
+        Assert.False(vm.IsSpecVisible);
+        await vm.ToggleSpecCommand.ExecuteAsync(null);
+        Assert.Same(loadedAt, vm.Spec.Snapshot);
+    }
+
+    /// <summary>검사 중에는 사양 새로 고침이 꺼지고(프로브 공유), 검사가 끝나면 다시 켜진다.</summary>
+    [Fact]
+    public async Task SpecRefreshIsDisabledWhileScanning()
+    {
+        var waiting = new FirstCallWaitsForCancelProbe();
+        var vm = CreateViewModel([waiting]);
+        Assert.True(vm.Spec.RefreshCommand.CanExecute(null));
+
+        var scan = vm.StartScanCommand.ExecuteAsync(null);
+        await waiting.Started.WaitAsync(WAIT_BOUND);
+        Assert.False(vm.Spec.RefreshCommand.CanExecute(null));
+
+        vm.CancelScanCommand.Execute(null);
+        await scan.WaitAsync(WAIT_BOUND);
+        Assert.True(vm.Spec.RefreshCommand.CanExecute(null));
     }
 
     /// <summary>처음에는 대기 상태이고 시작만 가능하다.</summary>

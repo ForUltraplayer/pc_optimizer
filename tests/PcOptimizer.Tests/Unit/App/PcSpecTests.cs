@@ -1,17 +1,23 @@
 /**
  * @file    : PcSpecTests.cs
  * @author  : rudals252
- * @brief   : 내 PC 사양 스냅샷(섹션 순서·확인 불가 표시·장치별 개별 나열·빈 값 비표시)과 프로브 예외·타임아웃 흡수를 가짜 프로브 결과로 검증
+ * @brief   : 내 PC 사양 스냅샷(섹션 순서·확인 불가 표시·장치별 개별 나열·빈 값 비표시)과 프로브 예외·타임아웃 흡수, 텍스트 형식(기본 익명화·확인 불가 섹션 한 줄), 사양 뷰모델(새로 고침·복사·TXT 저장·검사 중 새로 고침 막기·이미지 대상 없음)을 가짜 프로브 결과로 검증
  */
 
 // 기본 패키지
 using System.Globalization;
+using System.IO;
+using System.Text;
 
 // 사용자 패키지
+using PcOptimizer.App.Models;
 using PcOptimizer.App.Resources;
 using PcOptimizer.App.Services;
+using PcOptimizer.App.ViewModels;
+using PcOptimizer.Core.Abstractions;
 using PcOptimizer.Core.Models;
 using PcOptimizer.Core.Rules;
+using PcOptimizer.Tests.Unit.App.Fakes;
 using PcOptimizer.Tests.Unit.Engine;
 using PcOptimizer.Tests.Unit.Engine.Fakes;
 
@@ -36,7 +42,11 @@ public sealed class PcSpecTests
     private const int SECTION_BOARD = 6;
     private const int SECTION_NETWORK = 7;
 
+    private const int SECTION_COUNT = 9;
+    private const string SUGGESTED_DATE_FORMAT = "yyyyMMdd";
+
     private static readonly DateTimeOffset AT = new(2026, 9, 27, 0, 0, 0, TimeSpan.Zero);
+    private static readonly byte[] UTF8_BOM = [0xEF, 0xBB, 0xBF];
 
     /// <summary>프로브 결과에서 9개 섹션을 순서대로 만들고, 없는 프로브는 확인 불가 섹션으로 표시한다.</summary>
     [Fact]
@@ -317,6 +327,132 @@ public sealed class PcSpecTests
         Assert.Contains(logger.Entries, e => e.Message.Contains(MemoryProbeContract.PROBE_ID, StringComparison.Ordinal));
         Assert.All(logger.Entries, e => Assert.Null(e.Exception));
         Assert.All(logger.Entries, e => Assert.DoesNotContain(ThrowingProbe.ERROR_MESSAGE, e.Message, StringComparison.Ordinal));
+    }
+
+    /// <summary>텍스트 형식은 익명화 기본이며 PC 이름·사용자명은 토글이 켜졌을 때만 헤더에 들어간다.</summary>
+    [Fact]
+    public void TextFormatterAnonymizesByDefault()
+    {
+        var snapshot = new PcSpecSnapshot(new DateTimeOffset(2026, 9, 27, 0, 0, 0, TimeSpan.Zero),
+            [new PcSpecSection("CPU", [new PcSpecItem("모델", "Ryzen 7"), new PcSpecItem("클럭", null)])], []);
+        var formatter = new PcSpecTextFormatter();
+
+        var anonymous = formatter.Format(snapshot, includeIdentity: false, machineName: "MY-PC", userName: "kim");
+        Assert.Contains(Strings.Spec_Anonymized, anonymous);
+        Assert.DoesNotContain("MY-PC", anonymous);
+        Assert.DoesNotContain("kim", anonymous);
+        Assert.Contains("모델: Ryzen 7", anonymous);
+        Assert.Contains("클럭: " + Strings.Spec_ValueUnknown, anonymous);
+
+        var identified = formatter.Format(snapshot, includeIdentity: true, machineName: "MY-PC", userName: "kim");
+        Assert.Contains("MY-PC", identified);
+        Assert.Contains(Strings.Spec_Identified, identified);
+    }
+
+    /// <summary>확인 불가 섹션은 제목 아래 안내 한 줄만 쓰고 항목 줄을 나열하지 않는다. 식별 항목은 토글이 꺼져 있으면 빠진다.</summary>
+    [Fact]
+    public void TextFormatterWritesOneLineForUnavailableSectionAndHidesIdentifyingItems()
+    {
+        var snapshot = new PcSpecSnapshot(AT,
+            [
+                new PcSpecSection("그래픽", [new PcSpecItem("GPU", null)]),
+                new PcSpecSection("CPU", [new PcSpecItem("모델", "Ryzen 7"), new PcSpecItem("일련번호", "SN-123", IsIdentifying: true)]),
+            ],
+            ["그래픽"]);
+        var formatter = new PcSpecTextFormatter();
+
+        var lines = formatter.Format(snapshot, includeIdentity: false, machineName: null, userName: null)
+            .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+
+        var graphics = Array.IndexOf(lines, "[그래픽]");
+        Assert.True(graphics >= 0);
+        Assert.Equal(Strings.Spec_SectionUnavailable, lines[graphics + 1]);
+        Assert.Equal("[CPU]", lines[graphics + 2]);
+        Assert.DoesNotContain(lines, l => l.StartsWith("GPU:", StringComparison.Ordinal));
+        Assert.DoesNotContain(lines, l => l.Contains("SN-123", StringComparison.Ordinal));
+        Assert.Contains("일련번호: SN-123", formatter.Format(snapshot, includeIdentity: true, machineName: null, userName: null));
+    }
+
+    /// <summary>뷰모델은 새로 고침 시 섹션을 채우고, 복사·저장은 현재 토글의 텍스트를 쓴다.</summary>
+    [Fact]
+    public async Task ViewModelRefreshesAndCopies()
+    {
+        var service = new PcSpecService([new FixtureSystemDetailsProbe()], new FakeClock(), NullAppLogger.Instance, () => TestContexts.Normal());
+        var clipboard = new RecordingClipboard();
+        var vm = new PcSpecViewModel(service, new PcSpecTextFormatter(), clipboard, new FixedExportPathPicker(null), () => null,
+            new ImmediateUiDispatcher(), NullAppLogger.Instance, machineName: "MY-PC", userName: "kim");
+
+        await vm.RefreshCommand.ExecuteAsync(null);
+
+        Assert.Equal(SECTION_COUNT, vm.Sections.Count);
+        Assert.False(vm.IsLoading);
+        Assert.False(vm.IncludeIdentity);
+        await vm.CopyTextCommand.ExecuteAsync(null);
+        Assert.DoesNotContain("MY-PC", clipboard.LastText);
+        Assert.Contains(FixtureSystemDetailsProbe.CPU_NAME, clipboard.LastText);
+        vm.IncludeIdentity = true;
+        await vm.CopyTextCommand.ExecuteAsync(null);
+        Assert.Contains("MY-PC", clipboard.LastText);
+        Assert.Equal(Strings.Spec_Identified, vm.IdentityMarker);
+    }
+
+    /// <summary>TXT 저장은 제안 이름 pc-spec-yyyyMMdd.txt로 묻고, 복사와 같은 텍스트를 BOM 없는 UTF-8로 쓴다.</summary>
+    [Fact]
+    public async Task ViewModelSavesTextAsUtf8WithoutBom()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"pc-spec-test-{Guid.NewGuid():N}.txt");
+        var picker = new FixedExportPathPicker(path);
+        var clipboard = new RecordingClipboard();
+        var vm = SpecTestFactory.Create(clipboard, picker);
+        try
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            await vm.SaveTextCommand.ExecuteAsync(null);
+            await vm.CopyTextCommand.ExecuteAsync(null);
+
+            var expectedName = $"pc-spec-{FakeClock.DEFAULT_NOW.ToLocalTime().ToString(SUGGESTED_DATE_FORMAT, CultureInfo.InvariantCulture)}.txt";
+            Assert.Equal(expectedName, picker.SuggestedFileName);
+            var bytes = await File.ReadAllBytesAsync(path);
+            Assert.False(bytes.AsSpan().StartsWith(UTF8_BOM));
+            Assert.Equal(clipboard.LastText, Encoding.UTF8.GetString(bytes));
+            Assert.DoesNotContain(SpecTestFactory.MACHINE_NAME, clipboard.LastText);
+            Assert.NotNull(vm.StatusMessage);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>검사가 도는 동안(프로브 공유) 사양 새로 고침은 실행할 수 없고, 끝나면 다시 켜진다.</summary>
+    [Fact]
+    public void ViewModelRefreshIsDisabledWhileScanBusy()
+    {
+        var vm = SpecTestFactory.Create();
+        Assert.True(vm.RefreshCommand.CanExecute(null));
+
+        vm.SetBusy(true);
+        Assert.False(vm.RefreshCommand.CanExecute(null));
+        Assert.True(vm.IsScanBusy);
+
+        vm.SetBusy(false);
+        Assert.True(vm.RefreshCommand.CanExecute(null));
+    }
+
+    /// <summary>렌더 대상이 없으면 이미지를 쓰지 않고 안내만 남긴다(경로를 묻지 않음).</summary>
+    [Fact]
+    public async Task ViewModelSaveImageWithoutTargetReportsStatus()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"pc-spec-test-{Guid.NewGuid():N}.png");
+        var picker = new FixedExportPathPicker(path);
+        var vm = SpecTestFactory.Create(picker: picker);
+        await vm.RefreshCommand.ExecuteAsync(null);
+
+        await vm.SaveImageCommand.ExecuteAsync(null);
+
+        Assert.Equal(Strings.Spec_ImageUnavailable, vm.StatusMessage);
+        Assert.Null(picker.SuggestedFileName);
+        Assert.False(File.Exists(path));
     }
 
     /// <summary>

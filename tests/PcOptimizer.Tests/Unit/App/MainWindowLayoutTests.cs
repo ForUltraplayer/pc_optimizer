@@ -1,15 +1,17 @@
 /**
  * @file    : MainWindowLayoutTests.cs
  * @author  : rudals252
- * @brief   : 메인 창을 화면에 띄우지 않고 고정 폭으로 배치해, 긴 경로가 든 카드 문장이 가로로 넘치지 않고 줄바꿈되는지, 판정 배지 텍스트, 관리자 권한 재검사 버튼 활성·배너 표시, 공식 링크 버튼 표시, 카드의 안전 배지·설명 3줄 렌더, 요약 타일 두 개(바로 할 수 있는 것은 0이면 숨김)와 정리 창 버튼 노출 조건을 검증
+ * @brief   : 메인 창을 화면에 띄우지 않고 고정 폭으로 배치해, 긴 경로가 든 카드 문장이 가로로 넘치지 않고 줄바꿈되는지, 판정 배지 텍스트, 관리자 권한 재검사 버튼 활성·배너 표시, 공식 링크 버튼 표시, 카드의 안전 배지·설명 3줄 렌더, 요약 타일 두 개(바로 할 수 있는 것은 0이면 숨김)와 정리 창 버튼 노출 조건, 내 PC 사양 화면(한 열 나열·화면 줄 == 텍스트 줄·720px 폭·익명화 표기·PNG 저장·본문 전환)을 검증
  */
 
 // 기본 패키지
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using System.IO;
 
 // 사용자 패키지
@@ -120,7 +122,8 @@ public sealed class MainWindowLayoutTests
             elevation,
             new ElevationRelauncher(new RecordingProcessStarter(), elevation, () => null, NullAppLogger.Instance),
             launchMode,
-            availability ?? new FixedActionAvailability(false));
+            availability ?? new FixedActionAvailability(false),
+            SpecTestFactory.Create());
         if (scan)
         {
             vm.StartScanCommand.ExecuteAsync(null).GetAwaiter().GetResult();
@@ -182,6 +185,192 @@ public sealed class MainWindowLayoutTests
         {
             throw new InvalidOperationException("STA 레이아웃 검사 실패", failure);
         }
+    }
+
+    private const double SPEC_WIDTH = 720;
+    private const double SPEC_HEIGHT = 900;
+    private const string SPEC_HEADER_LINES_ID = "SpecHeaderLines";
+    private const string SPEC_LINES_ID = "SpecLines";
+    private const string SPEC_TOGGLE_ID = "SpecToggleButton";
+    private const string LINE_JOIN = " ";
+    private static readonly byte[] PNG_SIGNATURE = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+
+    /// <summary>
+    /// 가짜 시스템 상세 프로브로 사양을 한 번 읽은 뷰모델을 만든다(운영체제·CPU 외 섹션은 확인 불가).
+    /// </summary>
+    private static PcSpecViewModel CreateSpecViewModelWithSections(IExportPathPicker? picker = null, Func<FrameworkElement?>? captureTarget = null)
+    {
+        var vm = SpecTestFactory.Create(picker: picker, captureTarget: captureTarget);
+        vm.RefreshCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+        Assert.NotEmpty(vm.Sections);
+        return vm;
+    }
+
+    /// <summary>
+    /// UI 동기화 컨텍스트에서 비동기 명령이 끝날 때까지 Dispatcher를 돌린다. 명령 완료 후 CanExecuteChanged(버튼 갱신)가 버튼을 만든 STA 스레드에서 실행되도록 한다(실제 앱과 같은 조건).
+    /// </summary>
+    private static void PumpUntilComplete(Func<Task> start)
+    {
+        SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+        var task = start();
+        var frame = new DispatcherFrame();
+        task.ContinueWith(_ => frame.Continue = false, TaskScheduler.Default);
+        Dispatcher.PushFrame(frame);
+        task.GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// PNG 한 줄의 가운데 픽셀 알파 값을 읽는다(0이면 아무것도 그려지지 않음).
+    /// </summary>
+    private static byte RowAlpha(BitmapSource frame, int row)
+    {
+        const int BYTES_PER_PIXEL = 4;
+        const int ALPHA_OFFSET = 3;
+        var converted = new FormatConvertedBitmap(frame, PixelFormats.Bgra32, null, 0);
+        var pixel = new byte[BYTES_PER_PIXEL];
+        converted.CopyPixels(new Int32Rect(converted.PixelWidth / 2, row, 1, 1), pixel, BYTES_PER_PIXEL, 0);
+        return pixel[ALPHA_OFFSET];
+    }
+
+    /// <summary>
+    /// 사양 뷰를 고정 폭으로 배치한다.
+    /// </summary>
+    private static void LayoutSpecView(FrameworkElement view)
+    {
+        view.Measure(new Size(SPEC_WIDTH, SPEC_HEIGHT));
+        view.Arrange(new Rect(0, 0, SPEC_WIDTH, SPEC_HEIGHT));
+        view.UpdateLayout();
+    }
+
+    /// <summary>
+    /// 사양 뷰에 렌더된 줄(머리글 줄 + 섹션 제목·항목·확인 불가 줄)을 화면 순서대로 읽는다. 한 줄 안의 TextBlock(라벨, 값)은 공백 하나로 잇는다.
+    /// </summary>
+    private static List<string> RenderedSpecLines(FrameworkElement view)
+    {
+        var lines = new List<string>();
+        foreach (var id in new[] { SPEC_HEADER_LINES_ID, SPEC_LINES_ID })
+        {
+            var list = Descendants<ItemsControl>(view).Single(c => AutomationProperties.GetAutomationId(c) == id);
+            for (var index = 0; index < list.Items.Count; index++)
+            {
+                var container = list.ItemContainerGenerator.ContainerFromIndex(index);
+                var texts = Descendants<TextBlock>(container).Where(t => t.Visibility == Visibility.Visible).Select(t => t.Text);
+                lines.Add(string.Join(LINE_JOIN, texts));
+            }
+        }
+
+        return lines;
+    }
+
+    /// <summary>사양 화면이 720px 폭에서 가로로 넘치지 않고 익명화 표기가 렌더되며, fastfetch처럼 한 열(2열 Grid 없음)로 나열된다.</summary>
+    [Fact]
+    public void SpecViewRendersWithinWidth()
+    {
+        RunOnSta(() =>
+        {
+            var view = new PcSpecView { DataContext = CreateSpecViewModelWithSections() };
+            view.Measure(new Size(SPEC_WIDTH, SPEC_HEIGHT));
+            view.Arrange(new Rect(0, 0, SPEC_WIDTH, SPEC_HEIGHT));
+            view.UpdateLayout();
+            Assert.True(view.DesiredSize.Width <= SPEC_WIDTH);
+            Assert.Contains(FindTextBlocks(view), t => t.Text == Strings.Spec_Anonymized);
+            Assert.Contains(FindTextBlocks(view), t => t.Text == Strings.Spec_MoreDetails);
+            // fastfetch 스타일: 섹션 제목 뒤에 항목 줄이 한 열로 이어지고 2열 Grid가 없다
+            Assert.DoesNotContain(Descendants<Grid>(view), g => g.ColumnDefinitions.Count >= 2 && g.RowDefinitions.Count >= 2);
+            Assert.Empty(Descendants<UniformGrid>(view));
+            Assert.All(FindTextBlocks(view), t => Assert.True(t.ActualWidth <= SPEC_WIDTH));
+        });
+    }
+
+    /// <summary>화면의 줄 구성(순서·문자열)은 텍스트 복사 결과의 줄 구성과 같다(익명화·식별 포함 모두, 확인 불가 섹션은 한 줄).</summary>
+    [Fact]
+    public void SpecScreenLinesEqualTextLines()
+    {
+        RunOnSta(() =>
+        {
+            var vm = CreateSpecViewModelWithSections();
+            var view = new PcSpecView { DataContext = vm };
+            foreach (var includeIdentity in new[] { false, true })
+            {
+                vm.IncludeIdentity = includeIdentity;
+                LayoutSpecView(view);
+
+                var screen = RenderedSpecLines(view);
+                var text = new PcSpecTextFormatter().Format(vm.Snapshot!, includeIdentity, SpecTestFactory.MACHINE_NAME, SpecTestFactory.USER_NAME)
+                    .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+
+                Assert.Equal(text, screen);
+                Assert.Equal(string.Join(Environment.NewLine, text), string.Join(Environment.NewLine,
+                    vm.CapturedText!.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)));
+                Assert.Contains($"[{Strings.Spec_Section_Os}]", screen);
+                Assert.Contains(Strings.Spec_SectionUnavailable, screen);
+                Assert.Equal(includeIdentity, screen.Any(l => l.Contains(SpecTestFactory.MACHINE_NAME, StringComparison.Ordinal)));
+            }
+        });
+    }
+
+    /// <summary>이미지 저장은 하단 익명화 표기를 포함한 CaptureRoot를 96 DPI PNG로 쓴다(임시 폴더, 테스트 후 삭제).</summary>
+    [Fact]
+    public void SpecImageSaveWritesPng()
+    {
+        RunOnSta(() =>
+        {
+            var path = Path.Combine(Path.GetTempPath(), $"pc-spec-test-{Guid.NewGuid():N}.png");
+            PcSpecView? view = null;
+            var picker = new FixedExportPathPicker(path);
+            var vm = CreateSpecViewModelWithSections(picker, () => view?.CaptureRoot);
+            view = new PcSpecView { DataContext = vm };
+            LayoutSpecView(view);
+            try
+            {
+                PumpUntilComplete(() => vm.SaveImageCommand.ExecuteAsync(null));
+
+                Assert.StartsWith("pc-spec-", picker.SuggestedFileName, StringComparison.Ordinal);
+                Assert.EndsWith(".png", picker.SuggestedFileName, StringComparison.Ordinal);
+                var bytes = File.ReadAllBytes(path);
+                Assert.True(bytes.AsSpan().StartsWith(PNG_SIGNATURE));
+                var frame = BitmapDecoder.Create(new MemoryStream(bytes), BitmapCreateOptions.None, BitmapCacheOption.OnLoad).Frames[0];
+                Assert.Equal((int)Math.Ceiling(view.CaptureRoot.ActualWidth), frame.PixelWidth);
+                Assert.Equal((int)Math.Ceiling(view.CaptureRoot.ActualHeight), frame.PixelHeight);
+                Assert.Contains(Descendants<TextBlock>(view.CaptureRoot), t => t.Text == Strings.Spec_Anonymized);
+                // CaptureRoot는 머리글·버튼 줄 아래에 있으므로(부모 안 오프셋), 렌더가 그 오프셋만큼 밀리면 맨 윗줄이 비고 하단 익명화 표기가 잘린다.
+                Assert.True(VisualTreeHelper.GetOffset(view.CaptureRoot).Y > 0);
+                Assert.True(RowAlpha(frame, 0) > 0, "맨 윗줄이 비어 있음(렌더 오프셋)");
+                Assert.True(RowAlpha(frame, frame.PixelHeight - 1) > 0, "맨 아랫줄이 비어 있음(렌더 오프셋)");
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        });
+    }
+
+    /// <summary>머리글의 "내 PC 사양" 버튼을 누르면 본문이 사양 화면으로 바뀌고 결과 영역은 숨는다.</summary>
+    [Fact]
+    public void SpecToggleSwapsMainContent()
+    {
+        RunOnSta(() =>
+        {
+            var model = CreateScannedViewModel(overview: true);
+            var window = new MainWindow(model);
+            var root = (FrameworkElement)window.Content;
+            model.ToggleSpecCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+            root.Measure(new Size(CARD_LAYOUT_WIDTH, CARD_LAYOUT_HEIGHT));
+            root.Arrange(new Rect(0, 0, CARD_LAYOUT_WIDTH, CARD_LAYOUT_HEIGHT));
+            root.UpdateLayout();
+
+            Assert.True(model.IsSpecVisible);
+            var anchor = (FrameworkElement)window.FindName("ResultsAnchor");
+            // 결과 영역(ResultsAnchor를 담은 패널)은 접히고 사양 화면만 배치된다.
+            Assert.Equal(Visibility.Collapsed, ((FrameworkElement)anchor.Parent).Visibility);
+            var spec = Descendants<PcSpecView>(root).Single();
+            Assert.Equal(Visibility.Visible, spec.Visibility);
+            Assert.True(spec.ActualHeight > 0);
+            Assert.Same(spec.CaptureRoot, window.SpecCaptureRoot);
+            var toggle = Descendants<Button>(root).Single(b => AutomationProperties.GetAutomationId(b) == SPEC_TOGGLE_ID);
+            Assert.Equal(Strings.Spec_NavBack, toggle.Content);
+            window.Close();
+        });
     }
 
     /// <summary>긴 경로 문장은 카드 폭 안에서 여러 줄로 줄바꿈되고, 판정은 배지 텍스트로 보인다.</summary>

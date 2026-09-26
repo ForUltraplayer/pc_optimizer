@@ -1,17 +1,20 @@
 /**
  * @file    : AppTestDoubles.cs
  * @author  : rudals252
- * @brief   : 뷰모델 테스트용 대역(즉시 실행 UI 마샬러, 고정 경로 선택기, 메모리 fixture 프로브, 첫 호출만 취소를 기다리는 프로브, 고정 권한 상태, 기록·예외 프로세스 시작기, 고정 앱 내 실행 판정)
+ * @brief   : 뷰모델 테스트용 대역(즉시 실행 UI 마샬러, 고정 경로 선택기, 메모리·시스템 상세 fixture 프로브, 첫 호출만 취소를 기다리는 프로브, 고정 권한 상태, 기록·예외 프로세스 시작기, 고정 앱 내 실행 판정, 기록 클립보드, 일반 검사 컨텍스트, 사양 뷰모델 생성기)
  */
 
 // 기본 패키지
 using System.Diagnostics;
+using System.Windows;
 
 // 사용자 패키지
 using PcOptimizer.App.Services;
+using PcOptimizer.App.ViewModels;
 using PcOptimizer.Core.Abstractions;
 using PcOptimizer.Core.Models;
 using PcOptimizer.Core.Rules;
+using PcOptimizer.Tests.Unit.Engine;
 using PcOptimizer.Tests.Unit.Engine.Fakes;
 
 namespace PcOptimizer.Tests.Unit.App.Fakes;
@@ -195,4 +198,107 @@ internal sealed class FixedActionAvailability(bool value, bool cacheToolsAvailab
 
     /// <inheritdoc />
     public bool CanExecuteInApp(Finding finding) => value;
+}
+
+/// <summary>
+/// 시스템 상세 계약(운영체제·CPU) 측정값을 돌려주는 가짜 프로브입니다. 값은 테스트 예시이며 실제 PC 값이 아닙니다.
+/// </summary>
+internal sealed class FixtureSystemDetailsProbe : IProbe
+{
+    /// <summary>예시 운영체제 이름.</summary>
+    public const string OS_CAPTION = "Windows 11 Pro";
+
+    /// <summary>예시 CPU 이름.</summary>
+    public const string CPU_NAME = "Ryzen 7 fixture";
+
+    private const long CORES = 8;
+    private const long THREADS = 16;
+
+    /// <inheritdoc />
+    public string Id => SystemDetailsProbeContract.PROBE_ID;
+
+    /// <inheritdoc />
+    public FindingCategory Category => FindingCategory.Driver;
+
+    /// <inheritdoc />
+    public bool RequiresElevation => false;
+
+    /// <inheritdoc />
+    public bool RequiresNetwork => false;
+
+    /// <inheritdoc />
+    public ProbeScope Scope => ProbeScope.System;
+
+    /// <inheritdoc />
+    public TimeSpan DefaultTimeout => FakeProbe.GENEROUS_TIMEOUT;
+
+    /// <inheritdoc />
+    public Task<ProbeResult> RunAsync(ScanContext context, CancellationToken ct)
+    {
+        Measurement[] measurements =
+        [
+            Text(SystemDetailsProbeContract.OS_CAPTION, OS_CAPTION),
+            Text(SystemDetailsProbeContract.CPU_NAME, CPU_NAME),
+            new(SystemDetailsProbeContract.CPU_CORES, new IntegerValue(CORES), null, "fixture", FakeProbe.OBSERVED_AT, MeasurementQuality.Reported),
+            new(SystemDetailsProbeContract.CPU_THREADS, new IntegerValue(THREADS), null, "fixture", FakeProbe.OBSERVED_AT, MeasurementQuality.Reported),
+        ];
+
+        return Task.FromResult(new ProbeResult(Id, ProbeStatus.Success, measurements, [], context.StartedAtUtc, TimeSpan.Zero, context.UserContext));
+    }
+
+    private static Measurement Text(string name, string value)
+    {
+        return new Measurement(name, new TextValue(value), null, "fixture", FakeProbe.OBSERVED_AT, MeasurementQuality.Reported);
+    }
+}
+
+/// <summary>
+/// 마지막으로 받은 텍스트를 보관하는 클립보드 대역입니다(실제 클립보드를 건드리지 않음).
+/// </summary>
+internal sealed class RecordingClipboard : IClipboard
+{
+    /// <summary>마지막으로 받은 텍스트(없으면 빈 문자열).</summary>
+    public string LastText { get; private set; } = string.Empty;
+
+    /// <summary>받은 횟수.</summary>
+    public int SetCount { get; private set; }
+
+    /// <inheritdoc />
+    public void SetText(string text)
+    {
+        LastText = text;
+        SetCount++;
+    }
+}
+
+/// <summary>
+/// 테스트용 검사 컨텍스트 생성기입니다.
+/// </summary>
+internal static class TestContexts
+{
+    /// <summary>일반 권한·온라인 확인 없음·고정 시각의 컨텍스트를 만듭니다.</summary>
+    public static ScanContext Normal() => new(Guid.NewGuid(), EngineTestData.USER, false, FakeClock.DEFAULT_NOW);
+}
+
+/// <summary>
+/// 가짜 시스템 상세 프로브로 사양 뷰모델을 만드는 생성기입니다.
+/// </summary>
+internal static class SpecTestFactory
+{
+    /// <summary>테스트용 PC 이름(가짜 값).</summary>
+    public const string MACHINE_NAME = "MY-PC";
+
+    /// <summary>테스트용 사용자명(가짜 값).</summary>
+    public const string USER_NAME = "kim";
+
+    /// <summary>사양 뷰모델을 만듭니다.</summary>
+    /// <param name="clipboard">클립보드(없으면 기록 클립보드).</param>
+    /// <param name="picker">저장 경로 선택기(없으면 취소).</param>
+    /// <param name="captureTarget">이미지 렌더 대상 공급자(없으면 대상 없음).</param>
+    public static PcSpecViewModel Create(IClipboard? clipboard = null, IExportPathPicker? picker = null, Func<FrameworkElement?>? captureTarget = null)
+    {
+        var service = new PcSpecService([new FixtureSystemDetailsProbe()], new FakeClock(), NullAppLogger.Instance, TestContexts.Normal);
+        return new PcSpecViewModel(service, new PcSpecTextFormatter(), clipboard ?? new RecordingClipboard(), picker ?? new FixedExportPathPicker(null),
+            captureTarget ?? (() => null), new ImmediateUiDispatcher(), NullAppLogger.Instance, MACHINE_NAME, USER_NAME);
+    }
 }

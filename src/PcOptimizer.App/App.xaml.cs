@@ -1,7 +1,7 @@
 /**
  * @file    : App.xaml.cs
  * @author  : rudals252
- * @brief   : 애플리케이션 진입점. 관리자 재검사 고정 인자·권한·SID로 시작 방식을 정하고 공용 로거·검사 서비스·내보내기·설정 URI 정책·공식 링크 정책·재검사 시작기·앱 내 실행 판정(보호 위치 도구 캐시 정리)·메인 화면 모델을 조립하며 처리되지 않은 예외를 형식 이름만 기록
+ * @brief   : 애플리케이션 진입점. 관리자 재검사 고정 인자·권한·SID로 시작 방식을 정하고 공용 로거·검사 서비스·내보내기·설정 URI 정책·공식 링크 정책·재검사 시작기·앱 내 실행 판정(보호 위치 도구 캐시 정리)·내 PC 사양 화면 모델(검사와 프로브 공유)·메인 화면 모델을 조립하며 처리되지 않은 예외를 형식 이름만 기록
  */
 
 // 기본 패키지
@@ -12,6 +12,7 @@ using System.Windows.Threading;
 using PcOptimizer.App.Services;
 using PcOptimizer.App.ViewModels;
 using PcOptimizer.App.Views;
+using PcOptimizer.Core.Abstractions;
 using PcOptimizer.Probes.Actions;
 using PcOptimizer.Probes.Applications;
 using PcOptimizer.Probes.Drivers;
@@ -62,21 +63,37 @@ public partial class App : Application
         var scanService = ScanService.CreateDefault(
             logger, limitToSystemScope: launchMode == ScanLaunchMode.ElevatedDifferentUser, rules: bundledRules, vendorLinks: vendorLinks.Catalog);
 
+        // 내 PC 사양은 검사와 같은 프로브 인스턴스를 규칙 없이 직접 실행한다(검사 중에는 새로 고침을 막음). 이미지 저장 대상은 창이 만들어진 뒤 정해진다.
+        var dispatcher = new WpfUiDispatcher(Dispatcher);
+        var exportPathPicker = new SaveFileDialogExportPathPicker();
+        MainWindow? window = null;
+        var spec = new PcSpecViewModel(
+            new PcSpecService(scanService.Probes, SystemClock.Instance, logger, () => scanService.CreateContext(false)),
+            new PcSpecTextFormatter(),
+            new WpfClipboard(),
+            exportPathPicker,
+            () => window?.SpecCaptureRoot,
+            dispatcher,
+            logger,
+            Environment.MachineName,
+            Environment.UserName);
+
         var viewModel = new MainViewModel(
             scanService,
             new ReportExporter(PersonalDataScrubber.FromEnvironment()),
-            new SaveFileDialogExportPathPicker(),
+            exportPathPicker,
             new SettingsUriPolicy(logger),
             new LinkPolicy(vendorLinks.Catalog, logger),
-            new WpfUiDispatcher(Dispatcher),
+            dispatcher,
             logger,
             elevation,
             ElevationRelauncher.CreateDefault(elevation, logger),
             launchMode,
             // 앱 안에서 바로 실행하는 조치는 보호 위치(Program Files) 도구의 npm·pip·NuGet 캐시 정리뿐이다. 도구 위치는 존재 확인만 하며 프로세스를 실행하지 않는다.
-            new CacheToolActionAvailability(() => SystemCacheToolBackend.AnyToolInProtectedLocation(), CacheToolActionAvailability.DEFAULT_REVIEWED_APP_IDS));
+            new CacheToolActionAvailability(() => SystemCacheToolBackend.AnyToolInProtectedLocation(), CacheToolActionAvailability.DEFAULT_REVIEWED_APP_IDS),
+            spec);
 
-        var window = new MainWindow(viewModel, logger);
+        window = new MainWindow(viewModel, logger);
         MainWindow = window;
         window.Show();
 

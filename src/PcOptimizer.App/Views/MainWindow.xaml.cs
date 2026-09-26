@@ -1,8 +1,11 @@
 /**
  * @file    : MainWindow.xaml.cs
  * @author  : rudals252
- * @brief   : 메인 진단 창 코드 비하인드. 화면 모델을 DataContext로 연결하고 첫 포커스를 검사 시작 버튼에 둔다
+ * @brief   : 메인 진단 창 코드 비하인드. 화면 모델을 DataContext로 연결하고 첫 포커스를 검사 시작 버튼에 두며, 사양 이미지 저장 대상(SpecCaptureRoot)을 공개한다
  */
+
+// 기본 패키지
+using System.Windows;
 
 // 서드파티 패키지
 using Wpf.Ui.Controls;
@@ -32,6 +35,9 @@ public partial class MainWindow : FluentWindow
         Loaded += (_, _) => StartScanButton.Focus();
         Closed += (_, _) => viewModel.Dispose();
     }
+
+    /// <summary>내 PC 사양 화면의 이미지 저장 대상(하단 익명화 표기 포함).</summary>
+    public FrameworkElement SpecCaptureRoot => SpecView.CaptureRoot;
 
     private async void OpenCacheTools(object sender, System.Windows.RoutedEventArgs e)
     {

@@ -1,11 +1,12 @@
 /**
  * @file    : MainViewModel.cs
  * @author  : rudals252
- * @brief   : 메인 화면 모델(검사 시작/취소·상태·Finding 기준 요약·분류 목록/필터·카드·마지막 측정 시각·온라인 확인과 마지막 온라인 확인 시각·종료 중 표시·보호 위치 도구가 있을 때만 여는 정리 창·익명화 내보내기·관리자 권한 재검사 요청과 별도 검사 배너)
+ * @brief   : 메인 화면 모델(검사 시작/취소·상태·Finding 기준 요약·분류 목록/필터·카드·마지막 측정 시각·온라인 확인과 마지막 온라인 확인 시각·종료 중 표시·보호 위치 도구가 있을 때만 여는 정리 창·익명화 내보내기·관리자 권한 재검사 요청과 별도 검사 배너·결과와 내 PC 사양 본문 전환, 검사 중 사양 새로 고침 막기)
  */
 
 // 기본 패키지
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 
 // 서드파티 패키지
@@ -114,6 +115,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private CategoryItemViewModel? _selectedCategory;
 
+    /// <summary>본문에 내 PC 사양 화면을 보여 주는지 여부(false면 검사 결과 영역).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsResultsVisible), nameof(SpecToggleText))]
+    private bool _isSpecVisible;
+
     /// <summary>마지막 검사 결과.</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ExportCommand))]
@@ -134,6 +140,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <param name="relauncher">관리자 권한 재검사 시작기.</param>
     /// <param name="launchMode">이 인스턴스의 시작 방식(관리자 재검사 인스턴스면 배너 표시).</param>
     /// <param name="actionAvailability">후보의 앱 내 실행 가능 여부와 정리 창 노출 조건(보호 위치 도구 존재, 생성 시 한 번 확인).</param>
+    /// <param name="spec">내 PC 사양 화면 모델(검사와 프로브를 공유하므로 검사 중에는 새로 고침을 막음).</param>
     public MainViewModel(
         ScanService scanService,
         ReportExporter exporter,
@@ -145,7 +152,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IElevationState elevationState,
         ElevationRelauncher relauncher,
         ScanLaunchMode launchMode,
-        IActionAvailability actionAvailability)
+        IActionAvailability actionAvailability,
+        PcSpecViewModel spec)
     {
         ArgumentNullException.ThrowIfNull(scanService);
         ArgumentNullException.ThrowIfNull(exporter);
@@ -157,6 +165,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ArgumentNullException.ThrowIfNull(elevationState);
         ArgumentNullException.ThrowIfNull(relauncher);
         ArgumentNullException.ThrowIfNull(actionAvailability);
+        ArgumentNullException.ThrowIfNull(spec);
 
         _scanService = scanService;
         _scanService.DrainingChanged += OnDrainingChanged;
@@ -171,6 +180,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         LaunchMode = launchMode;
         _actionAvailability = actionAvailability;
         CacheToolsAvailable = actionAvailability.CacheToolsAvailable;
+        Spec = spec;
+        Spec.PropertyChanged += OnSpecPropertyChanged;
 
         RebuildCategories([]);
     }
@@ -180,6 +191,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>선택한 분류에 해당하는 카드.</summary>
     public ObservableCollection<FindingCardViewModel> Cards { get; } = [];
+
+    /// <summary>내 PC 사양 화면 모델.</summary>
+    public PcSpecViewModel Spec { get; }
+
+    /// <summary>검사 결과 영역을 보여 주는지 여부(사양 화면과 번갈아 표시).</summary>
+    public bool IsResultsVisible => !IsSpecVisible;
+
+    /// <summary>머리글 전환 버튼 문구("내 PC 사양" 또는 "결과로 돌아가기").</summary>
+    public string SpecToggleText => IsSpecVisible ? Strings.Spec_NavBack : Strings.Spec_NavOpen;
 
     /// <summary>검사 중인지 여부.</summary>
     public bool IsScanning => State == ScanState.Scanning;
@@ -320,8 +340,61 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         await _dispatcher.InvokeAsync(() => StatusMessage = message).ConfigureAwait(false);
     }
 
-    /// <summary>검사를 시작할 수 있는지 여부.</summary>
-    private bool CanStartScan() => State != ScanState.Scanning;
+    /// <summary>
+    /// 본문을 내 PC 사양 화면으로 바꿉니다. 처음 열 때(아직 읽은 사양이 없고 검사 중이 아닐 때)만 사양을 읽습니다.
+    /// </summary>
+    [RelayCommand]
+    private async Task ShowSpecAsync()
+    {
+        IsSpecVisible = true;
+        if (Spec.Snapshot is null && Spec.RefreshCommand.CanExecute(null))
+        {
+            await Spec.RefreshCommand.ExecuteAsync(null);
+        }
+    }
+
+    /// <summary>
+    /// 본문을 검사 결과 영역으로 되돌립니다.
+    /// </summary>
+    [RelayCommand]
+    private void ShowResults()
+    {
+        IsSpecVisible = false;
+    }
+
+    /// <summary>
+    /// 머리글 버튼: 결과와 내 PC 사양 화면을 번갈아 보여 줍니다.
+    /// </summary>
+    [RelayCommand]
+    private async Task ToggleSpecAsync()
+    {
+        if (IsSpecVisible)
+        {
+            ShowResults();
+            return;
+        }
+
+        await ShowSpecAsync();
+    }
+
+    /// <summary>검사를 시작할 수 있는지 여부(사양을 읽는 중에도 프로브 공유를 피하려고 막음).</summary>
+    private bool CanStartScan() => State != ScanState.Scanning && !Spec.IsLoading;
+
+    /// <summary>
+    /// 검사 상태가 바뀌면 사양 새로 고침 가능 여부를 맞춘다(프로브 공유).
+    /// </summary>
+    partial void OnStateChanged(ScanState oldValue, ScanState newValue) => Spec.SetBusy(newValue == ScanState.Scanning);
+
+    /// <summary>
+    /// 사양을 읽는 중인지가 바뀌면 검사 시작 가능 여부를 다시 계산한다.
+    /// </summary>
+    private void OnSpecPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(PcSpecViewModel.IsLoading))
+        {
+            StartScanCommand.NotifyCanExecuteChanged();
+        }
+    }
 
     /// <summary>검사를 취소할 수 있는지 여부.</summary>
     private bool CanCancelScan() => State == ScanState.Scanning;
@@ -396,6 +469,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         _disposed = true;
         _scanService.DrainingChanged -= OnDrainingChanged;
+        Spec.PropertyChanged -= OnSpecPropertyChanged;
         _scanCancellation?.Cancel();
     }
 
