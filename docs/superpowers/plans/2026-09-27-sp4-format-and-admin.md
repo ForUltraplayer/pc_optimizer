@@ -821,7 +821,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 - Test: `tests/PcOptimizer.Tests/Unit/Probes/SystemDetailsProbeTests.cs`
 
 **Interfaces:**
-- Produces: 계약 상수 `PROBE_ID="hardware.systemDetails"`, `OS_CAPTION="os.caption"`, `OS_VERSION="os.version"`, `OS_BUILD="os.buildNumber"`, `OS_INSTALL_DATE="os.installDate"`(ISO 8601 텍스트), `CPU_NAME="cpu.name"`, `CPU_CORES="cpu.cores"`, `CPU_THREADS="cpu.threads"`, `CPU_MAX_CLOCK_MHZ="cpu.maxClockMHz"`, `BIOS_RELEASE_DATE="system.biosReleaseDate"`, `NIC_COUNT="network.adapterCount"`, `NIC_PREFIX="network.adapter"`, 필드 `name`, `adapterType`, `manufacturer`, `netEnabled`, `driverVersion`, 헬퍼 `AdapterMeasurementName(int index, string field)`. 프로브: `Category=FindingCategory.Driver`, `Scope=System`, `RequiresElevation=false`, `RequiresNetwork=false`.
+- Produces: 계약 상수 `PROBE_ID="hardware.systemDetails"`, `OS_CAPTION="os.caption"`, `OS_VERSION="os.version"`, `OS_BUILD="os.buildNumber"`, `OS_INSTALL_DATE="os.installDate"`(ISO 8601 텍스트), `CPU_NAME="cpu.name"`, `CPU_CORES="cpu.cores"`, `CPU_THREADS="cpu.threads"`, `CPU_MAX_CLOCK_MHZ="cpu.maxClockMHz"`, `BIOS_RELEASE_DATE="system.biosReleaseDate"`, `BOARD_MANUFACTURER="board.manufacturer"`, `BOARD_PRODUCT="board.product"`, `BOARD_VERSION="board.version"`, `NIC_COUNT="network.adapterCount"`, `NIC_PREFIX="network.adapter"`, 필드 `name`, `adapterType`, `manufacturer`, `netEnabled`, `driverVersion`, 헬퍼 `AdapterMeasurementName(int index, string field)`. 프로브: `Category=FindingCategory.Driver`, `Scope=System`, `RequiresElevation=false`, `RequiresNetwork=false`.
 
 - [ ] **Step 1: 실패하는 테스트 작성**
 
@@ -855,6 +855,7 @@ public sealed class SystemDetailsProbeTests
             .WithRows(SystemDetailsProbe.OS_CLASS, new Dictionary<string, object?> { ["Caption"] = "Microsoft Windows 11 Pro", ["Version"] = "10.0.26200", ["BuildNumber"] = "26200", ["InstallDate"] = "20260101120000.000000+540" })
             .WithRows(SystemDetailsProbe.CPU_CLASS, new Dictionary<string, object?> { ["Name"] = "AMD Ryzen 7 9800X3D", ["NumberOfCores"] = 8u, ["NumberOfLogicalProcessors"] = 16u, ["MaxClockSpeed"] = 4700u })
             .WithRows(SystemDetailsProbe.BIOS_CLASS, new Dictionary<string, object?> { ["ReleaseDate"] = "20260815000000.000000+000" })
+            .WithRows(SystemDetailsProbe.BOARD_CLASS, new Dictionary<string, object?> { ["Manufacturer"] = "ASUSTeK COMPUTER INC.", ["Product"] = "ROG STRIX B650E-F GAMING WIFI", ["Version"] = "Rev 1.xx" })
             .WithRows(SystemDetailsProbe.NIC_CLASS,
                 new Dictionary<string, object?> { ["Name"] = "Intel(R) Ethernet Controller I226-V", ["AdapterTypeId"] = 0u, ["Manufacturer"] = "Intel", ["NetEnabled"] = true, ["PhysicalAdapter"] = true, ["PNPDeviceID"] = "PCI\\VEN_8086&DEV_125C\\1" },
                 new Dictionary<string, object?> { ["Name"] = "WAN Miniport (IP)", ["PhysicalAdapter"] = false })
@@ -867,6 +868,7 @@ public sealed class SystemDetailsProbeTests
         Assert.Equal("2026-01-01T12:00:00+09:00", Text(result, SystemDetailsProbeContract.OS_INSTALL_DATE));
         Assert.Equal(8, Integer(result, SystemDetailsProbeContract.CPU_CORES));
         Assert.Equal("2026-08-15", Text(result, SystemDetailsProbeContract.BIOS_RELEASE_DATE));
+        Assert.Equal("ROG STRIX B650E-F GAMING WIFI", Text(result, SystemDetailsProbeContract.BOARD_PRODUCT));
         Assert.Equal(1, Integer(result, SystemDetailsProbeContract.NIC_COUNT));
         Assert.Equal("2.1.4.3", Text(result, SystemDetailsProbeContract.AdapterMeasurementName(0, SystemDetailsProbeContract.FIELD_DRIVER_VERSION)));
     }
@@ -879,6 +881,7 @@ public sealed class SystemDetailsProbeTests
             .WithRows(SystemDetailsProbe.OS_CLASS, new Dictionary<string, object?> { ["Caption"] = "W", ["Version"] = "10.0", ["BuildNumber"] = "1" })
             .WithFailure(SystemDetailsProbe.CPU_CLASS, WmiQueryStatus.ClassUnavailable)
             .WithRows(SystemDetailsProbe.BIOS_CLASS, new Dictionary<string, object?> { ["ReleaseDate"] = "20260815000000.000000+000" })
+            .WithRows(SystemDetailsProbe.BOARD_CLASS)
             .WithRows(SystemDetailsProbe.NIC_CLASS)
             .WithRows(SystemDetailsProbe.DRIVER_CLASS);
         var result = await new SystemDetailsProbe(partial, new ManualTimeProvider()).RunAsync(Context(), CancellationToken.None);
@@ -889,6 +892,7 @@ public sealed class SystemDetailsProbeTests
             .WithFailure(SystemDetailsProbe.OS_CLASS, WmiQueryStatus.AccessDenied)
             .WithFailure(SystemDetailsProbe.CPU_CLASS, WmiQueryStatus.AccessDenied)
             .WithFailure(SystemDetailsProbe.BIOS_CLASS, WmiQueryStatus.AccessDenied)
+            .WithFailure(SystemDetailsProbe.BOARD_CLASS, WmiQueryStatus.AccessDenied)
             .WithFailure(SystemDetailsProbe.NIC_CLASS, WmiQueryStatus.AccessDenied)
             .WithFailure(SystemDetailsProbe.DRIVER_CLASS, WmiQueryStatus.AccessDenied);
         var failedResult = await new SystemDetailsProbe(failed, new ManualTimeProvider()).RunAsync(Context(), CancellationToken.None);
@@ -953,6 +957,15 @@ public static class SystemDetailsProbeContract
     /// <summary>BIOS 배포일(yyyy-MM-dd).</summary>
     public const string BIOS_RELEASE_DATE = "system.biosReleaseDate";
 
+    /// <summary>메인보드 제조사.</summary>
+    public const string BOARD_MANUFACTURER = "board.manufacturer";
+
+    /// <summary>메인보드 제품명(모델).</summary>
+    public const string BOARD_PRODUCT = "board.product";
+
+    /// <summary>메인보드 버전/리비전.</summary>
+    public const string BOARD_VERSION = "board.version";
+
     /// <summary>물리 네트워크 어댑터 수.</summary>
     public const string NIC_COUNT = "network.adapterCount";
 
@@ -1012,7 +1025,9 @@ public sealed class SystemDetailsProbe : IProbe
     public const string CPU_CLASS = "Win32_Processor";
     /// <summary>BIOS 클래스.</summary>
     public const string BIOS_CLASS = "Win32_BIOS";
-    /// <summary>네트워크 어댑터 클래스.</summary>
+    /// <summary>메인보드 클래스.</summary>
+    public const string BOARD_CLASS = "Win32_BaseBoard";
+        /// <summary>네트워크 어댑터 클래스.</summary>
     public const string NIC_CLASS = "Win32_NetworkAdapter";
     /// <summary>서명 드라이버 클래스(NET 클래스 드라이버 버전).</summary>
     public const string DRIVER_CLASS = "Win32_PnPSignedDriver";
@@ -1027,6 +1042,7 @@ public sealed class SystemDetailsProbe : IProbe
     private static readonly string[] OS_PROPERTIES = ["Caption", "Version", "BuildNumber", "InstallDate"];
     private static readonly string[] CPU_PROPERTIES = ["Name", "NumberOfCores", "NumberOfLogicalProcessors", "MaxClockSpeed"];
     private static readonly string[] BIOS_PROPERTIES = ["ReleaseDate"];
+    private static readonly string[] BOARD_PROPERTIES = ["Manufacturer", "Product", "Version"];
     private static readonly string[] NIC_PROPERTIES = ["Name", "AdapterTypeId", "Manufacturer", "NetEnabled", "PhysicalAdapter", "PNPDeviceID"];
     private static readonly string[] DRIVER_PROPERTIES = ["DeviceID", "DriverVersion", "DeviceClass"];
 
@@ -1069,6 +1085,7 @@ public sealed class SystemDetailsProbe : IProbe
         sections += ReadOs(measurements, issues, observedAt, ct) ? 1 : 0;
         sections += ReadCpu(measurements, issues, observedAt, ct) ? 1 : 0;
         sections += ReadBiosDate(measurements, issues, observedAt, ct) ? 1 : 0;
+        sections += ReadBoard(measurements, issues, observedAt, ct) ? 1 : 0;
         sections += ReadAdapters(measurements, issues, observedAt, ct) ? 1 : 0;
         var status = sections == 0 ? ProbeStatus.Failed : issues.Count == 0 ? ProbeStatus.Success : ProbeStatus.Partial;
         return Task.FromResult(new ProbeResult(Id, status, measurements, issues, observedAt, TimeSpan.Zero, context.UserContext));
@@ -1078,6 +1095,7 @@ public sealed class SystemDetailsProbe : IProbe
     // InstallDate는 TryParseWmiDateTime으로 DateTimeOffset 변환 후 "o" 형식(ISO 8601)의 TextValue. 변환 실패 시 그 측정만 생략하고 PartialData Issue.
     // ReadCpu: 첫 행의 Name(Text), NumberOfCores/NumberOfLogicalProcessors/MaxClockSpeed(IntegerValue, uint→long; MaxClock은 Unit=UNIT_MEGAHERTZ).
     // ReadBiosDate: ReleaseDate를 파싱해 yyyy-MM-dd TextValue.
+    // ReadBoard: BOARD_CLASS 첫 행의 Manufacturer/Product/Version을 TextValue로(BOARD_MANUFACTURER/BOARD_PRODUCT/BOARD_VERSION). 값이 "To be filled by O.E.M."·"Default string"·공백이면 생략하고 PartialData Issue.
     // ReadAdapters: NIC_CLASS 행 중 PhysicalAdapter == true만. DRIVER_CLASS 행을 DeviceClass == "NET"로 걸러 DeviceID→DriverVersion 사전을 만들고
     //   PNPDeviceID로 조인(OrdinalIgnoreCase). 어댑터마다 name/adapterType(AdapterTypeId 원시 정수)/manufacturer/netEnabled(BooleanValue)/driverVersion(있을 때만).
     //   NIC_COUNT = 물리 어댑터 수. DRIVER_CLASS 조회 실패는 Issue만 남기고 어댑터 자체는 기록(드라이버 버전 없이).
@@ -1245,7 +1263,10 @@ public sealed class PcSpecService
     // 라벨 리소스: Spec_OsName, Spec_OsVersion(버전·빌드 합침 "10.0.26200 (빌드 26200)"), Spec_OsInstallDate(yyyy-MM-dd), Spec_CpuName, Spec_CpuCores("{0}코어 / {1}스레드"), Spec_CpuClock("{0} MHz"),
     // Spec_MemoryTotal("{0} GB · {1} MT/s" — 모듈 용량 합계를 GiB로 반올림, 속도는 configuredClockSpeed 최소값), Spec_MemoryModule("{0}: {1} GB {2} {3}" — 위치·용량·제조사·파트 번호),
     // Spec_GpuAdapter("{0} · 드라이버 {1} ({2})" — 이름·버전·날짜 yyyy-MM-dd; 가상 어댑터 제외 없이 모두), Spec_Display("{0}: {1}x{2} @ {3}Hz" — 모니터 이름·해상도·주사율),
-    // Spec_Disk("{0} · {1} · {2} GB · {3}" — 이름·종류(SSD/HDD)·용량·상태), Spec_Volume("{0} {1} GB 중 {2} GB 남음"), Spec_BoardMaker, Spec_BoardModel, Spec_BiosVersion("{0} ({1})" 버전·배포일),
+    // 저장장치 섹션: 물리 디스크마다 한 줄. 라벨은 종류(Spec_LabelSsd="SSD", Spec_LabelHdd="HDD", 기타는 mediaType 원문)이고 값은 "{모델명} · {용량} GB · {인터페이스} · {상태}"(Spec_Disk). 볼륨은 그 아래 Spec_Volume("{0} {1} GB 중 {2} GB 남음").
+    // 메인보드·BIOS 섹션: Spec_BoardModel = BOARD_PRODUCT(없으면 SystemInfo MODEL로 대체하고 Spec_BoardFromSystem 표기), Spec_BoardMaker = BOARD_MANUFACTURER(없으면 SystemInfo MANUFACTURER), Spec_BoardVersion, Spec_BiosVersion("{0} ({1})" 버전·배포일),
+    // 모니터 섹션: 대상마다 라벨 "모니터 {n}", 값 "{모니터 이름} · {가로}x{세로} @ {Hz}Hz"(이름 없으면 Display_FallbackName). 그래픽 섹션: 어댑터마다 라벨 "GPU {n}". 메모리 섹션: 총량 줄 + 모듈마다 라벨 "슬롯 {위치}" 값 "{용량} GB {속도} MT/s {제조사} {파트 번호}". CPU 섹션: 모델 줄 + 코어/스레드 줄 + 클럭 줄.
+    // 사용자 요구(2026-09-27): CPU·메인보드·GPU·RAM·SSD·HDD·모니터 이름과 해상도를 전부 이름으로 나열한다. 요약만 보여주고 개별 장치를 생략하지 않는다.
     // Spec_Nic("{0} · 드라이버 {1}" — 이름·버전, 버전 없으면 Spec_ValueUnknown), Spec_PowerKind(노트북/데스크톱, PowerSupplyClassifier 재사용), Spec_PowerPlan.
     // 값이 없으면 PcSpecItem.Value = null (뷰가 Spec_ValueUnknown="확인 불가"로 표시). 숫자 형식은 CultureInfo.CurrentCulture, 날짜는 "yyyy-MM-dd".
 }
@@ -1253,7 +1274,7 @@ public sealed class PcSpecService
 
 `App.xaml.cs`에서 `new PcSpecService(scanService.Probes, SystemClock.Instance, logger, () => scanService.CreateContext(onlineCheckRequested: false))`로 만든다. `ScanService`에 `public ScanContext CreateContext(bool onlineCheckRequested)`가 없으면 `RunScanAsync` 내부의 컨텍스트 생성 코드를 그 메서드로 뽑아 재사용한다(동작 변경 없음).
 
-`Strings.resx`에 `Spec_*` 키(위 주석의 목록 + `Spec_Section_*` 9개 + `Spec_ValueUnknown`="확인 불가" + `Spec_MoreDetails`="더 자세히(HWiNFO64·CPU-Z 안내)")를 추가한다.
+`Strings.resx`에 `Spec_*` 키(위 주석의 목록 + `Spec_Section_*` 9개 + `Spec_LabelSsd`/`Spec_LabelHdd` + `Spec_BoardFromSystem`="(시스템 모델로 대체)" + `Spec_ValueUnknown`="확인 불가" + `Spec_MoreDetails`="더 자세히(HWiNFO64·CPU-Z 안내)")를 추가한다.
 
 - [ ] **Step 4: 통과 확인** — `--filter "FullyQualifiedName~PcSpecTests"` PASS.
 
