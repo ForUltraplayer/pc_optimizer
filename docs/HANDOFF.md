@@ -14,7 +14,7 @@
 
 - 2차 개선 스펙: `docs/superpowers/specs/2026-09-27-improvement-phase2-design.md`(사용자 승인). 계획: `docs/superpowers/plans/2026-09-27-sp4-format-and-admin.md`(Task 1~12).
 - SDD 원장(룰링·라운드 기록): `.superpowers/sdd/2026-09-27-sp4-format-and-admin/progress.md`(git-ignored). 브리프는 같은 폴더 `task-N-brief.md`, 보고서 `task-N-report.md`.
-- 진행: Task 1~5 완료(…, e58cae9; 리뷰 통과). Task 6(사양 프로브) 진행 중. Task 7~12 미착수. 알려진 Smoke 실패 1건: ScanServiceSmokeTests의 'display-1' 가정(코드 회귀 아님, Task 6에서 단언 완화).
+- 진행: Task 1~6 완료(…, 6297834; 리뷰 통과, Smoke 22/22). Task 7(사양 스냅샷) 진행 중. Task 8~12 미착수.
 - 사용자 확정: UI 배치안(scratchpad 목업, 좌측 메뉴 7개·타일 2개·설명 3줄 카드), 내 PC 사양은 fastfetch식 한 열 나열(CPU·메인보드·GPU·RAM·SSD·HDD·모니터 이름 전부), 배포는 GitHub zip 포터블(단일 파일 exe·아이콘, Task 12).
 - 재개 방법: 원장의 마지막 `Task N:` 줄을 보고 그 다음 작업을 subagent-driven-development로 파견. 파견 전 `git status`로 Codex 미커밋 변경 확인(현재 Codex 유휴).
 - 검증 명령 기본 필터: `Category!=Smoke&Category!=Online&Category!=ToolSmoke`.
