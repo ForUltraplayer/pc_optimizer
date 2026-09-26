@@ -70,7 +70,7 @@
 **Interfaces:**
 - Produces: `public sealed record Explanation(string What, string Effect, string Caution)` with `public const int MAX_LINE_LENGTH = 60` and validation; `public enum SafetyLevel { Safe, Caution, Irreversible }`; `Finding` 생성자 끝에 `Explanation? explanation = null, SafetyLevel? safety = null`, 속성 `Explanation? Explanation`, `SafetyLevel? Safety`. 기존 호출부는 변경 없이 컴파일된다.
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `tests/PcOptimizer.Tests/Unit/Models/ExplanationTests.cs`:
 
@@ -127,12 +127,12 @@ public sealed class ExplanationTests
 }
 ```
 
-- [ ] **Step 2: 실패 확인**
+- [x] **Step 2: 실패 확인**
 
 Run: `"C:\Program Files\dotnet\dotnet.exe" test tests/PcOptimizer.Tests --configuration Release --filter "FullyQualifiedName~ExplanationTests"`
 Expected: 컴파일 오류(`Explanation`, `SafetyLevel` 없음).
 
-- [ ] **Step 3: 최소 구현**
+- [x] **Step 3: 최소 구현**
 
 `src/PcOptimizer.Core/Models/SafetyLevel.cs`:
 
@@ -260,12 +260,12 @@ public sealed record Explanation
 
 Finding의 `@brief`와 클래스 XML 주석에 두 필드를 한 줄씩 추가한다.
 
-- [ ] **Step 4: 통과 확인**
+- [x] **Step 4: 통과 확인**
 
 Run: `"C:\Program Files\dotnet\dotnet.exe" test tests/PcOptimizer.Tests --configuration Release --filter "FullyQualifiedName~ExplanationTests"`
 Expected: PASS 6/6. 전체 기본 필터도 통과(기존 호출부는 선택 매개변수라 영향 없음).
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add src/PcOptimizer.Core/Models tests/PcOptimizer.Tests/Unit/Models/ExplanationTests.cs
@@ -287,7 +287,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 - Consumes: Task 1의 `Explanation`, `SafetyLevel`, `Finding` 선택 매개변수.
 - Produces: 8개 규칙의 모든 `Verdict.Candidate` Finding에 `Explanation`과 `Safety`가 채워진다. 안전 수준: Display=Safe, Memory=Caution(BIOS 변경), Power=Safe, DriverUpdate=Caution, WindowsUpdateDriver=Caution, StorageSpace=Safe(정리 안내), DiskHealth=Caution(백업 권고), TrimPolicy=Caution.
 
-- [ ] **Step 1: 실패하는 테스트 작성** — 각 규칙의 Candidate fixture는 기존 규칙 테스트(`tests/PcOptimizer.Tests/Unit/Rules/*RuleTests.cs`)가 이미 만드는 스냅샷을 재사용한다. 공통 검사기를 만든다.
+- [x] **Step 1: 실패하는 테스트 작성** — 각 규칙의 Candidate fixture는 기존 규칙 테스트(`tests/PcOptimizer.Tests/Unit/Rules/*RuleTests.cs`)가 이미 만드는 스냅샷을 재사용한다. 공통 검사기를 만든다.
 
 `tests/PcOptimizer.Tests/Unit/Rules/CandidateExplanationTests.cs`:
 
@@ -346,12 +346,12 @@ public sealed class CandidateExplanationTests
 
 각 규칙 테스트 파일에 `public static ScanSnapshot CandidateSnapshot()` 헬퍼가 없으면 추가한다: 해당 파일에서 이미 Candidate를 만들어 단언하는 테스트의 스냅샷 생성 코드를 그대로 `public static` 메서드로 뽑아낸다(동작 변경 없음). `DriverUpdateRuleTests.CreateRule()`는 그 파일이 쓰는 `VendorLinkCatalog` fixture로 `new DriverUpdateRule(links)`를 돌려준다.
 
-- [ ] **Step 2: 실패 확인**
+- [x] **Step 2: 실패 확인**
 
 Run: `"C:\Program Files\dotnet\dotnet.exe" test tests/PcOptimizer.Tests --configuration Release --filter "FullyQualifiedName~CandidateExplanationTests"`
 Expected: 8건 모두 `Assert.NotNull(finding.Explanation)` 실패.
 
-- [ ] **Step 3: 리소스 키 추가** — `CoreStrings.resx`에 규칙별 3키. 문구(각 60자 이내, 한 문장):
+- [x] **Step 3: 리소스 키 추가** — `CoreStrings.resx`에 규칙별 3키. 문구(각 60자 이내, 한 문장):
 
 | 키 | 값 |
 |---|---|
@@ -380,7 +380,7 @@ Expected: 8건 모두 `Assert.NotNull(finding.Explanation)` 실패.
 | `WuDriver_Explain_Effect` | 장치 인식 문제나 오류가 줄어들 수 있습니다. |
 | `WuDriver_Explain_Caution` | 설치는 Windows 설정에서 하며 재부팅이 필요할 수 있습니다. |
 
-- [ ] **Step 4: 규칙 수정** — 각 규칙에서 `Verdict.Candidate`인 `new Finding(...)` 호출에 두 인자를 추가한다. 예(`PowerPlanRule.cs`의 Candidate 생성 호출):
+- [x] **Step 4: 규칙 수정** — 각 규칙에서 `Verdict.Candidate`인 `new Finding(...)` 호출에 두 인자를 추가한다. 예(`PowerPlanRule.cs`의 Candidate 생성 호출):
 
 ```csharp
             findings.Add(new Finding(
@@ -401,11 +401,11 @@ Expected: 8건 모두 `Assert.NotNull(finding.Explanation)` 실패.
 
 규칙별 `Explanation` 키 접두와 `SafetyLevel`: Display→`Display_`/Safe, Memory→`Memory_`/Caution, Power→`Power_`/Safe, StorageSpace→`Storage_`/Safe, DiskHealth→`DiskHealth_`/Caution, TrimPolicy→`Trim_`/Caution, DriverUpdate→`DriverUpdate_`/Caution, WindowsUpdateDriver→`WuDriver_`/Caution. 각 규칙 파일에 상수 `private static readonly SafetyLevel CANDIDATE_SAFETY = SafetyLevel.Safe;` 형태로 두고 호출부에서 쓴다.
 
-- [ ] **Step 5: 통과 확인**
+- [x] **Step 5: 통과 확인**
 
 Run: 위 필터. Expected: 8/8 PASS. 이어서 `--filter "FullyQualifiedName~RuleTests"`로 기존 규칙 테스트 전부 PASS.
 
-- [ ] **Step 6: 커밋**
+- [x] **Step 6: 커밋**
 
 ```bash
 git add src/PcOptimizer.Core/Rules src/PcOptimizer.Core/Resources/CoreStrings.resx tests/PcOptimizer.Tests/Unit/Rules
@@ -425,7 +425,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 **Interfaces:**
 - Produces: `Verdict.Candidate`이면서 `explanation`이나 `safety`가 null이면 `FindingInvariantException`.
 
-- [ ] **Step 1: 실패하는 테스트 작성** — 기존 불변식 테스트 파일에 추가:
+- [x] **Step 1: 실패하는 테스트 작성** — 기존 불변식 테스트 파일에 추가:
 
 ```csharp
     /// <summary>Candidate는 설명 3줄과 안전 수준이 없으면 만들 수 없다.</summary>
@@ -442,9 +442,9 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
     }
 ```
 
-- [ ] **Step 2: 실패 확인** — Run: `--filter "FullyQualifiedName~CandidateRequiresExplanationAndSafety"`. Expected: FAIL(예외 없음).
+- [x] **Step 2: 실패 확인** — Run: `--filter "FullyQualifiedName~CandidateRequiresExplanationAndSafety"`. Expected: FAIL(예외 없음).
 
-- [ ] **Step 3: 구현** — `Finding.ValidateInvariants`의 시그니처에 `Explanation? explanation, SafetyLevel? safety`를 추가하고 Candidate 검사 블록에 추가:
+- [x] **Step 3: 구현** — `Finding.ValidateInvariants`의 시그니처에 `Explanation? explanation, SafetyLevel? safety`를 추가하고 Candidate 검사 블록에 추가:
 
 ```csharp
         if (verdict == Verdict.Candidate)
@@ -464,9 +464,9 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 생성자의 `ValidateInvariants(...)` 호출에 두 인자를 넘긴다. 기존 테스트에서 Candidate를 만드는 헬퍼(예: `MainViewModelTests`, `FindingCardViewModelTests`, `ReportExporterTests`, `AppTestDoubles`의 `ImprovementRule`)가 있으면 `explanation: new Explanation("테스트 설명", "테스트 효과", "테스트 주의"), safety: SafetyLevel.Safe`를 추가한다. 찾는 명령: `grep -rn "Verdict.Candidate" tests/PcOptimizer.Tests --include=*.cs -l`.
 
-- [ ] **Step 4: 통과 확인** — 기본 필터 전체 PASS.
+- [x] **Step 4: 통과 확인** — 기본 필터 전체 PASS.
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add src/PcOptimizer.Core/Models/Finding.cs tests
@@ -489,7 +489,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 - Produces(VM): `bool HasExplanation`, `string? ExplainWhat`, `string? ExplainEffect`, `string? ExplainCaution`, `bool HasSafety`, `string? SafetyText`, `SafetyLevel? Safety`.
 - 리소스: `Safety_Safe`="안전", `Safety_Caution`="주의", `Safety_Irreversible`="되돌릴 수 없음", `Card_ExplainWhatHeader`="이게 뭔가요", `Card_ExplainEffectHeader`="효과", `Card_ExplainCautionHeader`="주의".
 
-- [ ] **Step 1: 실패하는 테스트 작성** — `FindingCardViewModelTests.cs`에 추가:
+- [x] **Step 1: 실패하는 테스트 작성** — `FindingCardViewModelTests.cs`에 추가:
 
 ```csharp
     /// <summary>설명 3줄과 안전 배지 텍스트를 노출하고, 없는 Finding은 숨긴다.</summary>
@@ -540,9 +540,9 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 `ImprovementRule`(AppTestDoubles)이 만드는 Candidate에 Task 3에서 넣은 설명("테스트 설명"/"테스트 효과"/"테스트 주의")과 `SafetyLevel.Safe`가 있어야 한다. `FindTextBlocks`는 이 파일에 이미 있는 시각 트리 순회 헬퍼를 쓴다(없으면 `LogicalTreeHelper`/`VisualTreeHelper`로 `TextBlock`을 모으는 `private static IEnumerable<TextBlock> FindTextBlocks(DependencyObject root)`를 추가).
 
-- [ ] **Step 2: 실패 확인** — Run: `--filter "FullyQualifiedName~ExposesExplanationAndSafetyBadge|FullyQualifiedName~CardRendersSafetyBadge"`. Expected: 컴파일 오류(속성 없음).
+- [x] **Step 2: 실패 확인** — Run: `--filter "FullyQualifiedName~ExposesExplanationAndSafetyBadge|FullyQualifiedName~CardRendersSafetyBadge"`. Expected: 컴파일 오류(속성 없음).
 
-- [ ] **Step 3: VM 구현** — `FindingCardViewModel.cs`에 추가(속성 영역):
+- [x] **Step 3: VM 구현** — `FindingCardViewModel.cs`에 추가(속성 영역):
 
 ```csharp
     /// <summary>설명 3줄이 있는지 여부.</summary>
@@ -573,7 +573,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
     };
 ```
 
-- [ ] **Step 4: XAML 수정** — `MainWindow.xaml` 리소스에 스타일 추가:
+- [x] **Step 4: XAML 수정** — `MainWindow.xaml` 리소스에 스타일 추가:
 
 ```xml
         <Style x:Key="SafetyBadge" TargetType="Border">
@@ -616,9 +616,9 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 기존 `Evidence`(Candidate일 때 카드 본문에 보이던 줄)와 `SideEffectText`는 본문에서 제거하고 자세히 상자에만 남긴다(자세히 상자에는 이미 `Evidence`·`BenefitText`가 있으므로 `SideEffectText`를 그 아래 추가). `Strings.resx`에 위 6키를 추가한다.
 
-- [ ] **Step 5: 통과 확인** — 위 필터 PASS, 이어서 `--filter "FullyQualifiedName~MainWindowLayoutTests|FullyQualifiedName~FindingCardViewModelTests"` 전체 PASS.
+- [x] **Step 5: 통과 확인** — 위 필터 PASS, 이어서 `--filter "FullyQualifiedName~MainWindowLayoutTests|FullyQualifiedName~FindingCardViewModelTests"` 전체 PASS.
 
-- [ ] **Step 6: 커밋**
+- [x] **Step 6: 커밋**
 
 ```bash
 git add src/PcOptimizer.App tests/PcOptimizer.Tests/Unit/App
@@ -641,7 +641,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 - Produces: `public interface IActionAvailability { bool CanExecuteInApp(Finding finding); }` — SP1이 실행기 등록으로 확장한다. `CacheToolActionAvailability(Func<bool> anyToolInProtectedLocation)`: Finding.Id가 `appCache.app:`로 시작하고 검토 규칙(supplement) 카드이며 도구가 보호 위치에 있을 때만 true(Task 5 시점의 유일한 앱 내 실행).
 - VM: `int DoNowCount`, `int DoManuallyCount`, `string DoNowText`, `string DoManuallyText`, `bool HasDoNow`(0이면 타일 숨김), `bool CanOpenCacheTools`(기존)에 "도구가 보호 위치에 있음" 조건 추가. 기존 `SettingsCount`/`DriverCount` 타일은 제거하고 `DriverCount`의 온라인 상태 문구는 `LastOnlineCheckText`(옵션 영역)에만 남긴다 → REV-014의 표면(드라이버 타일)이 사라지므로 원장에 "타일 제거로 해소, 온라인 상태는 옵션 영역 문구로만" 기록.
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `tests/PcOptimizer.Tests/Unit/App/ActionAvailabilityTests.cs`:
 
@@ -699,9 +699,9 @@ public sealed class ActionAvailabilityTests
     }
 ```
 
-- [ ] **Step 2: 실패 확인** — Run: `--filter "FullyQualifiedName~ActionAvailabilityTests|FullyQualifiedName~OverviewCountsDoNowAndDoManually"`. Expected: 컴파일 오류.
+- [x] **Step 2: 실패 확인** — Run: `--filter "FullyQualifiedName~ActionAvailabilityTests|FullyQualifiedName~OverviewCountsDoNowAndDoManually"`. Expected: 컴파일 오류.
 
-- [ ] **Step 3: 구현**
+- [x] **Step 3: 구현**
 
 `src/PcOptimizer.App/Services/IActionAvailability.cs`:
 
@@ -798,11 +798,11 @@ public sealed class CacheToolActionAvailability : IActionAvailability
 
 리소스 추가: `Overview_DoNowCount`="바로 할 수 있는 것 {0}건", `Overview_DoManuallyCount`="직접 해야 하는 것 {0}건", `Overview_DoNowHelp`, `Overview_DoManuallyHelp`.
 
-- [ ] **Step 4: 통과 확인** — 위 필터 PASS, `--filter "FullyQualifiedName~MainViewModelTests|FullyQualifiedName~MainWindowLayoutTests"` PASS(제거된 `DriverCount` 관련 테스트는 삭제하고 `LastOnlineCheckText` 검증으로 대체).
+- [x] **Step 4: 통과 확인** — 위 필터 PASS, `--filter "FullyQualifiedName~MainViewModelTests|FullyQualifiedName~MainWindowLayoutTests"` PASS(제거된 `DriverCount` 관련 테스트는 삭제하고 `LastOnlineCheckText` 검증으로 대체).
 
-- [ ] **Step 5: 원장 기록** — `docs/reviews/REVIEW_LEDGER.md` REV-014 대응 기록에 "드라이버 타일 제거(SP4 Task 5), 온라인 상태는 옵션 영역 `LastOnlineCheckText`만 사용, 로컬 CannotVerify가 온라인 완료 판정에 섞이는 코드 경로 삭제" 추가, 상태 `수정됨·재검증 대기`. REV-015 대응 기록에 "요약 타일 교체·도구 카드/정리 창 노출 조건 구현(커밋 SHA)" 추가.
+- [x] **Step 5: 원장 기록** — `docs/reviews/REVIEW_LEDGER.md` REV-014 대응 기록에 "드라이버 타일 제거(SP4 Task 5), 온라인 상태는 옵션 영역 `LastOnlineCheckText`만 사용, 로컬 CannotVerify가 온라인 완료 판정에 섞이는 코드 경로 삭제" 추가, 상태 `수정됨·재검증 대기`. REV-015 대응 기록에 "요약 타일 교체·도구 카드/정리 창 노출 조건 구현(커밋 SHA)" 추가.
 
-- [ ] **Step 6: 커밋**
+- [x] **Step 6: 커밋**
 
 ```bash
 git add src/PcOptimizer.App tests/PcOptimizer.Tests/Unit/App docs/reviews/REVIEW_LEDGER.md
@@ -824,7 +824,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 **Interfaces:**
 - Produces: 계약 상수 `PROBE_ID="hardware.systemDetails"`, `OS_CAPTION="os.caption"`, `OS_VERSION="os.version"`, `OS_BUILD="os.buildNumber"`, `OS_INSTALL_DATE="os.installDate"`(ISO 8601 텍스트), `CPU_NAME="cpu.name"`, `CPU_CORES="cpu.cores"`, `CPU_THREADS="cpu.threads"`, `CPU_MAX_CLOCK_MHZ="cpu.maxClockMHz"`, `BIOS_RELEASE_DATE="system.biosReleaseDate"`, `BOARD_MANUFACTURER="board.manufacturer"`, `BOARD_PRODUCT="board.product"`, `BOARD_VERSION="board.version"`, `NIC_COUNT="network.adapterCount"`, `NIC_PREFIX="network.adapter"`, 필드 `name`, `adapterType`, `manufacturer`, `netEnabled`, `driverVersion`, 헬퍼 `AdapterMeasurementName(int index, string field)`. 프로브: `Category=FindingCategory.Driver`, `Scope=System`, `RequiresElevation=false`, `RequiresNetwork=false`.
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 ```csharp
 /**
@@ -910,9 +910,9 @@ public sealed class SystemDetailsProbeTests
 
 `ManualTimeProvider`가 `IClock`을 구현하지 않으면 기존 프로브 테스트가 쓰는 시계 페이크(`FixedClock` 등)를 쓴다(`grep -rn "IClock" tests/PcOptimizer.Tests/Unit/Probes/Fakes`). `ScanContext`·`UserContext` 생성자 시그니처는 `src/PcOptimizer.Core/Models/ScanContext.cs`를 확인해 맞춘다.
 
-- [ ] **Step 2: 실패 확인** — Run: `--filter "FullyQualifiedName~SystemDetailsProbeTests"`. Expected: 컴파일 오류.
+- [x] **Step 2: 실패 확인** — Run: `--filter "FullyQualifiedName~SystemDetailsProbeTests"`. Expected: 컴파일 오류.
 
-- [ ] **Step 3: 구현**
+- [x] **Step 3: 구현**
 
 `src/PcOptimizer.Core/Rules/SystemDetailsProbeContract.cs`:
 
@@ -1119,9 +1119,9 @@ public sealed class SystemDetailsProbe : IProbe
 
 `ReadOs`/`ReadCpu`/`ReadBiosDate`/`ReadAdapters`는 주석에 적은 규칙대로 각각 구현한다(`SystemInfoProbe.ReadComputerSystem` 패턴 그대로: `_wmi.Query(class, props, WMI_PROVIDER_TIMEOUT, ct)`, `WmiResultInterpreter.GetText(row, prop)`, 정수는 `row[prop]`을 `Convert.ToInt64(value, CultureInfo.InvariantCulture)`로 변환하되 null이면 생략). `ProbeStrings.resx`에 `SystemDetails_OsMissing`="운영체제 정보를 읽지 못했습니다.", `SystemDetails_CpuMissing`="CPU 정보를 읽지 못했습니다." 추가. 이 프로브는 `ScanService.CreateDefault`의 프로브 목록에도 추가한다(진단 리포트에 사양이 포함되도록; 규칙은 없음).
 
-- [ ] **Step 4: 통과 확인** — 위 필터 PASS. `ScanServiceTests`의 등록 프로브 범위 테스트가 있으면 `hardware.systemDetails`=System 항목을 기대 표에 추가한다.
+- [x] **Step 4: 통과 확인** — 위 필터 PASS. `ScanServiceTests`의 등록 프로브 범위 테스트가 있으면 `hardware.systemDetails`=System 항목을 기대 표에 추가한다.
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add src/PcOptimizer.Core/Rules/SystemDetailsProbeContract.cs src/PcOptimizer.Probes tests/PcOptimizer.Tests/Unit/Probes/SystemDetailsProbeTests.cs tests/PcOptimizer.Tests/Unit/App/ScanServiceTests.cs src/PcOptimizer.App/Services/ScanService.cs
@@ -1142,7 +1142,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 **Interfaces:**
 - Produces: `public sealed record PcSpecItem(string Label, string? Value, bool IsIdentifying = false)`(Value null ⇒ "확인 불가"), `public sealed record PcSpecSection(string Title, IReadOnlyList<PcSpecItem> Items)`, `public sealed record PcSpecSnapshot(DateTimeOffset CapturedAtUtc, IReadOnlyList<PcSpecSection> Sections, IReadOnlyList<string> UnavailableSections)`. `PcSpecService(IReadOnlyList<IProbe> probes, IClock clock, IAppLogger logger, Func<ScanContext> contextFactory)` with `Task<PcSpecSnapshot> CaptureAsync(CancellationToken ct)`; 정적 `PcSpecService.BuildSnapshot(IReadOnlyDictionary<string, ProbeResult> results, DateTimeOffset at)`(순수, 테스트 대상). 섹션 순서: 운영체제, CPU, 메모리, 그래픽, 모니터, 저장장치, 메인보드·BIOS, 네트워크, 전원. 식별 정보(`IsIdentifying=true`): 없음(SP4는 사용자명·PC 이름을 수집하지 않으므로 토글은 PC 이름·사용자명을 텍스트 헤더에 추가하는 용도로만 씀).
 
-- [ ] **Step 1: 실패하는 테스트 작성** — `PcSpecTests.cs`(가짜 ProbeResult 사전으로 `BuildSnapshot`만 검증):
+- [x] **Step 1: 실패하는 테스트 작성** — `PcSpecTests.cs`(가짜 ProbeResult 사전으로 `BuildSnapshot`만 검증):
 
 ```csharp
     /// <summary>프로브 결과에서 9개 섹션을 순서대로 만들고, 없는 프로브는 확인 불가 섹션으로 표시한다.</summary>
@@ -1175,9 +1175,9 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 `Result(...)` 헬퍼는 `(string name, MeasurementValue value)` 튜플로 `Measurement`(Source "test", Quality Reported)를 만들어 `ProbeResult(id, Success, ...)`를 돌려준다.
 
-- [ ] **Step 2: 실패 확인** — 컴파일 오류.
+- [x] **Step 2: 실패 확인** — 컴파일 오류.
 
-- [ ] **Step 3: 구현** — `PcSpecSnapshot.cs`(레코드 3개, 헤더·주석 포함). `PcSpecService.cs`:
+- [x] **Step 3: 구현** — `PcSpecSnapshot.cs`(레코드 3개, 헤더·주석 포함). `PcSpecService.cs`:
 
 ```csharp
 /**
@@ -1277,9 +1277,9 @@ public sealed class PcSpecService
 
 `Strings.resx`에 `Spec_*` 키(위 주석의 목록 + `Spec_Section_*` 9개 + `Spec_LabelSsd`/`Spec_LabelHdd` + `Spec_BoardFromSystem`="(시스템 모델로 대체)" + `Spec_ValueUnknown`="확인 불가" + `Spec_MoreDetails`="더 자세히(HWiNFO64·CPU-Z 안내)")를 추가한다.
 
-- [ ] **Step 4: 통과 확인** — `--filter "FullyQualifiedName~PcSpecTests"` PASS.
+- [x] **Step 4: 통과 확인** — `--filter "FullyQualifiedName~PcSpecTests"` PASS.
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add src/PcOptimizer.App tests/PcOptimizer.Tests/Unit/App/PcSpecTests.cs
@@ -1303,7 +1303,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 **Interfaces:**
 - Produces: `PcSpecTextFormatter.Format(PcSpecSnapshot snapshot, bool includeIdentity, string? machineName, string? userName)` → 텍스트(헤더 "PC 사양 · 2026-09-27 · 익명화됨/식별 정보 포함", 섹션별 "라벨: 값" 줄, 확인 불가는 "확인 불가"). `IClipboard { void SetText(string text); }`. `PcSpecViewModel(PcSpecService service, PcSpecTextFormatter formatter, IClipboard clipboard, IExportPathPicker picker, Func<FrameworkElement?> captureTargetProvider, IUiDispatcher dispatcher, IAppLogger logger)` with `IsLoading`, `Sections`(ObservableCollection<PcSpecSectionViewModel>), `IncludeIdentity`(기본 false), `CapturedText`, `StatusMessage`, 명령 `RefreshCommand`, `CopyTextCommand`, `SaveTextCommand`, `SaveImageCommand`. `PcSpecSectionViewModel(string Title, IReadOnlyList<PcSpecItemViewModel> Items, bool IsUnavailable)`, `PcSpecItemViewModel(string Label, string ValueText)`(null ⇒ `Strings.Spec_ValueUnknown`).
 
-- [ ] **Step 1: 실패하는 테스트 작성** — `PcSpecTests.cs`에 추가:
+- [x] **Step 1: 실패하는 테스트 작성** — `PcSpecTests.cs`에 추가:
 
 ```csharp
     /// <summary>텍스트 형식은 익명화 기본이며 PC 이름·사용자명은 토글이 켜졌을 때만 헤더에 들어간다.</summary>
@@ -1370,9 +1370,9 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
     }
 ```
 
-- [ ] **Step 2: 실패 확인** — 컴파일 오류.
+- [x] **Step 2: 실패 확인** — 컴파일 오류.
 
-- [ ] **Step 3: 구현**
+- [x] **Step 3: 구현**
 
 `PcSpecTextFormatter.cs`:
 
@@ -1437,9 +1437,9 @@ public sealed class PcSpecTextFormatter
 
 `MainWindow.xaml`: 상단 바에 "내 PC 사양" 토글 버튼(`ShowSpec` 명령), 본문 `ScrollViewer` 안에 `<views:PcSpecView DataContext="{Binding Spec}" Visibility="{Binding IsSpecVisible, ...}" />`를 추가하고 기존 결과 영역은 `IsSpecVisible`이 false일 때만 표시. `MainViewModel`에 `PcSpecViewModel Spec`, `bool IsSpecVisible`, `ShowSpecCommand`/`ShowResultsCommand`를 추가하고 `ShowSpec` 최초 진입 시 `Spec.RefreshCommand`를 실행한다.
 
-- [ ] **Step 4: 통과 확인** — `--filter "FullyQualifiedName~PcSpecTests|FullyQualifiedName~MainWindowLayoutTests"` PASS. 실제 창 확인: `dotnet run`으로 앱을 띄워 "내 PC 사양"을 열고 이미지 저장을 한 번 실행해 PNG가 만들어지는지 확인(파일은 임시 폴더에, 커밋하지 않음).
+- [x] **Step 4: 통과 확인** — `--filter "FullyQualifiedName~PcSpecTests|FullyQualifiedName~MainWindowLayoutTests"` PASS. 실제 창 확인: `dotnet run`으로 앱을 띄워 "내 PC 사양"을 열고 이미지 저장을 한 번 실행해 PNG가 만들어지는지 확인(파일은 임시 폴더에, 커밋하지 않음).
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add src/PcOptimizer.App tests/PcOptimizer.Tests/Unit/App
@@ -1463,7 +1463,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 **Interfaces:**
 - Produces: `public enum UserScopeMode { Full, SystemOnly }`; `UserScopeResolver.Resolve(string? tokenUserSid, string? interactiveUserSid)` → 둘 다 있고 같으면 `Full`, 둘 다 있고 다르면 `SystemOnly`, 어느 하나라도 모르면 `SystemOnly`(보수적). `InteractiveSessionUser.TryGetSid(out string? sid)`: `WTSQuerySessionInformationW(WTS_CURRENT_SERVER_HANDLE, WTS_CURRENT_SESSION, WTSUserName/WTSDomainName)`로 대화형 사용자 계정명을 얻고 `new NTAccount(domain, user).Translate(typeof(SecurityIdentifier))`로 SID 문자열 변환. 실패 시 false. `IElevationState`는 유지(`IsElevated`, `CurrentUserSid`). `MainViewModel` 생성자에서 `ElevationRelauncher`·`ScanLaunchMode` 매개변수 제거, `UserScopeMode userScope` 추가; `bool IsSystemOnly`, `string? ScopeBannerText`(SystemOnly면 `Strings.Banner_SystemOnly`="다른 관리자 계정으로 실행 중이라 이 계정의 항목(시작 프로그램·임시 파일·앱 캐시)은 검사하지 않습니다. 원래 계정으로 로그인해 실행하세요.").
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 ```csharp
 /**
@@ -1511,9 +1511,9 @@ public sealed class UserScopeResolverTests
 
 (`CreateViewModel`은 `ScanService`를 `limitToSystemScope`로 만들고 사용자 범위 가짜 프로브 하나를 포함해야 한다.)
 
-- [ ] **Step 2: 실패 확인** — 컴파일 오류.
+- [x] **Step 2: 실패 확인** — 컴파일 오류.
 
-- [ ] **Step 3: 구현**
+- [x] **Step 3: 구현**
 
 `app.manifest`: `<requestedExecutionLevel level="requireAdministrator" uiAccess="false"/>`, `@brief`를 "항상 관리자 권한(requireAdministrator)…"로 수정.
 
@@ -1605,9 +1605,9 @@ public static class InteractiveSessionUser
 
 `MainWindow.xaml`: 승격 재검사 버튼과 `HasElevatedBanner` 배너를 제거하고 `HasScopeBanner` 배너로 교체. `Strings.resx`: `Button_ElevatedRescan`, `Tooltip_ElevatedRescan*`, `Elevation_*`, `Banner_Elevated*` 키 제거, `Banner_SystemOnly` 추가. `ScanServiceSmokeTests`의 `RecordingProcessStarter` 사용부와 `AppTestDoubles.FakeElevationState`는 유지(캐시 도구가 씀). 삭제된 테스트 파일 2개와 `MainWindowLayoutTests`의 "관리자 버튼 활성·배너" 검사를 제거한다.
 
-- [ ] **Step 4: 통과 확인** — 기본 필터 전체 PASS. 빌드 후 `src/PcOptimizer.App/bin/Release/net10.0-windows/PcOptimizer.App.exe`를 관리자 셸에서 실행해 창이 뜨고 로그에 `scope=Full`이 찍히는지 확인(이 셸은 이미 관리자라 UAC 프롬프트는 뜨지 않음 — 일반 셸에서의 UAC 프롬프트는 수동 검증 항목으로 원장에 기록).
+- [x] **Step 4: 통과 확인** — 기본 필터 전체 PASS. 빌드 후 `src/PcOptimizer.App/bin/Release/net10.0-windows/PcOptimizer.App.exe`를 관리자 셸에서 실행해 창이 뜨고 로그에 `scope=Full`이 찍히는지 확인(이 셸은 이미 관리자라 UAC 프롬프트는 뜨지 않음 — 일반 셸에서의 UAC 프롬프트는 수동 검증 항목으로 원장에 기록).
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add -A src/PcOptimizer.App src/PcOptimizer.Probes/Platform tests/PcOptimizer.Tests
@@ -1637,7 +1637,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 **Interfaces:**
 - 변경: 기존 `NormalUserRequired`(승격이면 거절) 코드를 제거하고, 도구 실행 파일 경로가 `%ProgramFiles%`·`%ProgramFiles(x86)%`·`%ProgramW6432%` 아래가 아니면 `ToolNotInProtectedLocation` 코드로 거절한다(PATH 탐색 결과도 같은 검사를 통과해야 함). 정리 창은 이 코드에 "직접 실행 안내" 문구(`Cleanup_ToolUserWritable`="이 도구는 사용자 폴더에 설치돼 있어 관리자 권한 앱이 실행하지 않습니다. 터미널에서 직접 `{0}`를 실행하세요.")를 보여준다.
 
-- [ ] **Step 1: 실패하는 테스트 작성** — `CacheCleanupTests.cs`에 추가:
+- [x] **Step 1: 실패하는 테스트 작성** — `CacheCleanupTests.cs`에 추가:
 
 ```csharp
     /// <summary>관리자 권한이어도 보호 위치 도구는 실행하고, 사용자 폴더 도구는 직접 실행 안내로 거절한다.</summary>
@@ -1655,13 +1655,13 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 (`CreateBackend`는 이 파일의 기존 가짜 환경 헬퍼를 확장해 도구 경로와 승격 여부를 주입한다. 실제 API 이름은 현재 `SystemCacheToolBackend`/`CachePathInspector` 시그니처를 읽고 맞춘다.)
 
-- [ ] **Step 2: 실패 확인** — 두 번째 케이스가 기존 `NormalUserRequired` 코드로 실패하거나 첫 케이스가 승격 거절로 실패.
+- [x] **Step 2: 실패 확인** — 두 번째 케이스가 기존 `NormalUserRequired` 코드로 실패하거나 첫 케이스가 승격 거절로 실패.
 
-- [ ] **Step 3: 구현** — `SystemCacheToolBackend`의 승격 거절 분기를 제거하고 `IsProtectedProgramLocation(toolPath)`(세 환경 변수 경로 접두 비교, 정규화 후, 대소문자 무시) 검사를 `LocateAsync`·`ClearAsync` 양쪽에 둔다. 거절 코드 상수 `TOOL_NOT_IN_PROTECTED_LOCATION = "ToolNotInProtectedLocation"`. `CacheToolsViewModel`의 코드→문구 매핑에 추가. 기존 `NormalUserRequired` 관련 테스트는 삭제.
+- [x] **Step 3: 구현** — `SystemCacheToolBackend`의 승격 거절 분기를 제거하고 `IsProtectedProgramLocation(toolPath)`(세 환경 변수 경로 접두 비교, 정규화 후, 대소문자 무시) 검사를 `LocateAsync`·`ClearAsync` 양쪽에 둔다. 거절 코드 상수 `TOOL_NOT_IN_PROTECTED_LOCATION = "ToolNotInProtectedLocation"`. `CacheToolsViewModel`의 코드→문구 매핑에 추가. 기존 `NormalUserRequired` 관련 테스트는 삭제.
 
-- [ ] **Step 4: 통과 확인** — `--filter "FullyQualifiedName~CacheCleanupTests|FullyQualifiedName~CachePathInspectorTests"` PASS, 기본 필터 전체 PASS, Smoke PASS(`CacheBoundarySmokeTests`는 임시 fixture만 사용).
+- [x] **Step 4: 통과 확인** — `--filter "FullyQualifiedName~CacheCleanupTests|FullyQualifiedName~CachePathInspectorTests"` PASS, 기본 필터 전체 PASS, Smoke PASS(`CacheBoundarySmokeTests`는 임시 fixture만 사용).
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add src tests
@@ -1684,7 +1684,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 **Files:**
 - Modify: `README.md`(실행 권한·사양 화면·명령), `docs/HANDOFF.md`(SP4 완료 상태), `docs/superpowers/plans/2026-09-26-pc-optimizer-implementation-plan.md`(§5 2차 착수 기록), `docs/reviews/REVIEW_LEDGER.md`, 이 계획 파일의 체크박스
 
-- [ ] **Step 1: 전체 검증 실행**
+- [x] **Step 1: 전체 검증 실행**
 
 ```bash
 "C:\Program Files\dotnet\dotnet.exe" build PcOptimizer.sln --configuration Release
@@ -1695,11 +1695,11 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 Expected: 빌드 0/0, 기본·Smoke 전부 통과, 배포 폴더 생성. 배포 EXE를 실행해 창 생성·종료 코드 0 확인.
 
-- [ ] **Step 2: 원장 기록** — REV-014·REV-015 대응 기록(커밋 SHA, 실행 명령, 결과, 남은 제한: 일반 셸에서의 UAC 프롬프트·표준 계정 실제 검증은 수동), 새 절 "2026-09-27 SP4 구현(구현 세션 자체 검증)"에 검증 수치를 적는다. 상태는 `수정됨·재검증 대기`.
+- [x] **Step 2: 원장 기록** — REV-014·REV-015 대응 기록(커밋 SHA, 실행 명령, 결과, 남은 제한: 일반 셸에서의 UAC 프롬프트·표준 계정 실제 검증은 수동), 새 절 "2026-09-27 SP4 구현(구현 세션 자체 검증)"에 검증 수치를 적는다. 상태는 `수정됨·재검증 대기`.
 
-- [ ] **Step 3: 문서 갱신** — README에 "앱은 관리자 권한으로 실행됩니다(UAC 프롬프트)", "내 PC 사양: 텍스트 복사·TXT·PNG 저장, 기본 익명화" 추가. HANDOFF 현재 상태를 SP4 완료·다음 SP1로 갱신. 계획 파일 체크박스 갱신.
+- [x] **Step 3: 문서 갱신** — README에 "앱은 관리자 권한으로 실행됩니다(UAC 프롬프트)", "내 PC 사양: 텍스트 복사·TXT·PNG 저장, 기본 익명화" 추가. HANDOFF 현재 상태를 SP4 완료·다음 SP1로 갱신. 계획 파일 체크박스 갱신.
 
-- [ ] **Step 4: 커밋**
+- [x] **Step 4: 커밋**
 
 ```bash
 git add README.md docs
@@ -1858,12 +1858,12 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 - 계약(REV-017): 같은 `IProbe` 인스턴스는 일반 검사와 사양 수집이 공유한다. 사양 수집에서 타임아웃된 프로브 Task는 서비스가 `probeId → Task` 사전에 보존하고, 그 Task가 끝나기 전에는 같은 프로브를 다시 호출하지 않는다(건너뛰고 `SpecProbeStillRunning probe={id}` 경고 로그). 반대 방향(검사 종료 중 → 사양)은 `MainViewModel`이 `HasDrainingNote`일 때 `Spec.SetBusy(true)`를 유지해 새로 고침을 막는다.
 - 계약(REV-010): `CacheProcessGuard.StopAsync`의 `kill()`이 `AggregateException`을 던지면 `Flatten()`한 내부 예외가 전부 `InvalidOperationException`/`Win32Exception`일 때 `KillFailed`(형식 이름만 로그)로 처리하고 종료 대기(`wait()`)를 계속한다. 그 밖의 내부 예외는 기존대로 전파한다. 바깥 catch도 같은 규칙으로 `ProcessStillRunning`을 기록하고 false를 반환한다. 시작 이력·핸들 소유권·익명 로그는 그대로 보존한다.
 
-- [ ] **Step 1: 실패하는 테스트 작성** — 재현 소스의 `TimedOutSpecMustNotReenterLiveSharedProbe`(PcSpecTests로), `AggregateKillFailureMustNotEscapeGuard`(CacheProcessGuardTests로)를 이름·단언 그대로 편입하고, `MainViewModelTests`에 `사양_종료_대기_중에는_검사와_정리를_시작하지_않는다`(Spec.IsDraining=true ⇒ StartScan.CanExecute=false, CanOpenCacheTools=false), `검사_종료_대기_중에는_사양_새로_고침을_하지_않는다`(HasDrainingNote=true ⇒ Spec.RefreshCommand.CanExecute=false)를 추가한다.
-- [ ] **Step 2: 실패 확인** — 두 편입 테스트가 원장 기록대로 실패(Expected 1/Actual 2, AggregateException 전파)하는지 확인.
-- [ ] **Step 3: 구현** — 위 인터페이스 계약대로. `PcSpecService`는 `ConcurrentDictionary<string, Task>`로 살아 있는 Task를 보관하고 완료 시 제거한다. `CaptureAsync` 반환 후에도 `HasLiveProbes`가 true면 `PcSpecViewModel.IsDraining`을 true로 두고 `WaitForDrainAsync` 완료 시 false로 되돌린다(UI 스레드 디스패처 사용). 매직 값 금지(타임아웃·대기는 기존 상수 재사용).
-- [ ] **Step 4: 통과 확인** — `--filter "FullyQualifiedName~PcSpecTests|FullyQualifiedName~MainViewModelTests|FullyQualifiedName~CacheProcessGuardTests"` PASS, 기본 필터 전체 PASS, Smoke PASS.
-- [ ] **Step 5: 원장 대응 기록** — `docs/reviews/REVIEW_LEDGER.md` REV-017·REV-010에 커밋·테스트 이름·남은 한계를 쓴다. 상태는 "수정됨·재검증 대기".
-- [ ] **Step 6: 커밋**
+- [x] **Step 1: 실패하는 테스트 작성** — 재현 소스의 `TimedOutSpecMustNotReenterLiveSharedProbe`(PcSpecTests로), `AggregateKillFailureMustNotEscapeGuard`(CacheProcessGuardTests로)를 이름·단언 그대로 편입하고, `MainViewModelTests`에 `사양_종료_대기_중에는_검사와_정리를_시작하지_않는다`(Spec.IsDraining=true ⇒ StartScan.CanExecute=false, CanOpenCacheTools=false), `검사_종료_대기_중에는_사양_새로_고침을_하지_않는다`(HasDrainingNote=true ⇒ Spec.RefreshCommand.CanExecute=false)를 추가한다.
+- [x] **Step 2: 실패 확인** — 두 편입 테스트가 원장 기록대로 실패(Expected 1/Actual 2, AggregateException 전파)하는지 확인.
+- [x] **Step 3: 구현** — 위 인터페이스 계약대로. `PcSpecService`는 `ConcurrentDictionary<string, Task>`로 살아 있는 Task를 보관하고 완료 시 제거한다. `CaptureAsync` 반환 후에도 `HasLiveProbes`가 true면 `PcSpecViewModel.IsDraining`을 true로 두고 `WaitForDrainAsync` 완료 시 false로 되돌린다(UI 스레드 디스패처 사용). 매직 값 금지(타임아웃·대기는 기존 상수 재사용).
+- [x] **Step 4: 통과 확인** — `--filter "FullyQualifiedName~PcSpecTests|FullyQualifiedName~MainViewModelTests|FullyQualifiedName~CacheProcessGuardTests"` PASS, 기본 필터 전체 PASS, Smoke PASS.
+- [x] **Step 5: 원장 대응 기록** — `docs/reviews/REVIEW_LEDGER.md` REV-017·REV-010에 커밋·테스트 이름·남은 한계를 쓴다. 상태는 "수정됨·재검증 대기".
+- [x] **Step 6: 커밋**
 
 ```bash
 git add src tests docs/reviews/REVIEW_LEDGER.md

@@ -469,3 +469,22 @@
 - 상세 결과/명령/한계: [Task 9 리뷰](2026-09-27-sp4-task9-review.md). Task 10 실행 허용 전에 REV-016/018 및 기존 REV-010을 브리프에 반영하고, REV-017의 사양·검사 공통 실행 수명을 추가 설계에 포함할 것.
 - 검토 도중 `1463afe`의 HANDOFF 정정을 확인했다. 원본 인계서와 구현 소스는 변경하지 않았다. 원래 요청의 windows 경로 대신 Task 9가 존재하는 pc_optimizer를 검토했음을 보고서에 명시했다.
 - 마감 전 `512a82e`도 diff로 확인했다. 네 재현 경로는 변경되지 않았다. 위 테스트 수치는 `66cd7cb` 복사본 기준이며 최신 HEAD 전체 검증 수치가 아니다.
+
+## 2026-09-27 SP4 구현(구현 세션 자체 검증) — Task 11 마무리
+
+- 실행 순서 10 → 13 → 11 → 12. 이 절은 Task 11(문서·원장·검증 마무리)의 구현자 자체 검증이며 독립 재검증이 아니다.
+- 커밋: Task 1~8은 `1d24cbf`에서 종료. Task 9 `c9ba0d7`+`512a82e`. Task 10 `0c80a8b`, `34670c5`, `7e39311`, `68003d9`, `f432d5a`. Task 13 `3d286be`, `2d140d7`, `be6e99a`.
+- 검증(작업 트리, Release, 기준 커밋 `be6e99a`):
+  - `dotnet build PcOptimizer.sln --configuration Release` — 경고 0, 오류 0.
+  - `dotnet test PcOptimizer.sln --configuration Release --no-build --filter "Category!=Smoke&Category!=Online&Category!=ToolSmoke"` — 통과 1247, 실패 0.
+  - `dotnet test PcOptimizer.sln --configuration Release --no-build --filter "Category=Smoke"` — 통과 22, 실패 0(약 38초, 실제 PC 조회만, 파일 변경 없음).
+  - `dotnet publish src/PcOptimizer.App/PcOptimizer.App.csproj --configuration Release --runtime win-x64 --self-contained true --output artifacts/win-x64-sp4` — 배포 폴더 생성 확인(git-ignored).
+  - 배포 EXE 실행(이미 관리자 권한인 셸이라 UAC 프롬프트는 뜨지 않음): `Start-Process`로 2회 실행, 창 제목 "PC 최적화 진단" 생성 확인, `Process.CloseMainWindow()`로 정상 종료, 두 실행 모두 `ExitCode=0`. `%LocalAppData%\PcOptimizer\logs\pcoptimizer-20260926.log`(파일명은 UTC 날짜, 로컬 시각은 09-27)에 `AppStarted elevated=True scope=Full sessionUserResolved=True` 2건 확인. 일반(비관리자) 셸에서의 UAC 동의 절차는 이 방법으로 확인할 수 없어 수동 검증으로 남긴다.
+- REV-014·REV-015(Task 5 대응, 커밋 `e58cae9`/`68003d9`)를 위 최종 수치로 재확인했다. 상태는 계속 `수정됨·재검증 대기`.
+- REV-016(SystemOnly 사용자 범위 미전달, Task 10 커밋 `0c80a8b`·`34670c5`·`68003d9`), REV-017(사양 수집 타임아웃 뒤 살아 있는 프로브 재실행, Task 13 커밋 `3d286be`), REV-018(사양 읽기 중 정리 창 진입 가드 누락, Task 10 커밋 `0c80a8b` + Task 13 `3d286be`)을 위 최종 수치로 재확인했다. 각 REV 절의 대응 기록에 이미 기록된 테스트를 재확인 대상으로 삼는다: `MainViewModelTests.SystemOnlyMustNotOfferUserCacheActions`, `CacheCleanupTests.SystemOnlyBackendRefusesBeforeObservation`, `SystemOnlyWindowShowsUserScopeExcluded`, `FullScopeBackendStillPreparesAndClears`, `CacheCleanupTests.ToolsRunFromSystemDirectory`, `PcSpecTests.TimedOutSpecMustNotReenterLiveSharedProbe`, `LiveProbeIsSkippedUntilItFinishesThenRunsAgain`, `WaitForDrainIsCancellableAndCompletesWhenNothingLive`, `ViewModelKeepsDrainingUntilLiveProbeFinishes`, `MainViewModelTests.SpecLoadingMustBlockCacheActions`, `SpecLoadingNotifiesCacheToolsGate`, `사양_종료_대기_중에는_검사와_정리를_시작하지_않는다`, `검사_종료_대기_중에는_사양_새로_고침을_하지_않는다`. 상태는 모두 `수정됨·재검증 대기`.
+- 남은 한계(이월 minor 편입, 컨트롤러 룰링, 코드 변경 없음):
+  - npm이 작업 폴더 위로 탐색해 `C:\node_modules`를 프로젝트 루트(localPrefix)로 잡을 가능성은 남아 있다. 그 루트의 설정 파일(`C:\.npmrc`)은 일반 사용자가 만들 수 없는 파일 경로라 설정 주입으로 이어지지 않는다고 판단해 저위험으로 룰링한다(정적 판단, 실행 확인은 하지 않음. 근거: `task-10-fix1-report.md`).
+  - `NUGET_`·`NPM_CONFIG_`·`PIP_` 접두 환경 변수를 자식 프로세스에서 지우는 심층 방어는 적용하지 않는다. 제거하면 사용자가 환경 변수로 옮긴 캐시 위치(`NUGET_HTTP_CACHE_PATH`, `npm_config_cache` 등) 조회가 AppCacheProbe 진단과 어긋날 수 있어 현재 값을 유지하기로 룰링한다.
+  - pip 캐시 정리의 실제 프로세스 실행 스모크(`Category=ToolSmoke`)는 이번 라운드에 실행하지 않았다(테스트용 Python 경로 지정이 필요해 기본 검증 범위 밖). `Category=Online`도 재실행하지 않았다.
+  - 일반(비관리자) 셸에서의 UAC 프롬프트, 표준 계정이 다른 관리자 자격 증명으로 승격했을 때의 실제 SystemOnly 배너·정리 버튼 비활성화, Program Files에 Python만 있는 PC에서의 정리 버튼 노출, .NET 미설치 PC, 모니터 DPI·키보드 전환은 여전히 수동 검증 대기다.
+- 이 절은 구현 세션 자체 검증이다. 독립 검토자(Codex)가 별도로 확인하기 전에는 위 REV 항목을 `검증 완료`로 바꾸지 않는다.
