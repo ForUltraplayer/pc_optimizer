@@ -123,6 +123,7 @@ public sealed partial class CacheToolsViewModel : ObservableObject
     private static string FailureText(string? code) => code switch
     {
         "NormalUserRequired" or "ToolUnavailable" => Strings.Cleanup_Unavailable,
+        SystemCacheToolBackend.USER_SCOPE_EXCLUDED => Strings.Cleanup_UserScopeExcluded,
         "PlanExpired" or "TargetChanged" or "ToolChanged" => Strings.Cleanup_Changed,
         "OutsideUserProfile" => Strings.Cleanup_OutsideProfile,
         "Busy" => Strings.Cleanup_Busy,

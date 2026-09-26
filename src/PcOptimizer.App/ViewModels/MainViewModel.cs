@@ -222,8 +222,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>보호 위치(Program Files)에 npm·pip·dotnet 중 하나라도 있어 정리 창을 보여 줄지 여부(생성 시 한 번 확인).</summary>
     public bool CacheToolsAvailable { get; }
 
-    /// <summary>보호 위치에 도구가 있고 진단 작업이 실제 종료된 뒤에만 정리 도구를 엽니다.</summary>
-    public bool CanOpenCacheTools => CacheToolsAvailable && !IsScanning && !HasDrainingNote;
+    /// <summary>
+    /// 보호 위치에 도구가 있고, 진단·사양 읽기가 끝났으며, 이 계정의 사용자 범위를 다룰 수 있을 때(SystemOnly 아님)만 정리 도구를 엽니다.
+    /// </summary>
+    public bool CanOpenCacheTools => CacheToolsAvailable && !IsScanning && !HasDrainingNote && !IsSystemOnly && !Spec.IsLoading;
 
     /// <summary>상태 문자열("상태: …").</summary>
     public string StateText => DisplayText.Format(Strings.State_Format, DisplayText.State(State));
@@ -416,13 +418,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// 사양을 읽는 중인지가 바뀌면 검사 시작 가능 여부를 다시 계산한다.
+    /// 사양을 읽는 중인지가 바뀌면 검사 시작·정리 창 진입 가능 여부를 다시 계산한다.
     /// </summary>
     private void OnSpecPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(PcSpecViewModel.IsLoading))
         {
             StartScanCommand.NotifyCanExecuteChanged();
+            OnPropertyChanged(nameof(CanOpenCacheTools));
         }
     }
 

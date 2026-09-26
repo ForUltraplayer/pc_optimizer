@@ -20,11 +20,13 @@ public partial class CacheToolsWindow : Window
     public CacheToolsViewModel ViewModel { get; }
 
     /// <summary>설치된 도구용 창을 만듭니다.</summary>
-    public CacheToolsWindow(IAppLogger? logger = null)
+    /// <param name="logger">앱 로거(없으면 기록하지 않음).</param>
+    /// <param name="limitToSystemScope">SystemOnly(다른 관리자 계정으로 승격) 인스턴스면 true. 사용자별 캐시 조회·정리를 실행기에서 거절합니다.</param>
+    public CacheToolsWindow(IAppLogger? logger, bool limitToSystemScope)
     {
         _logger = logger ?? NullAppLogger.Instance;
         InitializeComponent();
-        ViewModel = new CacheToolsViewModel(new CacheCleanupService(new SystemCacheToolBackend(_logger), logger: _logger),
+        ViewModel = new CacheToolsViewModel(new CacheCleanupService(new SystemCacheToolBackend(_logger, limitToSystemScope), logger: _logger),
             text => System.Windows.MessageBox.Show(this, text, Strings.Cleanup_Title, MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes);
         DataContext = ViewModel;
         Closing += (_, args) => args.Cancel = ViewModel.IsBusy;
