@@ -35,6 +35,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- 포함 보호 정책(스펙 §5.2): 출력 폴더의 rules\protect.json으로 복사한다. 없거나 손상되면 파일 순회를 하지 않는다 -->
+    <None Include="..\..\rules\protect.json" Link="rules\protect.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\PcOptimizer.Core\PcOptimizer.Core.csproj" />
     <ProjectReference Include="..\PcOptimizer.Probes\PcOptimizer.Probes.csproj" />
   </ItemGroup>
