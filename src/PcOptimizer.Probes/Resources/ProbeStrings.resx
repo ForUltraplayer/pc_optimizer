@@ -82,4 +82,11 @@
   <data name="FileScan_InUse" xml:space="preserve"><value>사용 중이거나 검사 중에 바뀐 항목 {0}곳은 크기에 포함하지 못했어요</value><comment>{0}=개수</comment></data>
   <data name="FileScan_VolumeTimedOut" xml:space="preserve"><value>볼륨 {0}은(는) 제한 시간 안에 모두 검사하지 못해 일부만 집계했어요</value><comment>{0}=볼륨 루트(예: C:\)</comment></data>
   <data name="FileScan_RootError" xml:space="preserve"><value>검사 위치 {0}곳을 읽는 중 오류가 발생했어요</value><comment>{0}=개수</comment></data>
+
+  <!-- 앱 캐시 프로브(P5) Issue 요약 -->
+  <data name="AppCache_CatalogInvalid" xml:space="preserve"><value>앱에 포함된 규칙 파일을 확인하지 못해 앱 캐시 검사를 하지 않았어요 (rules\{0}: {1})</value><comment>{0}=파일 이름, {1}=상태 코드</comment></data>
+  <data name="AppCache_PolicyInvalid" xml:space="preserve"><value>보호 정책(rules\protect.json)이 없거나 형식이 올바르지 않아 앱 캐시 위치를 순회하지 않았어요 ({0})</value><comment>{0}=정책 오류 코드</comment></data>
+  <data name="AppCache_AccessDenied" xml:space="preserve"><value>앱 캐시 위치의 항목 {0}개에 접근하지 못해 크기에 포함하지 못했어요</value><comment>{0}=개수</comment></data>
+  <data name="AppCache_InUse" xml:space="preserve"><value>사용 중이거나 검사 중에 바뀐 앱 캐시 항목 {0}개는 크기에 포함하지 못했어요</value><comment>{0}=개수</comment></data>
+  <data name="AppCache_Timeout" xml:space="preserve"><value>제한 시간 안에 앱 캐시 위치 {0}곳을 모두 확인하지 못해 일부만 집계했어요</value><comment>{0}=위치 수</comment></data>
 </root>
