@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 using PcOptimizer.App.Services;
 using PcOptimizer.Core.Models;
 using PcOptimizer.Core.Rules;
+using PcOptimizer.Tests.Unit.Rules;
 
 namespace PcOptimizer.Tests.Unit.App;
 
@@ -203,6 +204,30 @@ public sealed class ReportExporterTests
         Assert.Equal(InstalledDriverRule.FINDING_ID_PREFIX + "pnp-3", gpu.GetProperty("id").GetString());
         Assert.Equal("pnp-3", gpu.GetProperty("measured")[0].GetProperty("value").GetProperty("value").GetString());
         Assert.StartsWith("같은 모니터 display-1 · 레지스트리 HKLM", gpu.GetProperty("evidence").GetString(), StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 실제 InstalledDriverRule 출력(가짜 측정값)을 내보내면 근거 문장의 하드웨어 ID 토큰이 hardwareIds[0] 측정값 토큰과 같고,
+    /// ID 뒤의 마침표가 남는다.
+    /// </summary>
+    [Fact]
+    public void 드라이버_규칙_근거의_하드웨어_ID는_측정값과_같은_토큰이다()
+    {
+        var snapshot = HardwareRuleTestData.Snapshot(HardwareRuleTestData.GpuResult(
+            new FakeAdapter("테스트 NVIDIA", "32.0.16.1656", DeviceIdTokenizerTests.PCI_INSTANCE, "2026-01-02", [DeviceIdTokenizerTests.PCI_HARDWARE_ID])));
+        var finding = Assert.Single(new InstalledDriverRule().Evaluate(snapshot));
+        Assert.Contains(DeviceIdTokenizerTests.PCI_HARDWARE_ID + ".", finding.Evidence, StringComparison.Ordinal);
+
+        var json = new ReportExporter(SCRUBBER).SerializeAnonymized(CreateReport() with { Findings = [finding] });
+
+        using var document = JsonDocument.Parse(json);
+        var exported = document.RootElement.GetProperty("findings")[0];
+        var hardwareIds = exported.GetProperty("measured").EnumerateArray()
+            .Single(m => m.GetProperty("name").GetString() == GpuProbeContract.AdapterMeasurementName(0, GpuProbeContract.FIELD_HARDWARE_IDS));
+        var token = hardwareIds.GetProperty("value").GetProperty("values")[0].GetString();
+        Assert.Matches("^pnp-[0-9]+$", token);
+        Assert.Contains("ID " + token + ".", exported.GetProperty("evidence").GetString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("VEN_", json, StringComparison.Ordinal);
     }
 
     /// <summary>토큰 번호는 내보내기마다 새로 매기며(내보내기 간 공유 없음) 같은 입력이면 같은 결과다.</summary>

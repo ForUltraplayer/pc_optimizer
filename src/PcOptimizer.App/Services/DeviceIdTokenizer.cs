@@ -26,6 +26,7 @@ namespace PcOptimizer.App.Services;
 /// 또는 대문자 열거자 + '&amp;'가 든 인스턴스를 가진 <c>열거자\ID\인스턴스</c> 모양(HK로 시작하는 레지스트리 하이브 제외) → <c>pnp-N</c></item>
 /// <item>중괄호 GUID <c>{xxxxxxxx-…}</c>(저장소 제공자 디스크 ID 등) → <c>guid-N</c></item>
 /// </list>
+/// PnP ID 세그먼트는 영문·숫자·'_'·'&amp;'·'}'로 끝나야 하므로 문장 속 ID 바로 뒤의 마침표·괄호·세미콜론 등은 ID에 포함되지 않고 그대로 남습니다.
 /// 레지스트리 경로(HKLM\SYSTEM\…)·파일 경로·중괄호 없는 GUID(전원 계획 등 Windows 공용 값)는 바꾸지 않습니다.
 /// 어댑터 LUID는 측정값으로 내보내지 않으므로 대상이 아닙니다.
 /// </remarks>
@@ -51,6 +52,11 @@ public sealed partial class DeviceIdTokenizer
     private const string GROUP_INTERFACE = "iface";
     private const string GROUP_PNP = "pnp";
     private const string GROUP_GUID = "guid";
+
+    /// <summary>
+    /// PnP ID 세그먼트 하나. 영문·숫자·'_'·'&amp;'·'}'로 끝나야 하므로 ID 바로 뒤의 문장 부호('.', ')', ';', ':' 등)는 ID에 포함되지 않는다.
+    /// </summary>
+    private const string PNP_SEGMENT = @"[^\s\\""|,]*[A-Za-z0-9_&}]";
 
     private readonly Dictionary<string, string> _tokens = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, int> _counters = new(StringComparer.Ordinal);
@@ -108,8 +114,9 @@ public sealed partial class DeviceIdTokenizer
         @"(?<display>\\\\\?\\(?i:DISPLAY)#[^#\s""|]+#[^#\s""|]+#\{[0-9A-Fa-f-]{36}\})"
         + @"|(?<volume>\\\\\?\\(?i:Volume)\{[0-9A-Fa-f-]{36}\}\\?)"
         + @"|(?<iface>\\\\\?\\[A-Za-z0-9_]+#[^#\s""|]+#[^#\s""|]+#\{[0-9A-Fa-f-]{36}\})"
-        + @"|(?<pnp>(?<![A-Za-z0-9_\\])(?i:PCI|ROOT|DISPLAY|MONITOR|USB|USBSTOR|HID|ACPI|SWD|HDAUDIO|SCSI|STORAGE|NVME|BTHENUM|BTH|UMB|SW|UEFI)\\[^\s\\""|,]+(?:\\[^\s\\""|,]+)?"
-        + @"|(?<![A-Za-z0-9_\\])(?!HK)[A-Z][A-Z0-9_]{1,15}\\[^\s\\""|,]+\\[^\s\\""|,]*&[^\s\\""|,]*)"
+        + @"|(?<pnp>(?<![A-Za-z0-9_\\])(?i:PCI|ROOT|DISPLAY|MONITOR|USB|USBSTOR|HID|ACPI|SWD|HDAUDIO|SCSI|STORAGE|NVME|BTHENUM|BTH|UMB|SW|UEFI)\\"
+        + PNP_SEGMENT + @"(?:\\" + PNP_SEGMENT + ")?"
+        + @"|(?<![A-Za-z0-9_\\])(?!HK)[A-Z][A-Z0-9_]{1,15}\\" + PNP_SEGMENT + @"\\(?=[^\s\\""|,]*&)" + PNP_SEGMENT + ")"
         + @"|(?<guid>\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\})",
         RegexOptions.CultureInvariant,
         REGEX_TIMEOUT_MILLISECONDS)]

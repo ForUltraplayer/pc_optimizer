@@ -118,6 +118,28 @@ public sealed class DeviceIdTokenizerTests
         Assert.DoesNotMatch(RAW_ID_PATTERN, result);
     }
 
+    /// <summary>ID 바로 뒤의 문장 부호('.', ')', ';', ':')는 ID에 넣지 않고 그대로 두며, 부호가 붙어도 맨 ID와 같은 토큰이다.</summary>
+    [Theory]
+    [InlineData(PCI_HARDWARE_ID, ".")]
+    [InlineData(PCI_HARDWARE_ID, ")")]
+    [InlineData(PCI_HARDWARE_ID, ";")]
+    [InlineData(PCI_INSTANCE, ".")]
+    [InlineData(PCI_INSTANCE, ")")]
+    [InlineData(PCI_INSTANCE, ";")]
+    [InlineData(ROOT_INSTANCE, ").")]
+    [InlineData(DISPLAY_INSTANCE, ":")]
+    [InlineData(@"FOO\BAR_1\3&11583659&0&01", ".")]
+    public void 뒤따르는_문장_부호는_ID가_아니다(string raw, string punctuation)
+    {
+        var tokenizer = new DeviceIdTokenizer();
+
+        var bare = tokenizer.Tokenize(raw);
+        var inSentence = tokenizer.Tokenize("하드웨어 ID (" + raw + punctuation + " 설치된 정보");
+
+        Assert.Equal("pnp-1", bare);
+        Assert.Equal("하드웨어 ID (pnp-1" + punctuation + " 설치된 정보", inSentence);
+    }
+
     /// <summary>레지스트리·파일 경로, GDI 표시 이름, 중괄호 없는 GUID, 일반 문장은 바꾸지 않는다.</summary>
     [Theory]
     [InlineData(@"Registry HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers\HwSchMode")]
