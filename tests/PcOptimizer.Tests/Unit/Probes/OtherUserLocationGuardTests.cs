@@ -1,7 +1,7 @@
 /**
  * @file    : OtherUserLocationGuardTests.cs
  * @author  : rudals252
- * @brief   : 다른 사용자 위치 판정기의 ProfileList 기반 프로필 루트·다른 SID 프로필 차단, 리디렉션된 현재 프로필(D:\me) 허용과 드라이브 루트 미사용, Public·Default 허용, 서비스 계정 제외, 휴지통 다른 SID 차단, 값 하나씩만 읽기를 가짜 레지스트리로 검증
+ * @brief   : 다른 사용자 위치 판정기의 ProfileList 기반 프로필 루트·다른 SID 프로필 차단, 리디렉션된 현재 프로필(D:\me) 허용과 드라이브 루트 미사용, Public·Default 허용, 서비스 계정 제외, 휴지통 다른 SID 차단, ProfileList가 없을 때 현재 프로필 부모 폴더 추정(드라이브 루트 제외), 값 하나씩만 읽기를 가짜 레지스트리로 검증
  */
 
 // 기본 패키지
@@ -93,6 +93,28 @@ public sealed class OtherUserLocationGuardTests
         Assert.True(noList.IsOtherUserLocation(@"C:\Users\bob\x"));
         Assert.False(noList.IsOtherUserLocation(@"C:\Users\me\x"));
         Assert.False(noList.IsOtherUserLocation(@"C:\Users\Public\x"));
+    }
+
+    /// <summary>
+    /// ProfileList를 읽지 못하면 %SystemDrive%\Users에 더해 현재 프로필의 부모 폴더(드라이브 루트 제외)도 프로필 루트로 막고, 목록을 읽지 못했음을 알린다.
+    /// 프로필이 D:\Users\me면 D:\Users\other를 막고, 프로필이 D:\me(부모가 드라이브 루트)면 부모 폴더 추정을 쓰지 않는다. 목록을 읽으면 추정을 쓰지 않는다.
+    /// </summary>
+    [Fact]
+    public void 프로필_목록이_없으면_현재_프로필의_부모_폴더도_막는다()
+    {
+        var nested = OtherUserLocationGuard.Create(new FakeRegistryReader(), Environment(@"D:\Users\me"), CURRENT_SID);
+        var atDriveRoot = OtherUserLocationGuard.Create(new FakeRegistryReader(), Environment(@"D:\me"), CURRENT_SID);
+        var listed = OtherUserLocationGuard.Create(ProfileList(), Environment(@"D:\Users\me"), CURRENT_SID);
+
+        Assert.False(nested.ProfileListAvailable);
+        Assert.True(nested.IsOtherUserLocation(@"D:\Users\other\AppData\Local\Vendor"));
+        Assert.False(nested.IsOtherUserLocation(@"D:\Users\me\AppData\Local\Vendor"));
+        Assert.False(nested.IsOtherUserLocation(@"D:\Users\Public\Vendor"));
+        Assert.True(nested.IsOtherUserLocation(@"C:\Users\bob\x"));
+        Assert.False(atDriveRoot.ProfileListAvailable);
+        Assert.False(atDriveRoot.IsOtherUserLocation(@"D:\other\AppData"));
+        Assert.True(listed.ProfileListAvailable);
+        Assert.False(listed.IsOtherUserLocation(@"D:\Users\other\AppData"));
     }
 
     /// <summary>레지스트리는 ProfilesDirectory·ProfileImagePath 값 하나씩만 요청하고 키 전체 값을 읽지 않는다.</summary>

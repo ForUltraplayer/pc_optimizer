@@ -1,19 +1,17 @@
 /**
  * @file    : ProtectionPolicyParserTests.cs
  * @author  : rudals252
- * @brief   : 보호 정책 JSON 파싱·검증(정상, 알 수 없는 종류·버전 누락·필수 값 누락·상대 경로·잘못된 JSON은 무효) 단위 테스트와 저장소 rules/protect.json의 유효성 확인
+ * @brief   : 보호 정책 JSON 파싱·검증(정상, 알 수 없는 종류·버전 누락·필수 값 누락·상대 경로·잘못된 JSON은 무효) 단위 테스트와 포함 보호 정책(Probes 어셈블리 리소스)의 유효성 확인
  */
-
-// 기본 패키지
-using System.IO;
 
 // 사용자 패키지
 using PcOptimizer.Core.Cleaning;
+using PcOptimizer.Probes.Storage;
 
 namespace PcOptimizer.Tests.Unit.Cleaning;
 
 /// <summary>
-/// <see cref="ProtectionPolicyParser"/>를 검증합니다. 파일 시스템은 저장소 정책 파일 확인 한 건에서만 읽습니다.
+/// <see cref="ProtectionPolicyParser"/>를 검증합니다. 파일 시스템은 읽지 않습니다(포함 정책은 어셈블리 리소스).
 /// </summary>
 public sealed class ProtectionPolicyParserTests
 {
@@ -143,13 +141,13 @@ public sealed class ProtectionPolicyParserTests
         Assert.Equal(1, result.EntryIndex);
     }
 
-    /// <summary>저장소의 rules/protect.json은 유효하며 스펙 §5.2의 기본 보호 루트를 모두 담는다.</summary>
+    /// <summary>포함된 rules/protect.json(Probes 어셈블리 리소스)은 유효하며 스펙 §5.2의 기본 보호 루트를 모두 담는다.</summary>
     [Fact]
     public void 저장소_보호_정책_파일은_유효하다()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "rules", "protect.json");
+        var policy = FileScanService.ReadBundledPolicy();
 
-        var result = ProtectionPolicyParser.Parse(File.ReadAllText(path));
+        var result = ProtectionPolicyParser.Parse(policy ?? string.Empty);
 
         Assert.True(result.IsValid, result.Error.ToString());
         var roots = result.Policy!.Roots;

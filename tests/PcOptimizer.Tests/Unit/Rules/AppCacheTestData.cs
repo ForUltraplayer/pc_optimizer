@@ -66,7 +66,7 @@ internal static class AppCacheTestData
     /// </summary>
     public static List<Measurement> Catalog(
         int communityTotal = 4068, int communitySupported = 3500, int supplementTotal = 7, int supplementSupported = 7,
-        int detected = 2, int notDetected = 3400, int unknown = 1, string[]? unsupported = null, string[]? runtime = null, bool elevated = false)
+        int detected = 2, int notDetected = 3400, int unknown = 1, string[]? unsupported = null, string[]? runtime = null, bool elevated = false, bool? profileListAvailable = null)
     {
         return
         [
@@ -84,6 +84,7 @@ internal static class AppCacheTestData
             M(AppCacheProbeContract.DETECTION_UNKNOWN_COUNT, new IntegerValue(unknown)),
             M(AppCacheProbeContract.RUNTIME_UNSUPPORTED_BY_REASON, new TextListValue(runtime ?? [])),
             M(AppCacheProbeContract.ELEVATED_DEFAULTS_ONLY, new BooleanValue(elevated)),
+            .. profileListAvailable is { } available ? [M(AppCacheProbeContract.PROFILE_LIST_AVAILABLE, new BooleanValue(available))] : Array.Empty<Measurement>(),
         ];
     }
 

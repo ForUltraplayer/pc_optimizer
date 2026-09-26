@@ -1,7 +1,7 @@
 /**
  * @file    : OtherUserLocationGuard.cs
  * @author  : rudals252
- * @brief   : 앱 캐시 탐지·확장·관측이 다른 사용자의 데이터(ProfileList의 프로필 루트·다른 SID 프로필 경로, 휴지통의 다른 SID 폴더)에 들어가지 않도록 보호 정책과 함께 쓰는 경로 판정기(현재 프로필·Public·Default는 허용, 드라이브 루트는 기준으로 쓰지 않음)
+ * @brief   : 앱 캐시 탐지·확장·관측이 다른 사용자의 데이터(ProfileList의 프로필 루트·다른 SID 프로필 경로, 휴지통의 다른 SID 폴더)에 들어가지 않도록 보호 정책과 함께 쓰는 경로 판정기(현재 프로필·Public·Default는 허용, 드라이브 루트는 기준으로 쓰지 않음, ProfileList를 읽지 못하면 현재 프로필의 부모 폴더도 함께 막음)
  */
 
 // 기본 패키지
@@ -22,6 +22,7 @@ namespace PcOptimizer.Probes.Applications;
 /// <item>프로필 루트: <c>HKLM\...\ProfileList</c>의 <c>ProfilesDirectory</c>와 <c>%SystemDrive%\Users</c>. 드라이브 루트는 프로필 루트로 쓰지 않습니다.</item>
 /// <item>다른 프로필: ProfileList의 다른 SID <c>ProfileImagePath</c>(시스템 서비스 계정 S-1-5-18/19/20 제외). 프로필 루트 밖(예: 다른 드라이브)이어도 막습니다.</item>
 /// <item>현재 사용자 프로필은 항상 허용하고, 프로필 루트 바로 아래의 <c>Public</c>·<c>Default</c>는 사용자 개인 프로필이 아니므로 허용합니다(규칙 결과는 자기 상태로 보고).</item>
+/// <item>ProfileList(ProfilesDirectory 또는 SID 목록)를 읽지 못하면 현재 프로필의 부모 폴더(드라이브 루트 제외)를 프로필 루트로 추가해 기본 위치가 아닌 프로필 폴더의 다른 사용자도 막고, <see cref="ProfileListAvailable"/>로 알립니다.</item>
 /// <item>프로필 루트 아래의 그 밖의 폴더와 휴지통(<c>$Recycle.Bin</c>)의 다른 SID 폴더는 막습니다.</item>
 /// </list>
 /// </remarks>
@@ -61,15 +62,26 @@ public sealed class OtherUserLocationGuard
     /// <param name="currentSid">현재 사용자 SID(모르면 null이며, 그때 휴지통의 모든 SID 폴더를 다른 사용자로 봄).</param>
     /// <param name="profilesRoots">프로필 루트(드라이브 루트는 무시).</param>
     /// <param name="otherProfiles">다른 사용자 프로필 경로(드라이브 루트·현재 프로필은 무시).</param>
-    public OtherUserLocationGuard(string? profile, string? currentSid, IEnumerable<string> profilesRoots, IEnumerable<string> otherProfiles)
+    /// <param name="profileListAvailable">ProfileList(프로필 루트와 SID 목록)를 읽었는지 여부. false면 현재 프로필의 부모 폴더(드라이브 루트 제외)도 프로필 루트로 씁니다.</param>
+    public OtherUserLocationGuard(string? profile, string? currentSid, IEnumerable<string> profilesRoots, IEnumerable<string> otherProfiles, bool profileListAvailable = true)
     {
         ArgumentNullException.ThrowIfNull(profilesRoots);
         ArgumentNullException.ThrowIfNull(otherProfiles);
         _profile = string.IsNullOrWhiteSpace(profile) ? null : PathScope.Normalize(profile);
         _currentSid = string.IsNullOrWhiteSpace(currentSid) ? null : currentSid;
-        _profilesRoots = [.. Usable(profilesRoots)];
+        ProfileListAvailable = profileListAvailable;
+        var roots = profilesRoots.ToList();
+        if (!profileListAvailable && _profile is not null && Path.GetDirectoryName(_profile) is { } parent)
+        {
+            roots.Add(parent);
+        }
+
+        _profilesRoots = [.. Usable(roots)];
         _otherProfiles = [.. Usable(otherProfiles).Where(path => _profile is null || !PathScope.IsSameOrUnder(_profile, path))];
     }
+
+    /// <summary>ProfileList를 읽었는지 여부(false면 현재 프로필의 부모 폴더 추정을 함께 씀).</summary>
+    public bool ProfileListAvailable { get; }
 
     /// <summary>
     /// 레지스트리 ProfileList와 환경으로 판정기를 만듭니다(값 하나씩만 읽음).
@@ -84,7 +96,8 @@ public sealed class OtherUserLocationGuard
         ArgumentNullException.ThrowIfNull(environment);
 
         var roots = new List<string>();
-        if (Expand(registry.ReadStringValue(RegistryRoot.LocalMachine, RegistryView.Registry64, PROFILE_LIST_KEY, PROFILES_DIRECTORY_VALUE), environment) is { } directory)
+        var directory = Expand(registry.ReadStringValue(RegistryRoot.LocalMachine, RegistryView.Registry64, PROFILE_LIST_KEY, PROFILES_DIRECTORY_VALUE), environment);
+        if (directory is not null)
         {
             roots.Add(directory);
         }
@@ -108,7 +121,8 @@ public sealed class OtherUserLocationGuard
             }
         }
 
-        return new OtherUserLocationGuard(environment.GetUserProfilePath(), currentSid, roots, others);
+        var available = directory is not null && sids.Status == RegistryReadStatus.Found;
+        return new OtherUserLocationGuard(environment.GetUserProfilePath(), currentSid, roots, others, available);
     }
 
     /// <summary>

@@ -209,7 +209,7 @@ public sealed class AppCacheProbe : IProbe
             .ToDictionary(group => group.Key, group => group.First().Rule.Id, StringComparer.Ordinal);
         var observedAt = _clock.UtcNow;
         var measurements = AppCacheMeasurements.Build(
-            catalog, summary, observations, squirrel, reportedConfigs, configRuleIds, context.IsElevated, _time.GetElapsedTime(measureStart), observedAt);
+            catalog, summary, observations, squirrel, reportedConfigs, configRuleIds, context.IsElevated, otherUsers.ProfileListAvailable, _time.GetElapsedTime(measureStart), observedAt);
         var issues = CollectIssues(results, observations);
         return new ProbeResult(Id, issues.Count > 0 ? ProbeStatus.Partial : ProbeStatus.Success, measurements, issues, observedAt, TimeSpan.Zero, context.UserContext);
     }

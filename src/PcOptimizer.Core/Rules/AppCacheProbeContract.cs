@@ -72,6 +72,12 @@ public static class AppCacheProbeContract
     /// <summary>관리자 권한 검사라 사용자 설정 경로를 적용하지 않았는지 여부(불리언).</summary>
     public const string ELEVATED_DEFAULTS_ONLY = "appCache.elevatedDefaultsOnly";
 
+    /// <summary>
+    /// 사용자 프로필 목록(HKLM ProfileList의 ProfilesDirectory·SID 목록)을 읽었는지 여부(불리언).
+    /// false면 다른 사용자 위치를 %SystemDrive%\Users와 현재 프로필의 부모 폴더(드라이브 루트 제외)로만 막았습니다.
+    /// </summary>
+    public const string PROFILE_LIST_AVAILABLE = "appCache.profileListAvailable";
+
     /// <summary>앱 캐시 관측 소요 시간(밀리초, 정수, 공유 스캔 대기 제외).</summary>
     public const string ELAPSED_MS = "appCache.elapsedMs";
 
@@ -186,7 +192,7 @@ public static class AppCacheProbeContract
     /// <summary>필드: RegKey 개수(정수, 지원하지 않는 효과).</summary>
     public const string FIELD_REG_KEY_COUNT = "regKeyCount";
 
-    /// <summary>필드: 앱 이름(문자열). 규칙은 카드 묶음 기준 앱 이름(검토 규칙의 appLabel 또는 섹션 이름), Squirrel은 앱 폴더 이름, 앱 설정은 리더 이름.</summary>
+    /// <summary>필드: 앱 이름(문자열). 규칙은 카드 묶음 기준 앱 이름(검토 규칙의 appLabel, 커뮤니티 규칙은 숫자가 아닌 winapp2 Section= 값 또는 섹션 이름), Squirrel은 앱 폴더 이름, 앱 설정은 리더 이름.</summary>
     public const string FIELD_APP = "app";
 
     /// <summary>필드: Squirrel 버전 폴더 이름(문자열 목록).</summary>

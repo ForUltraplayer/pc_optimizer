@@ -1,7 +1,7 @@
 /**
  * @file    : Winapp2ParserTests.cs
  * @author  : rudals252
- * @brief   : winapp2 형식 파서의 지원 문법(Detect/DetectFile OR, FileKey 패턴·RECURSE·REMOVESELF, FILE/PATH 제외, RegKey 기록)과 미지원 처리(DetectOS·알 수 없는 키·해석 불가 변수·볼륨 루트·UNC·REG 제외·탐지 없음·레지스트리 전용·HKU·지시어·와일드카드 한도)를 스냅샷 발췌·구성 fixture로 검증
+ * @brief   : winapp2 형식 파서의 지원 문법(Detect/DetectFile OR, FileKey 패턴·RECURSE·REMOVESELF, FILE/PATH 제외, RegKey 기록, 앱 카드 묶음 기준(숫자가 아닌 Section 값 또는 이름))과 미지원 처리(DetectOS·알 수 없는 키·해석 불가 변수·볼륨 루트·UNC·REG 제외·탐지 없음·레지스트리 전용·HKU·지시어·와일드카드 한도)를 스냅샷 발췌·구성 fixture로 검증
  */
 
 // 기본 패키지
@@ -33,6 +33,43 @@ public sealed class Winapp2ParserTests
     private static CleaningRule Rule(Winapp2ParseResult result, string name)
     {
         return Assert.Single(result.Rules, rule => rule.Name == name);
+    }
+
+    /// <summary>
+    /// 앱 카드 묶음 기준: Section= 텍스트 값이 있으면 그 값(LangSecRef가 함께 있어도), 숫자 LangSecRef만 있거나 Section= 값이 숫자면 규칙 이름(" *" 제거)이다.
+    /// </summary>
+    [Fact]
+    public void 앱_묶음_기준은_숫자가_아닌_Section_값_또는_규칙_이름이다()
+    {
+        const string TEXT = """
+            [Google Chrome Caches *]
+            Section=Google Chrome Web Browser
+            DetectFile=%LocalAppData%\Google\Chrome*
+            FileKey1=%LocalAppData%\Google\Chrome*\User Data|*-journal|RECURSE
+
+            [Both Keys *]
+            LangSecRef=3021
+            Section=Vendor Suite
+            DetectFile=%LocalAppData%\Vendor
+            FileKey1=%LocalAppData%\Vendor|*.log
+
+            [Lang Only *]
+            LangSecRef=3022
+            DetectFile=%LocalAppData%\Vendor
+            FileKey1=%LocalAppData%\Vendor|*.tmp
+
+            [Numeric Section *]
+            Section=3021
+            DetectFile=%LocalAppData%\Vendor
+            FileKey1=%LocalAppData%\Vendor|*.bak
+            """;
+
+        var result = Winapp2Parser.Parse(TEXT, RuleOrigin.Community);
+
+        Assert.Equal("Google Chrome Web Browser", Rule(result, "Google Chrome Caches").AppGroup);
+        Assert.Equal("Vendor Suite", Rule(result, "Both Keys").AppGroup);
+        Assert.Equal("Lang Only", Rule(result, "Lang Only").AppGroup);
+        Assert.Equal("Numeric Section", Rule(result, "Numeric Section").AppGroup);
     }
 
     /// <summary>Discord 발췌: 탐지 키 3개(OR), FileKey 13개, 세미콜론 패턴·RECURSE·REMOVESELF(하위 포함으로 관측)·와일드카드 경로를 그대로 보존한다.</summary>

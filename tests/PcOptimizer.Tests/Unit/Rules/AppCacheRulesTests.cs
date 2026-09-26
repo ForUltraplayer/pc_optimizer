@@ -1,7 +1,7 @@
 /**
  * @file    : AppCacheRulesTests.cs
  * @author  : rudals252
- * @brief   : 앱 캐시 앱 카드(검토 규칙만 캐시 문구·설정 열기, 커뮤니티 규칙은 중립 문구·상세 보기, 같은 앱 합치기, 파일 없는 앱은 요약에 접기, 개인정보 관련 규칙 제외, 부분·관리자 검사 범위), Adobe·UNC 설정 확인 불가, Squirrel 버전 폴더 정보, 규칙 목록 요약(수·사유·접은 앱 수·무결성 실패·보호 정책 무효)과 금지 문구 부재를 가짜 스냅샷으로 검증
+ * @brief   : 앱 캐시 앱 카드(검토 규칙만 캐시 문구·설정 열기, 커뮤니티 규칙은 중립 문구·상세 보기, 같은 앱 라벨 합치기, 파일 없음·합친 앱만 요약에 접기, 관측 실패 앱은 사유별 확인 불가 카드, 개인정보 관련 규칙 제외, 부분·관리자 검사 범위), Adobe·UNC 설정 확인 불가, Squirrel 버전 폴더 정보, 규칙 목록 요약(수·사유·접은 앱 수·확인 불가 앱 수·프로필 목록 없음·무결성 실패·보호 정책 무효)과 금지 문구 부재를 가짜 스냅샷으로 검증
  */
 
 // 사용자 패키지
@@ -94,36 +94,41 @@ public sealed class AppCacheRulesTests
         AssertNoForbiddenPhrases([finding]);
     }
 
-    /// <summary>같은 앱 이름의 규칙은 카드 하나로 합치고 규칙별 크기를 상세에 나열한다. 검토 규칙과 커뮤니티 규칙이 섞여 파일을 셌으면 중립 문구·상세 보기만이다.</summary>
+    /// <summary>
+    /// 같은 앱 라벨(검토한 보충 규칙의 appLabel과 같은 Section 값의 커뮤니티 규칙)은 카드 하나로 합치고 규칙별 크기를 상세에 나열한다.
+    /// 검토 규칙과 커뮤니티 규칙이 섞여 파일을 셌으면 중립 문구·상세 보기만이다. 커뮤니티 Section 묶음은 실제 파싱 항목으로
+    /// <c>AppCacheProbeTests.같은_Section의_커뮤니티_규칙은_앱_카드_하나로_합친다</c>에서 검증한다.
+    /// </summary>
     [Fact]
-    public void 같은_앱의_규칙은_카드_하나로_합친다()
+    public void 같은_앱_라벨의_규칙은_카드_하나로_합친다()
     {
         var findings = Evaluate(
-            new FakeAppRule("winapp2:Chrome Caches", "Chrome Caches", AppCacheProbeContract.RULE_STATE_OBSERVED, 300, 3, App: "Chrome"),
-            new FakeAppRule("winapp2:Chrome Logs", "Chrome Logs", AppCacheProbeContract.RULE_STATE_OBSERVED, 200, 2, App: "Chrome"),
-            new FakeAppRule("winapp2:Chrome Extra", "Chrome Extra", AppCacheProbeContract.RULE_STATE_ABSENT, App: "Chrome"),
             new FakeAppRule("supplement:Mixed", "Mixed", AppCacheProbeContract.RULE_STATE_OBSERVED, 10, 1, Origin: AppCacheProbeContract.ORIGIN_SUPPLEMENT, Impact: ("a", "b", "c"), App: "Mixed"),
-            new FakeAppRule("winapp2:Mixed", "Mixed", AppCacheProbeContract.RULE_STATE_OBSERVED, 10, 1, App: "Mixed"));
+            new FakeAppRule("winapp2:Mixed Logs", "Mixed Logs", AppCacheProbeContract.RULE_STATE_OBSERVED, 20, 2, App: "Mixed"),
+            new FakeAppRule("winapp2:Mixed Extra", "Mixed Extra", AppCacheProbeContract.RULE_STATE_ABSENT, App: "Mixed"));
 
-        Assert.Equal(2, findings.Count);
-        var chrome = Assert.Single(findings, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + "Chrome");
-        Assert.Equal("Chrome: 규칙 위치의 파일 관측 500 B", chrome.Title);
-        Assert.Contains("winapp2:Chrome Caches: 300 B", chrome.Detail!, StringComparison.Ordinal);
-        Assert.Contains("winapp2:Chrome Logs: 200 B", chrome.Detail!, StringComparison.Ordinal);
-        Assert.Contains("winapp2:Chrome Extra: 이 규칙 위치에서는 관측한 파일이 없어요", chrome.Detail!, StringComparison.Ordinal);
-        var mixed = Assert.Single(findings, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + "Mixed");
-        Assert.DoesNotContain("캐시", mixed.Title, StringComparison.Ordinal);
+        var mixed = Assert.Single(findings);
+        Assert.Equal(AppCacheRule.FINDING_ID_PREFIX + "Mixed", mixed.Id);
+        Assert.Equal("Mixed: 규칙 위치의 파일 관측 30 B", mixed.Title);
+        Assert.Contains("supplement:Mixed: 10 B", mixed.Detail!, StringComparison.Ordinal);
+        Assert.Contains("winapp2:Mixed Logs: 20 B", mixed.Detail!, StringComparison.Ordinal);
+        Assert.Contains("winapp2:Mixed Extra: 이 규칙 위치에서는 관측한 파일이 없어요", mixed.Detail!, StringComparison.Ordinal);
         Assert.Equal([typeof(ShowDetailsAction)], mixed.Actions.Select(a => a.GetType()));
     }
 
-    /// <summary>관측한 파일이 없는 앱(없음·병합·보호·확인 불가)은 카드가 아니고, 요약 카드에 사유별 앱 수로 접힌다.</summary>
+    /// <summary>
+    /// 관측한 파일이 없는 앱 중 파일 없음(위치 없음·0바이트·규칙 제외)과 겹쳐 합친 앱만 카드가 아니고 요약에 개수로 접힌다.
+    /// 관측이 실패한 앱(보호·접근 거부·시간 초과)은 접지 않고 요약에는 앱별 확인 불가 카드 수만 밝힌다.
+    /// </summary>
     [Fact]
-    public void 파일이_없는_앱은_카드가_아니고_요약에_접힌다()
+    public void 파일_없음과_합친_앱만_요약에_접힌다()
     {
         FakeAppRule[] rules =
         [
             new(COMMUNITY_ID, "Discord", AppCacheProbeContract.RULE_STATE_OBSERVED, 100, 1),
             new("winapp2:Absent", "Absent App", AppCacheProbeContract.RULE_STATE_ABSENT),
+            new("winapp2:Empty", "Empty App", AppCacheProbeContract.RULE_STATE_OBSERVED, 0, 0),
+            new("winapp2:Excluded", "Excluded App", AppCacheProbeContract.RULE_STATE_EXCLUDED),
             new("winapp2:Merged", "Merged App", AppCacheProbeContract.RULE_STATE_MERGED, MergedTargets: 1),
             new("winapp2:Protected", "Protected App", AppCacheProbeContract.RULE_STATE_PROTECTED, ProtectedTargets: 2),
             new("winapp2:Denied", "Denied App", AppCacheProbeContract.RULE_STATE_ACCESS_DENIED),
@@ -133,12 +138,67 @@ public sealed class AppCacheRulesTests
         var findings = Evaluate(rules);
         var summary = Summary(rules);
 
-        Assert.Equal([AppCacheRule.FINDING_ID_PREFIX + "Discord"], findings.Select(f => f.Id));
+        Assert.Equal(
+            ["Denied App", "Discord", "Protected App", "Slow App"],
+            findings.Select(f => f.Id[AppCacheRule.FINDING_ID_PREFIX.Length..]).Order(StringComparer.Ordinal));
         Assert.Contains("관측한 파일이 있는 앱 1개", summary.Detail!, StringComparison.Ordinal);
-        Assert.Contains("파일이 관측되지 않은 앱 1개", summary.Detail!, StringComparison.Ordinal);
+        Assert.Contains("파일이 관측되지 않은 앱 3개", summary.Detail!, StringComparison.Ordinal);
         Assert.Contains("같은 위치라 합친 앱 1개", summary.Detail!, StringComparison.Ordinal);
-        Assert.Contains("재지 않은 앱 1개", summary.Detail!, StringComparison.Ordinal);
-        Assert.Contains("확인하지 못한 앱 2개", summary.Detail!, StringComparison.Ordinal);
+        Assert.Contains("확인하지 못한 앱 3개", summary.Detail!, StringComparison.Ordinal);
+        Assert.DoesNotContain("재지 않은 앱", summary.Detail!, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 관측이 실패한 앱은 사유와 함께 앱 단위 확인 불가 카드다: 접근 거부 → AccessDenied, 시간 초과 → Timeout,
+    /// 검사하지 못함·파일 없는 부분 관측 → PartialData, 보호 폴더(다른 사용자 위치 포함) → Unsupported(보호 문구). 크기를 말하지 않고 상세 보기만 준다.
+    /// </summary>
+    [Theory]
+    [InlineData(AppCacheProbeContract.RULE_STATE_ACCESS_DENIED, CannotVerifyReason.AccessDenied, "접근이 거부", "접근 거부")]
+    [InlineData(AppCacheProbeContract.RULE_STATE_TIMED_OUT, CannotVerifyReason.Timeout, "제한 시간", "시간 초과")]
+    [InlineData(AppCacheProbeContract.RULE_STATE_NOT_OBSERVED, CannotVerifyReason.PartialData, "확인하지 못했어요", "검사하지 못함")]
+    [InlineData(AppCacheProbeContract.RULE_STATE_PARTIAL, CannotVerifyReason.PartialData, "확인하지 못했어요", "검사하지 못함")]
+    [InlineData(AppCacheProbeContract.RULE_STATE_PROTECTED, CannotVerifyReason.Unsupported, "보호 폴더", "보호 폴더 안")]
+    public void 관측이_실패한_앱은_사유별_확인_불가_카드다(string state, CannotVerifyReason reason, string evidence, string ruleLabel)
+    {
+        var finding = Assert.Single(Evaluate(
+            new FakeAppRule("winapp2:Vendor Cache", "Vendor Cache", state, App: "Vendor Suite", ProtectedTargets: state == AppCacheProbeContract.RULE_STATE_PROTECTED ? 1 : 0),
+            new FakeAppRule("winapp2:Vendor Logs", "Vendor Logs", AppCacheProbeContract.RULE_STATE_ABSENT, App: "Vendor Suite")));
+
+        Assert.Equal(AppCacheRule.FINDING_ID_PREFIX + "Vendor Suite", finding.Id);
+        Assert.Equal(Verdict.CannotVerify, finding.Verdict);
+        Assert.Equal(reason, finding.CannotVerifyReason);
+        Assert.Equal("Vendor Suite: 규칙 위치를 확인하지 못했어요", finding.Title);
+        Assert.Contains(evidence, finding.Evidence, StringComparison.Ordinal);
+        Assert.Contains("winapp2:Vendor Cache: 확인하지 못했어요(" + ruleLabel + ")", finding.Detail!, StringComparison.Ordinal);
+        Assert.Contains("winapp2:Vendor Logs: 이 규칙 위치에서는 관측한 파일이 없어요", finding.Detail!, StringComparison.Ordinal);
+        Assert.Equal([typeof(ShowDetailsAction)], finding.Actions.Select(a => a.GetType()));
+        Assert.DoesNotContain(" B", finding.Title, StringComparison.Ordinal);
+        AssertNoForbiddenPhrases([finding]);
+    }
+
+    /// <summary>한 앱에 실패 사유가 여럿이면 접근 거부 > 시간 초과 > 검사하지 못함 > 보호 순으로 대표 사유를 정한다.</summary>
+    [Fact]
+    public void 실패_사유가_여럿이면_접근_거부가_먼저다()
+    {
+        var finding = Assert.Single(Evaluate(
+            new FakeAppRule("winapp2:A", "A", AppCacheProbeContract.RULE_STATE_PROTECTED, App: "Suite"),
+            new FakeAppRule("winapp2:B", "B", AppCacheProbeContract.RULE_STATE_TIMED_OUT, App: "Suite"),
+            new FakeAppRule("winapp2:C", "C", AppCacheProbeContract.RULE_STATE_ACCESS_DENIED, App: "Suite")));
+
+        Assert.Equal(CannotVerifyReason.AccessDenied, finding.CannotVerifyReason);
+    }
+
+    /// <summary>파일을 관측한 앱 카드에서도 관측이 실패한 규칙은 "파일 없음"이 아니라 확인하지 못했다고 상세에 쓴다.</summary>
+    [Fact]
+    public void 관측한_앱_카드의_실패_규칙은_확인하지_못했다고_쓴다()
+    {
+        var finding = Assert.Single(Evaluate(
+            new FakeAppRule("winapp2:Suite Cache", "Suite Cache", AppCacheProbeContract.RULE_STATE_OBSERVED, 500, 5, App: "Suite"),
+            new FakeAppRule("winapp2:Suite Logs", "Suite Logs", AppCacheProbeContract.RULE_STATE_ACCESS_DENIED, App: "Suite")));
+
+        Assert.Equal(Verdict.Info, finding.Verdict);
+        Assert.Contains("winapp2:Suite Logs: 확인하지 못했어요(접근 거부)", finding.Detail!, StringComparison.Ordinal);
+        Assert.DoesNotContain("winapp2:Suite Logs: 이 규칙 위치에서는 관측한 파일이 없어요", finding.Detail!, StringComparison.Ordinal);
     }
 
     /// <summary>원본 Warning이 있거나 이름에 비밀번호·쿠키·세션·기록·자격 증명 낱말이 든 규칙은 크기가 있어도 카드에서 빠지고 요약에 개수만 남는다.</summary>
@@ -272,6 +332,20 @@ public sealed class AppCacheRulesTests
         Assert.Contains("3개", finding.Detail!, StringComparison.Ordinal);
         Assert.Contains("RegKey", finding.Detail!, StringComparison.Ordinal);
         Assert.Contains("CC-BY-SA-4.0", finding.Detail!, StringComparison.Ordinal);
+        AssertNoForbiddenPhrases([finding]);
+    }
+
+    /// <summary>ProfileList를 읽지 못한 검사는 요약 상세에 밝히고, 읽은 검사는 밝히지 않는다.</summary>
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public void 프로필_목록을_읽지_못하면_요약에_밝힌다(bool available, bool expectNote)
+    {
+        var snapshot = AppCacheTestData.Snapshot(ProbeStatus.Success, AppCacheTestData.Catalog(profileListAvailable: available));
+
+        var finding = Assert.Single(new RuleCatalogSummaryRule().Evaluate(snapshot));
+
+        Assert.Equal(expectNote, finding.Detail!.Contains("사용자 프로필 목록을 읽지 못해", StringComparison.Ordinal));
         AssertNoForbiddenPhrases([finding]);
     }
 

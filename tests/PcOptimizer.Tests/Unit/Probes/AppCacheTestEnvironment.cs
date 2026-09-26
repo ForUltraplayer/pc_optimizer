@@ -1,7 +1,7 @@
 /**
  * @file    : AppCacheTestEnvironment.cs
  * @author  : rudals252
- * @brief   : 앱 캐시 프로브 파이프라인 테스트용 가짜 PC(프로필·다른 드라이브 Steam 라이브러리·npm 설정 재정의·보호 폴더 NuGet 설정·Squirrel 앱·Adobe·NVIDIA 캐시, 레지스트리, 보호 정책, 규칙 파일)와 프로브 생성 도우미
+ * @brief   : 앱 캐시 프로브 파이프라인 테스트용 가짜 PC(프로필·다른 드라이브 Steam 라이브러리·npm 설정 재정의·보호 폴더 NuGet 설정·Squirrel 앱·Adobe·NVIDIA 캐시, 레지스트리(ProfileList 선택), 보호 정책, 규칙 파일(커뮤니티 fixture 선택), Chrome·Edge 프로필 폴더)와 프로브 생성 도우미
  */
 
 // 기본 패키지
@@ -62,6 +62,12 @@ internal sealed class AppCacheTestEnvironment
     /// <summary>다른 사용자 가짜 SID.</summary>
     public const string OTHER_SID = "S-1-5-21-1000-1000-1000-1002";
 
+    /// <summary>기본 커뮤니티 규칙 fixture.</summary>
+    public const string COMMUNITY_FIXTURE = "probe-community.ini";
+
+    /// <summary>앱 카드 묶음 기준 fixture(Chrome 3개·Edge 1개 섹션, 숫자 LangSecRef·Section 값만 같은 규칙 2개).</summary>
+    public const string GROUPING_FIXTURE = "probe-grouping.ini";
+
     /// <summary>게임 본체 파일 크기(셰이더 캐시 합계에 들어가면 안 됨).</summary>
     public const long GAME_BYTES = 999_999;
 
@@ -85,31 +91,23 @@ internal sealed class AppCacheTestEnvironment
     /// 가짜 PC를 만든다.
     /// </summary>
     /// <param name="defaultCaches">npm·pip·NuGet 기본 캐시 폴더를 만들지 여부(false면 설정으로 옮긴 캐시만 있는 PC).</param>
-    public AppCacheTestEnvironment(bool defaultCaches = true)
+    /// <param name="profileList">레지스트리에 ProfileList(프로필 루트·SID별 프로필 경로)가 있는지 여부.</param>
+    /// <param name="communityFixture">커뮤니티 규칙으로 쓸 Fixtures\Winapp2의 파일 이름.</param>
+    public AppCacheTestEnvironment(bool defaultCaches = true, bool profileList = true, string communityFixture = COMMUNITY_FIXTURE)
     {
         Source = Tree(defaultCaches);
+        Registry = CreateRegistry(profileList);
+        RuleFiles = RuleCatalogLoaderTests.Files(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "Winapp2", communityFixture)));
     }
 
     /// <summary>가짜 파일 시스템.</summary>
     public FakeDirectoryEntrySource Source { get; }
 
-    /// <summary>가짜 레지스트리(Python·NVIDIA·Steam 설치).</summary>
-    public FakeRegistryReader Registry { get; } = new FakeRegistryReader()
-        .WithSubKeys(RegistryRoot.CurrentUser, RegistryView.Default, @"Software\Python", new RegistrySubKeyReading(RegistryReadStatus.Found, [], null))
-        .WithSubKeys(RegistryRoot.LocalMachine, RegistryView.Registry64, @"Software\NVIDIA Corporation", new RegistrySubKeyReading(RegistryReadStatus.Found, [], null))
-        .WithSubKeys(RegistryRoot.CurrentUser, RegistryView.Default, @"Software\Valve\Steam", new RegistrySubKeyReading(RegistryReadStatus.Found, [], null))
-        .WithKeyValues(RegistryRoot.CurrentUser, RegistryView.Default, SteamLibraryReader.USER_KEY, new RegistryValueEntry("AutoLoginUser", "String", "fakeuser", null))
-        .WithString(RegistryRoot.CurrentUser, RegistryView.Default, SteamLibraryReader.USER_KEY, SteamLibraryReader.USER_VALUE, "c:/program files (x86)/steam")
-        .WithString(RegistryRoot.LocalMachine, RegistryView.Registry64, OtherUserLocationGuard.PROFILE_LIST_KEY, OtherUserLocationGuard.PROFILES_DIRECTORY_VALUE, @"%SystemDrive%\Users")
-        .WithSubKeys(RegistryRoot.LocalMachine, RegistryView.Registry64, OtherUserLocationGuard.PROFILE_LIST_KEY,
-            new RegistrySubKeyReading(RegistryReadStatus.Found, ["S-1-5-18", CURRENT_SID, OTHER_SID], null))
-        .WithString(RegistryRoot.LocalMachine, RegistryView.Registry64, OtherUserLocationGuard.PROFILE_LIST_KEY + @"\S-1-5-18", OtherUserLocationGuard.PROFILE_IMAGE_PATH_VALUE, @"%SystemRoot%\system32\config\systemprofile")
-        .WithString(RegistryRoot.LocalMachine, RegistryView.Registry64, OtherUserLocationGuard.PROFILE_LIST_KEY + @"\" + CURRENT_SID, OtherUserLocationGuard.PROFILE_IMAGE_PATH_VALUE, PROFILE)
-        .WithString(RegistryRoot.LocalMachine, RegistryView.Registry64, OtherUserLocationGuard.PROFILE_LIST_KEY + @"\" + OTHER_SID, OtherUserLocationGuard.PROFILE_IMAGE_PATH_VALUE, @"C:\Users\other");
+    /// <summary>가짜 레지스트리(Python·NVIDIA·Steam 설치, 선택적으로 ProfileList).</summary>
+    public FakeRegistryReader Registry { get; }
 
     /// <summary>규칙 파일(커뮤니티는 구성 fixture, 보충·메타데이터는 실제 포함 파일).</summary>
-    public Dictionary<string, byte[]> RuleFiles { get; } = RuleCatalogLoaderTests.Files(
-        File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "Winapp2", "probe-community.ini")));
+    public Dictionary<string, byte[]> RuleFiles { get; }
 
     /// <summary>보호 정책 JSON(null이면 없음).</summary>
     public string? Policy { get; set; } = POLICY;
@@ -154,6 +152,31 @@ internal sealed class AppCacheTestEnvironment
     }
 
     /// <summary>
+    /// 가짜 레지스트리를 만든다.
+    /// </summary>
+    private static FakeRegistryReader CreateRegistry(bool profileList)
+    {
+        var registry = new FakeRegistryReader()
+            .WithSubKeys(RegistryRoot.CurrentUser, RegistryView.Default, @"Software\Python", new RegistrySubKeyReading(RegistryReadStatus.Found, [], null))
+            .WithSubKeys(RegistryRoot.LocalMachine, RegistryView.Registry64, @"Software\NVIDIA Corporation", new RegistrySubKeyReading(RegistryReadStatus.Found, [], null))
+            .WithSubKeys(RegistryRoot.CurrentUser, RegistryView.Default, @"Software\Valve\Steam", new RegistrySubKeyReading(RegistryReadStatus.Found, [], null))
+            .WithKeyValues(RegistryRoot.CurrentUser, RegistryView.Default, SteamLibraryReader.USER_KEY, new RegistryValueEntry("AutoLoginUser", "String", "fakeuser", null))
+            .WithString(RegistryRoot.CurrentUser, RegistryView.Default, SteamLibraryReader.USER_KEY, SteamLibraryReader.USER_VALUE, "c:/program files (x86)/steam");
+        if (profileList)
+        {
+            registry
+                .WithString(RegistryRoot.LocalMachine, RegistryView.Registry64, OtherUserLocationGuard.PROFILE_LIST_KEY, OtherUserLocationGuard.PROFILES_DIRECTORY_VALUE, @"%SystemDrive%\Users")
+                .WithSubKeys(RegistryRoot.LocalMachine, RegistryView.Registry64, OtherUserLocationGuard.PROFILE_LIST_KEY,
+                    new RegistrySubKeyReading(RegistryReadStatus.Found, ["S-1-5-18", CURRENT_SID, OTHER_SID], null))
+                .WithString(RegistryRoot.LocalMachine, RegistryView.Registry64, OtherUserLocationGuard.PROFILE_LIST_KEY + @"\S-1-5-18", OtherUserLocationGuard.PROFILE_IMAGE_PATH_VALUE, @"%SystemRoot%\system32\config\systemprofile")
+                .WithString(RegistryRoot.LocalMachine, RegistryView.Registry64, OtherUserLocationGuard.PROFILE_LIST_KEY + @"\" + CURRENT_SID, OtherUserLocationGuard.PROFILE_IMAGE_PATH_VALUE, PROFILE)
+                .WithString(RegistryRoot.LocalMachine, RegistryView.Registry64, OtherUserLocationGuard.PROFILE_LIST_KEY + @"\" + OTHER_SID, OtherUserLocationGuard.PROFILE_IMAGE_PATH_VALUE, @"C:\Users\other");
+        }
+
+        return registry;
+    }
+
+    /// <summary>
     /// 가짜 트리.
     /// </summary>
     private static FakeDirectoryEntrySource Tree(bool defaultCaches)
@@ -169,7 +192,7 @@ internal sealed class AppCacheTestEnvironment
             .Dir(ROAMING + @"\Adobe", D("Common"))
             .Dir(ROAMING + @"\Adobe\Common", D("Media Cache Files"))
             .Dir(ROAMING + @"\Adobe\Common\Media Cache Files", F("clip.cfa", 500))
-            .Dir(LOCAL, D("NVIDIA"), D("Discord"), D("slack"), D("Vendor"), D("Temp"))
+            .Dir(LOCAL, D("NVIDIA"), D("Discord"), D("slack"), D("Vendor"), D("Temp"), D("Google"), D("Microsoft"))
             .Dir(LOCAL + @"\NVIDIA", D("DXCache"), D("GLCache"))
             .Dir(LOCAL + @"\NVIDIA\DXCache", F("s1", 50))
             .Dir(LOCAL + @"\NVIDIA\GLCache", F("s2", 70))
@@ -181,6 +204,14 @@ internal sealed class AppCacheTestEnvironment
             .Dir(LOCAL + @"\Vendor", F("a.log", 5), F("keep.log", 7), F("b.txt", 9), D("Sub"))
             .Dir(LOCAL + @"\Vendor\Sub", F("c.log", 11))
             .Dir(LOCAL + @"\Temp", F("t.tmp", 1))
+            .Dir(LOCAL + @"\Google", D("Chrome"))
+            .Dir(LOCAL + @"\Google\Chrome", D("User Data"))
+            .Dir(LOCAL + @"\Google\Chrome\User Data", D("Default"))
+            .Dir(LOCAL + @"\Google\Chrome\User Data\Default", F("Bookmarks.bak", 30), F("favicons", 40), F("QuotaManager", 50))
+            .Dir(LOCAL + @"\Microsoft", D("Edge"))
+            .Dir(LOCAL + @"\Microsoft\Edge", D("User Data"))
+            .Dir(LOCAL + @"\Microsoft\Edge\User Data", D("Default"))
+            .Dir(LOCAL + @"\Microsoft\Edge\User Data\Default", F("QuotaManager", 70))
             .Dir(@"C:\ProgramData")
             .Dir(@"C:\", FakeDirectoryEntrySource.Folder("Documents and Settings", FileAttributes.ReparsePoint), D("Users"), D("$Recycle.Bin"))
             .Dir(@"C:\Documents and Settings\Default\Junctioned", F("through-junction.dat", 4444))
@@ -210,7 +241,7 @@ internal sealed class AppCacheTestEnvironment
                 .Dir(PROFILE + @"\.nuget", D("packages"))
                 .Dir(PROFILE + @"\.nuget\packages", D("newtonsoft.json"))
                 .Dir(PROFILE + @"\.nuget\packages\newtonsoft.json", F("newtonsoft.json.13.0.3.nupkg", 400))
-                .Dir(LOCAL, D("npm-cache"), D("pip"), D("NVIDIA"), D("Discord"), D("slack"), D("Vendor"), D("Temp"))
+                .Dir(LOCAL, D("npm-cache"), D("pip"), D("NVIDIA"), D("Discord"), D("slack"), D("Vendor"), D("Temp"), D("Google"), D("Microsoft"))
                 .Dir(LOCAL + @"\npm-cache", D("_cacache"))
                 .Dir(LOCAL + @"\npm-cache\_cacache", F("a", 100), F("b", 200))
                 .Dir(LOCAL + @"\pip", D("Cache"))

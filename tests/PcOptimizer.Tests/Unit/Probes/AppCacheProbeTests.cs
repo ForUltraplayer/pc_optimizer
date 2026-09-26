@@ -1,7 +1,7 @@
 /**
  * @file    : AppCacheProbeTests.cs
  * @author  : rudals252
- * @brief   : 앱 캐시 프로브 전체 흐름(가짜 PC): 보충 규칙 탐지·관측과 앱 카드, 기본 폴더 없이 설정으로 옮긴 캐시 탐지, 겹친 커뮤니티 규칙 병합, 설정 재정의(스캔 루트 밖), Steam 게임 본체 제외, NuGet 보호 폴더 설정 경로 우회 금지, Squirrel 이름만(메타데이터 목록), 다른 사용자·Public·정션 경로, 관리자 검사의 기본 위치만, 무결성·보호 정책 실패, 인증 토큰이 측정값·로그·내보내기에 남지 않음을 검증
+ * @brief   : 앱 캐시 프로브 전체 흐름(가짜 PC): 보충 규칙 탐지·관측과 앱 카드, 기본 폴더 없이 설정으로 옮긴 캐시 탐지, 겹친 커뮤니티 규칙 병합, 실제 파싱 항목의 Section= 앱 카드 묶음, 설정 재정의(스캔 루트 밖), Steam 게임 본체 제외, NuGet 보호 폴더 설정 경로 우회 금지, Squirrel 이름만(메타데이터 목록), 다른 사용자·Public·정션 경로, ProfileList 없음 기록, 관리자 검사의 기본 위치만, 무결성·보호 정책 실패, 인증 토큰이 측정값·로그·내보내기에 남지 않음을 검증
  */
 
 // 사용자 패키지
@@ -169,6 +169,48 @@ public sealed class AppCacheProbeTests
         Assert.Equal(new IntegerValue(1), Field(snapshot, "winapp2:Windows Recycle Bin", AppCacheProbeContract.FIELD_SKIP_PROTECTED));
         Assert.DoesNotContain(@"C:\Users\other\.vendor_usage", environment.Source.Enumerated);
         Assert.DoesNotContain(@"C:\$Recycle.Bin\" + AppCacheTestEnvironment.OTHER_SID, environment.Source.Enumerated);
+    }
+
+    /// <summary>
+    /// 실제 파싱한 커뮤니티 항목의 앱 카드 묶음: winapp2 Section= 텍스트가 같은 Chrome 섹션 3개는 카드 하나(규칙별 상세 줄 유지), Edge 섹션은 카드 하나이며,
+    /// 숫자 LangSecRef·숫자 Section= 값만 같은 규칙은 묶지 않고 규칙 이름(끝의 " *" 제거)으로 따로 보인다.
+    /// </summary>
+    [Fact]
+    public async Task 같은_Section의_커뮤니티_규칙은_앱_카드_하나로_합친다()
+    {
+        var (_, snapshot) = await RunAsync(new AppCacheTestEnvironment(communityFixture: AppCacheTestEnvironment.GROUPING_FIXTURE));
+        var cards = new AppCacheRule().Evaluate(snapshot).Where(f => f.Id.StartsWith(AppCacheRule.FINDING_ID_PREFIX, StringComparison.Ordinal)).ToList();
+
+        var chrome = Assert.Single(cards, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + "Google Chrome Web Browser");
+        var edge = Assert.Single(cards, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + "Microsoft Edge Web Browser");
+        Assert.Single(cards, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + "Vendor Alpha Logs");
+        Assert.Single(cards, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + "Vendor Beta Temp");
+        Assert.DoesNotContain(cards, f => f.Id.Contains("3021", StringComparison.Ordinal) || f.Id.Contains("Google Chrome Bookmark", StringComparison.Ordinal));
+        Assert.Equal("Google Chrome Web Browser: 규칙 위치의 파일 관측 120 B", chrome.Title);
+        Assert.Contains("winapp2:Google Chrome Bookmark Backups: 30 B", chrome.Detail!, StringComparison.Ordinal);
+        Assert.Contains("winapp2:Google Chrome Bookmark Favicons: 40 B", chrome.Detail!, StringComparison.Ordinal);
+        Assert.Contains("winapp2:Google Chrome Storage Quota Manager: 50 B", chrome.Detail!, StringComparison.Ordinal);
+        Assert.Equal("Microsoft Edge Web Browser: 규칙 위치의 파일 관측 70 B", edge.Title);
+        Assert.Equal(new TextValue("Google Chrome Web Browser"), Field(snapshot, "winapp2:Google Chrome Bookmark Favicons", AppCacheProbeContract.FIELD_APP));
+    }
+
+    /// <summary>
+    /// ProfileList를 읽지 못한 PC: 목록을 읽지 못했다는 측정값을 남기고 규칙 목록 요약이 이를 밝히며,
+    /// 현재 프로필의 부모 폴더(C:\Users) 추정으로 다른 사용자(C:\Users\other)는 계속 막는다.
+    /// </summary>
+    [Fact]
+    public async Task 프로필_목록을_읽지_못하면_측정값과_요약에_남긴다()
+    {
+        var (_, listed) = await RunAsync(new AppCacheTestEnvironment());
+        var environment = new AppCacheTestEnvironment(profileList: false);
+        var (_, snapshot) = await RunAsync(environment);
+        var summary = Assert.Single(new RuleCatalogSummaryRule().Evaluate(snapshot));
+
+        Assert.Equal(new BooleanValue(true), listed.GetMeasurement(PROBE_ID, AppCacheProbeContract.PROFILE_LIST_AVAILABLE)?.Value);
+        Assert.Equal(new BooleanValue(false), snapshot.GetMeasurement(PROBE_ID, AppCacheProbeContract.PROFILE_LIST_AVAILABLE)?.Value);
+        Assert.Contains("사용자 프로필 목록을 읽지 못해", summary.Detail!, StringComparison.Ordinal);
+        Assert.Equal(new TextValue(AppCacheProbeContract.RULE_STATE_PROTECTED), Field(snapshot, "winapp2:Other Users Wildcard", AppCacheProbeContract.FIELD_STATE));
+        Assert.DoesNotContain(@"C:\Users\other\.vendor_usage", environment.Source.Enumerated);
     }
 
     /// <summary>보충 규칙 6종이 이 가짜 PC에서 탐지되어 앱 카드(검토 영향·캐시 문구·설정 열기)로 나오고 금지 문구가 없다. 커뮤니티 규칙 카드는 중립 문구·영향 미확인이다.</summary>

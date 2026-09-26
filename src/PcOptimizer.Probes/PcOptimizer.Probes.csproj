@@ -21,13 +21,15 @@
 
   <ItemGroup>
     <!--
-      포함 앱 캐시 규칙(스펙 §5.1·§6): 저장소의 rules\가 원본이며, 빌드 때 이 어셈블리에 리소스로 넣는다.
+      포함 앱 캐시 규칙(스펙 §5.1·§6)과 보호 정책: 저장소의 rules\가 원본이며, 빌드 때 이 어셈블리에 리소스로 넣는다.
       앱은 규칙을 파일 시스템(출력 폴더)에서 읽지 않으므로 사용자 쓰기 가능한 폴더의 파일을 바꿔도 적용되지 않는다.
     -->
     <EmbeddedResource Include="..\..\rules\winapp2.ini" Link="rules\winapp2.ini" LogicalName="PcOptimizer.Rules.winapp2.ini" />
     <EmbeddedResource Include="..\..\rules\supplement.ini" Link="rules\supplement.ini" LogicalName="PcOptimizer.Rules.supplement.ini" />
     <EmbeddedResource Include="..\..\rules\rule-metadata.json" Link="rules\rule-metadata.json" LogicalName="PcOptimizer.Rules.rule-metadata.json" />
     <EmbeddedResource Include="..\..\rules\sources.json" Link="rules\sources.json" LogicalName="PcOptimizer.Rules.sources.json" />
+    <!-- 포함 보호 정책(스펙 §5.2): 규칙과 같은 이유로 리소스로만 읽는다. 없거나 손상되면 파일 순회를 하지 않는다 -->
+    <EmbeddedResource Include="..\..\rules\protect.json" Link="rules\protect.json" LogicalName="PcOptimizer.Rules.protect.json" />
   </ItemGroup>
 
   <ItemGroup>
