@@ -1,7 +1,7 @@
 /**
  * @file    : MainViewModelTests.cs
  * @author  : rudals252
- * @brief   : 메인 화면 모델의 상태 전이·Finding 기준 건수·바로 할 수 있는 것/직접 해야 하는 것 요약·정리 창 노출 조건·온라인 비교 완료 판정·분류 필터·취소 후 재검사·종료 중 표시·내보내기·관리자 권한 재검사(버튼 활성, UAC 취소 시 결과 보존, 실패 안내, 배너)·내 PC 사양 전환(첫 진입 새로 고침, 검사 중 새로 고침 막기)을 가짜 프로브와 즉시 실행 마샬러로 검증
+ * @brief   : 메인 화면 모델의 상태 전이·Finding 기준 건수·바로 할 수 있는 것/직접 해야 하는 것 요약·정리 창 노출 조건·온라인 비교 완료 판정·분류 필터·취소 후 재검사·종료 중 표시·내보내기·관리자 권한 재검사(버튼 활성, UAC 취소 시 결과 보존, 실패 안내, 배너)·내 PC 사양 전환(첫 진입 새로 고침을 기다리지 않는 전환, 검사 중 새로 고침 막기와 검사 후 자동 읽기, 사양 읽는 중 검사 시작 막기)을 가짜 프로브와 즉시 실행 마샬러로 검증
  */
 
 // 기본 패키지
@@ -42,7 +42,8 @@ public sealed class MainViewModelTests
         IProcessStarter? starter = null,
         ScanLaunchMode launchMode = ScanLaunchMode.Normal,
         IEnumerable<IRule>? rules = null,
-        IActionAvailability? availability = null)
+        IActionAvailability? availability = null,
+        PcSpecViewModel? spec = null)
     {
         var elevationState = elevation ?? new FakeElevationState(isElevated: false);
         var options = new ScanOptions { CancellationGracePeriod = SHORT_GRACE };
@@ -68,7 +69,7 @@ public sealed class MainViewModelTests
             new ElevationRelauncher(starter ?? new RecordingProcessStarter(), elevationState, () => APP_PATH, NullAppLogger.Instance),
             launchMode,
             availability ?? new FixedActionAvailability(false),
-            SpecTestFactory.Create());
+            spec ?? SpecTestFactory.Create());
     }
 
     /// <summary>"내 PC 사양" 버튼은 본문을 사양 화면으로 바꾸고 첫 진입에서만 사양을 읽으며, 다시 누르면 결과로 돌아간다.</summary>
@@ -80,7 +81,8 @@ public sealed class MainViewModelTests
         Assert.True(vm.IsResultsVisible);
         Assert.Equal(Strings.Spec_NavOpen, vm.SpecToggleText);
 
-        await vm.ToggleSpecCommand.ExecuteAsync(null);
+        vm.ToggleSpecCommand.Execute(null);
+        await vm.Spec.RefreshCommand.ExecutionTask!.WaitAsync(WAIT_BOUND);
 
         Assert.True(vm.IsSpecVisible);
         Assert.False(vm.IsResultsVisible);
@@ -89,10 +91,69 @@ public sealed class MainViewModelTests
         var loadedAt = vm.Spec.Snapshot;
         Assert.NotNull(loadedAt);
 
-        await vm.ToggleSpecCommand.ExecuteAsync(null);
+        vm.ToggleSpecCommand.Execute(null);
         Assert.False(vm.IsSpecVisible);
-        await vm.ToggleSpecCommand.ExecuteAsync(null);
+        vm.ToggleSpecCommand.Execute(null);
         Assert.Same(loadedAt, vm.Spec.Snapshot);
+    }
+
+    /// <summary>첫 사양 읽기가 오래 걸려도 전환 버튼은 막히지 않아 바로 결과로 돌아갈 수 있고, 읽기는 뒤에서 끝난다. 읽는 동안에는 검사를 시작할 수 없다.</summary>
+    [Fact]
+    public async Task SpecToggleReturnsImmediatelyWhileSpecLoads()
+    {
+        var gate = new GatedSystemDetailsProbe();
+        var vm = CreateViewModel([new FixtureMemoryProbe()], spec: SpecTestFactory.Create(probes: [gate]));
+
+        vm.ToggleSpecCommand.Execute(null);
+        await gate.Started.WaitAsync(WAIT_BOUND);
+
+        Assert.True(vm.IsSpecVisible);
+        Assert.True(vm.Spec.IsLoading);
+        Assert.True(vm.ToggleSpecCommand.CanExecute(null));
+        Assert.False(vm.StartScanCommand.CanExecute(null));
+        vm.ToggleSpecCommand.Execute(null);
+        Assert.False(vm.IsSpecVisible);
+
+        gate.Release();
+        await vm.Spec.RefreshCommand.ExecutionTask!.WaitAsync(WAIT_BOUND);
+        Assert.False(vm.Spec.IsLoading);
+        Assert.NotNull(vm.Spec.Snapshot);
+        Assert.True(vm.StartScanCommand.CanExecute(null));
+    }
+
+    /// <summary>검사 중에 사양 화면을 열면 그때는 읽지 않고, 검사가 끝나면(화면이 열려 있고 아직 읽은 사양이 없으면) 자동으로 읽는다.</summary>
+    [Fact]
+    public async Task SpecOpenedDuringScanLoadsAfterScanEnds()
+    {
+        var waiting = new FirstCallWaitsForCancelProbe();
+        var vm = CreateViewModel([waiting]);
+
+        var scan = vm.StartScanCommand.ExecuteAsync(null);
+        await waiting.Started.WaitAsync(WAIT_BOUND);
+        vm.ToggleSpecCommand.Execute(null);
+        Assert.True(vm.IsSpecVisible);
+        Assert.Null(vm.Spec.RefreshCommand.ExecutionTask);
+        Assert.Null(vm.Spec.Snapshot);
+
+        vm.CancelScanCommand.Execute(null);
+        await scan.WaitAsync(WAIT_BOUND);
+        Assert.NotNull(vm.Spec.RefreshCommand.ExecutionTask);
+        await vm.Spec.RefreshCommand.ExecutionTask!.WaitAsync(WAIT_BOUND);
+
+        Assert.NotNull(vm.Spec.Snapshot);
+        Assert.Equal(9, vm.Spec.Sections.Count);
+    }
+
+    /// <summary>사양 화면을 닫은 채로 검사가 끝나면 사양을 읽지 않는다.</summary>
+    [Fact]
+    public async Task SpecIsNotLoadedAfterScanWhenHidden()
+    {
+        var vm = CreateViewModel([new FixtureMemoryProbe()]);
+
+        await vm.StartScanCommand.ExecuteAsync(null).WaitAsync(WAIT_BOUND);
+
+        Assert.Null(vm.Spec.RefreshCommand.ExecutionTask);
+        Assert.Null(vm.Spec.Snapshot);
     }
 
     /// <summary>검사 중에는 사양 새로 고침이 꺼지고(프로브 공유), 검사가 끝나면 다시 켜진다.</summary>

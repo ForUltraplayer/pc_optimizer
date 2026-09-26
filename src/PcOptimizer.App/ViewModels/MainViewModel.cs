@@ -341,20 +341,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// 본문을 내 PC 사양 화면으로 바꿉니다. 처음 열 때(아직 읽은 사양이 없고 검사 중이 아닐 때)만 사양을 읽습니다.
+    /// 본문을 내 PC 사양 화면으로 바꿉니다. 아직 읽은 사양이 없으면 읽기를 시작만 하고 기다리지 않으므로,
+    /// 전환 버튼은 첫 읽기(프로브 여러 개) 동안에도 바로 다시 누를 수 있습니다. 검사 중이면 검사가 끝난 뒤 읽습니다.
     /// </summary>
     [RelayCommand]
-    private async Task ShowSpecAsync()
+    private void ShowSpec()
     {
         IsSpecVisible = true;
-        if (Spec.Snapshot is null && Spec.RefreshCommand.CanExecute(null))
-        {
-            await Spec.RefreshCommand.ExecuteAsync(null);
-        }
+        EnsureSpecLoaded();
     }
 
     /// <summary>
-    /// 본문을 검사 결과 영역으로 되돌립니다.
+    /// 본문을 검사 결과 영역으로 되돌립니다(진행 중인 사양 읽기는 계속됨).
     /// </summary>
     [RelayCommand]
     private void ShowResults()
@@ -363,10 +361,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// 머리글 버튼: 결과와 내 PC 사양 화면을 번갈아 보여 줍니다.
+    /// 머리글 버튼: 결과와 내 PC 사양 화면을 번갈아 보여 줍니다(즉시 반환).
     /// </summary>
     [RelayCommand]
-    private async Task ToggleSpecAsync()
+    private void ToggleSpec()
     {
         if (IsSpecVisible)
         {
@@ -374,16 +372,36 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        await ShowSpecAsync();
+        ShowSpec();
+    }
+
+    /// <summary>
+    /// 사양 화면이 보이고 아직 읽은 사양이 없으며 읽을 수 있으면(읽는 중·검사 중이 아니면) 읽기를 시작한다. 완료는 기다리지 않는다
+    /// (진행은 <see cref="PcSpecViewModel.RefreshCommand"/>의 ExecutionTask로 추적).
+    /// </summary>
+    private void EnsureSpecLoaded()
+    {
+        if (IsSpecVisible && Spec.Snapshot is null && Spec.RefreshCommand.CanExecute(null))
+        {
+            Spec.RefreshCommand.Execute(null);
+        }
     }
 
     /// <summary>검사를 시작할 수 있는지 여부(사양을 읽는 중에도 프로브 공유를 피하려고 막음).</summary>
     private bool CanStartScan() => State != ScanState.Scanning && !Spec.IsLoading;
 
     /// <summary>
-    /// 검사 상태가 바뀌면 사양 새로 고침 가능 여부를 맞춘다(프로브 공유).
+    /// 검사 상태가 바뀌면 사양 새로 고침 가능 여부를 맞춘다(프로브 공유). 검사 중에 사양 화면을 열어 읽지 못했다면 검사가 끝날 때 읽는다.
     /// </summary>
-    partial void OnStateChanged(ScanState oldValue, ScanState newValue) => Spec.SetBusy(newValue == ScanState.Scanning);
+    partial void OnStateChanged(ScanState oldValue, ScanState newValue)
+    {
+        var scanning = newValue == ScanState.Scanning;
+        Spec.SetBusy(scanning);
+        if (!scanning)
+        {
+            EnsureSpecLoaded();
+        }
+    }
 
     /// <summary>
     /// 사양을 읽는 중인지가 바뀌면 검사 시작 가능 여부를 다시 계산한다.

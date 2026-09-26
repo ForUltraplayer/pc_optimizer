@@ -276,7 +276,7 @@ public sealed class MainWindowLayoutTests
             Assert.Contains(FindTextBlocks(view), t => t.Text == Strings.Spec_Anonymized);
             Assert.Contains(FindTextBlocks(view), t => t.Text == Strings.Spec_MoreDetails);
             // fastfetch 스타일: 섹션 제목 뒤에 항목 줄이 한 열로 이어지고 2열 Grid가 없다
-            Assert.DoesNotContain(Descendants<Grid>(view), g => g.ColumnDefinitions.Count >= 2 && g.RowDefinitions.Count >= 2);
+            Assert.All(Descendants<Grid>(view.CaptureRoot), g => Assert.True(g.ColumnDefinitions.Count < 2, "사양 목록에 2열 Grid가 있음"));
             Assert.Empty(Descendants<UniformGrid>(view));
             Assert.All(FindTextBlocks(view), t => Assert.True(t.ActualWidth <= SPEC_WIDTH));
         });
@@ -354,7 +354,8 @@ public sealed class MainWindowLayoutTests
             var model = CreateScannedViewModel(overview: true);
             var window = new MainWindow(model);
             var root = (FrameworkElement)window.Content;
-            model.ToggleSpecCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+            model.ToggleSpecCommand.Execute(null);
+            Assert.True(model.Spec.RefreshCommand.ExecutionTask!.IsCompleted);
             root.Measure(new Size(CARD_LAYOUT_WIDTH, CARD_LAYOUT_HEIGHT));
             root.Arrange(new Rect(0, 0, CARD_LAYOUT_WIDTH, CARD_LAYOUT_HEIGHT));
             root.UpdateLayout();

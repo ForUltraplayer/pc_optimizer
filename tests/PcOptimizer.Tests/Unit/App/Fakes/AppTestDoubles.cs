@@ -1,7 +1,7 @@
 /**
  * @file    : AppTestDoubles.cs
  * @author  : rudals252
- * @brief   : 뷰모델 테스트용 대역(즉시 실행 UI 마샬러, 고정 경로 선택기, 메모리·시스템 상세 fixture 프로브, 첫 호출만 취소를 기다리는 프로브, 고정 권한 상태, 기록·예외 프로세스 시작기, 고정 앱 내 실행 판정, 기록 클립보드, 일반 검사 컨텍스트, 사양 뷰모델 생성기)
+ * @brief   : 뷰모델 테스트용 대역(즉시 실행 UI 마샬러, 고정 경로 선택기, 메모리·시스템 상세 fixture 프로브, 풀어 줄 때까지 기다리는 시스템 상세 프로브, 첫 호출만 취소를 기다리는 프로브, 고정 권한 상태, 기록·예외 프로세스 시작기, 고정 앱 내 실행 판정, 기록 클립보드, 일반 검사 컨텍스트, 사양 뷰모델 생성기)
  */
 
 // 기본 패키지
@@ -253,6 +253,47 @@ internal sealed class FixtureSystemDetailsProbe : IProbe
 }
 
 /// <summary>
+/// 테스트가 <see cref="Release"/>를 부를 때까지 기다렸다가 성공하는 시스템 상세 프로브입니다(오래 걸리는 첫 사양 읽기 모사).
+/// </summary>
+internal sealed class GatedSystemDetailsProbe : IProbe
+{
+    private readonly TaskCompletionSource _gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>RunAsync가 시작되면 완료되는 작업.</summary>
+    public Task Started => _started.Task;
+
+    /// <inheritdoc />
+    public string Id => SystemDetailsProbeContract.PROBE_ID;
+
+    /// <inheritdoc />
+    public FindingCategory Category => FindingCategory.Driver;
+
+    /// <inheritdoc />
+    public bool RequiresElevation => false;
+
+    /// <inheritdoc />
+    public bool RequiresNetwork => false;
+
+    /// <inheritdoc />
+    public ProbeScope Scope => ProbeScope.System;
+
+    /// <inheritdoc />
+    public TimeSpan DefaultTimeout => FakeProbe.GENEROUS_TIMEOUT;
+
+    /// <summary>기다리는 프로브를 풀어 줍니다.</summary>
+    public void Release() => _gate.TrySetResult();
+
+    /// <inheritdoc />
+    public async Task<ProbeResult> RunAsync(ScanContext context, CancellationToken ct)
+    {
+        _started.TrySetResult();
+        await _gate.Task.WaitAsync(ct);
+        return new ProbeResult(Id, ProbeStatus.Success, [], [], context.StartedAtUtc, TimeSpan.Zero, context.UserContext);
+    }
+}
+
+/// <summary>
 /// 마지막으로 받은 텍스트를 보관하는 클립보드 대역입니다(실제 클립보드를 건드리지 않음).
 /// </summary>
 internal sealed class RecordingClipboard : IClipboard
@@ -295,9 +336,11 @@ internal static class SpecTestFactory
     /// <param name="clipboard">클립보드(없으면 기록 클립보드).</param>
     /// <param name="picker">저장 경로 선택기(없으면 취소).</param>
     /// <param name="captureTarget">이미지 렌더 대상 공급자(없으면 대상 없음).</param>
-    public static PcSpecViewModel Create(IClipboard? clipboard = null, IExportPathPicker? picker = null, Func<FrameworkElement?>? captureTarget = null)
+    /// <param name="probes">사양 프로브(없으면 시스템 상세 fixture 프로브 하나).</param>
+    public static PcSpecViewModel Create(IClipboard? clipboard = null, IExportPathPicker? picker = null, Func<FrameworkElement?>? captureTarget = null,
+        IReadOnlyList<IProbe>? probes = null)
     {
-        var service = new PcSpecService([new FixtureSystemDetailsProbe()], new FakeClock(), NullAppLogger.Instance, TestContexts.Normal);
+        var service = new PcSpecService(probes ?? [new FixtureSystemDetailsProbe()], new FakeClock(), NullAppLogger.Instance, TestContexts.Normal);
         return new PcSpecViewModel(service, new PcSpecTextFormatter(), clipboard ?? new RecordingClipboard(), picker ?? new FixedExportPathPicker(null),
             captureTarget ?? (() => null), new ImmediateUiDispatcher(), NullAppLogger.Instance, MACHINE_NAME, USER_NAME);
     }
