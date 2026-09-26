@@ -33,6 +33,7 @@ internal static class AppCacheMeasurements
     private const string SOURCE_DETECTION = "RuleDetector (registry key existence, file attributes)";
     private const string SOURCE_SCAN = "Shared file scan totals + targeted metadata enumeration";
     private const string SOURCE_CONFIG = "App config readers (cache location keys only)";
+    private const string SOURCE_PROFILE_LIST = "HKLM ProfileList (ProfilesDirectory, ProfileImagePath values)";
 
     /// <summary>
     /// 규칙 목록 상태만 담은 측정값(실패 결과용).
@@ -59,6 +60,7 @@ internal static class AppCacheMeasurements
         IReadOnlyList<ClassifiedAppConfig> configs,
         IReadOnlyDictionary<string, string> configRuleIds,
         bool elevated,
+        bool profileListAvailable,
         TimeSpan elapsed,
         DateTimeOffset observedAt)
     {
@@ -85,6 +87,7 @@ internal static class AppCacheMeasurements
         Add(AppCacheProbeContract.DETECTION_UNKNOWN_COUNT, new IntegerValue(detection.Unknown), SOURCE_DETECTION);
         Add(AppCacheProbeContract.RUNTIME_UNSUPPORTED_BY_REASON, new TextListValue(ReasonCounts(detection.RuntimeUnsupported)), SOURCE_DETECTION);
         Add(AppCacheProbeContract.ELEVATED_DEFAULTS_ONLY, new BooleanValue(elevated), SOURCE_CONFIG);
+        Add(AppCacheProbeContract.PROFILE_LIST_AVAILABLE, new BooleanValue(profileListAvailable), SOURCE_PROFILE_LIST);
         Add(AppCacheProbeContract.ELAPSED_MS, new IntegerValue((long)elapsed.TotalMilliseconds), SOURCE_SCAN, AppCacheProbeContract.UNIT_MILLISECONDS);
 
         Add(AppCacheProbeContract.RULE_COUNT, new IntegerValue(rules.Count), SOURCE_SCAN);
@@ -132,7 +135,7 @@ internal static class AppCacheMeasurements
 
         Add(AppCacheProbeContract.FIELD_ID, new TextValue(rule.Rule.Id));
         Add(AppCacheProbeContract.FIELD_NAME, new TextValue(rule.Rule.Name));
-        Add(AppCacheProbeContract.FIELD_APP, new TextValue(rule.Metadata?.AppLabel ?? rule.Rule.Name));
+        Add(AppCacheProbeContract.FIELD_APP, new TextValue(rule.Metadata?.AppLabel ?? rule.Rule.AppGroup));
         Add(AppCacheProbeContract.FIELD_ORIGIN, new TextValue(rule.Rule.Origin == RuleOrigin.Supplement ? AppCacheProbeContract.ORIGIN_SUPPLEMENT : AppCacheProbeContract.ORIGIN_COMMUNITY));
         Add(AppCacheProbeContract.FIELD_STATE, new TextValue(rule.State));
         if (rule.Bytes is { } bytes)

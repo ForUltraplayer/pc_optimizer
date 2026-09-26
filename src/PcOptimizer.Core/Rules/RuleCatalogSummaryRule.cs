@@ -99,9 +99,15 @@ public sealed class RuleCatalogSummaryRule : IRule
             details.Add(SnapshotValues.Format(CoreStrings.AppCache_Catalog_Detail_Unknown, unknown));
         }
 
-        var (cards, folded) = AppCacheCardPlanner.Plan(snapshot);
-        details.Add(SnapshotValues.Format(CoreStrings.AppCache_Catalog_Detail_Cards, cards.Count));
-        details.Add(SnapshotValues.Format(CoreStrings.AppCache_Catalog_Detail_Folded, folded.NoFilesApps, folded.MergedApps, folded.ProtectedApps, folded.UnverifiedApps));
+        var plan = AppCacheCardPlanner.Plan(snapshot);
+        var folded = plan.Folded;
+        details.Add(SnapshotValues.Format(CoreStrings.AppCache_Catalog_Detail_Cards, plan.Cards.Count));
+        details.Add(SnapshotValues.Format(CoreStrings.AppCache_Catalog_Detail_Folded, folded.NoFilesApps, folded.MergedApps));
+        if (plan.Unverified.Count > 0)
+        {
+            details.Add(SnapshotValues.Format(CoreStrings.AppCache_Catalog_Detail_Unverified, plan.Unverified.Count));
+        }
+
         if (folded.SensitiveRules > 0)
         {
             details.Add(SnapshotValues.Format(CoreStrings.AppCache_Catalog_Detail_Sensitive, folded.SensitiveRules));
@@ -110,6 +116,11 @@ public sealed class RuleCatalogSummaryRule : IRule
         if (SnapshotValues.Boolean(snapshot, PROBE_ID, AppCacheProbeContract.ELEVATED_DEFAULTS_ONLY) == true)
         {
             details.Add(CoreStrings.AppCache_Catalog_Detail_Elevated);
+        }
+
+        if (SnapshotValues.Boolean(snapshot, PROBE_ID, AppCacheProbeContract.PROFILE_LIST_AVAILABLE) == false)
+        {
+            details.Add(CoreStrings.AppCache_Catalog_Detail_ProfileListUnavailable);
         }
 
         details.Add(CoreStrings.AppCache_Catalog_Detail_Effects);

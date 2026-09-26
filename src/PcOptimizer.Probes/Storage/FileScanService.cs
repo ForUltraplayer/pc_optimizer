@@ -5,7 +5,7 @@
  */
 
 // 기본 패키지
-using System.Security;
+using System.Text;
 
 // 사용자 패키지
 using PcOptimizer.Core.Cleaning;
@@ -18,13 +18,13 @@ namespace PcOptimizer.Probes.Storage;
 /// 공유 파일 스캔 서비스입니다. 캐시는 가장 최근 검사 ID 하나만 보관하고, 새 검사 ID가 오면 버립니다.
 /// </summary>
 /// <remarks>
-/// 보호 정책(<c>rules\protect.json</c>)이 없거나 무효이면 아무 것도 순회하지 않고 <see cref="DirectoryScanResult.InvalidPolicy"/>를 돌려줍니다.
+/// 포함 보호 정책(Probes 어셈블리 리소스 <c>rules\protect.json</c>)이 없거나 무효이면 아무 것도 순회하지 않고 <see cref="DirectoryScanResult.InvalidPolicy"/>를 돌려줍니다.
 /// 순회는 처음 호출한 쪽의 취소 토큰으로 취소되며, 이후 호출은 자기 토큰으로 기다리기만 취소할 수 있습니다.
 /// </remarks>
 public sealed class FileScanService : IFileScanService
 {
-    /// <summary>포함 보호 정책 파일의 앱 기준 상대 경로.</summary>
-    public const string POLICY_RELATIVE_PATH = @"rules\protect.json";
+    /// <summary>포함 보호 정책의 어셈블리 리소스 이름.</summary>
+    public const string POLICY_RESOURCE_NAME = "PcOptimizer.Rules.protect.json";
 
     /// <summary>보호 정책 파일 최대 크기(바이트). 넘으면 무효로 봅니다.</summary>
     public const int MAX_POLICY_BYTES = 256 * 1024;
@@ -78,7 +78,7 @@ public sealed class FileScanService : IFileScanService
     public TimeSpan BudgetPerVolume { get; }
 
     /// <summary>
-    /// 실제 환경·파일 시스템과 앱 폴더의 포함 보호 정책을 쓰는 서비스를 만듭니다.
+    /// 실제 환경·파일 시스템과 어셈블리에 포함된 보호 정책을 쓰는 서비스를 만듭니다.
     /// </summary>
     /// <returns>서비스.</returns>
     public static FileScanService CreateDefault()
@@ -95,18 +95,24 @@ public sealed class FileScanService : IFileScanService
     }
 
     /// <summary>
-    /// 앱 폴더의 포함 보호 정책을 읽습니다(없거나 너무 크거나 읽지 못하면 null → 무효).
+    /// 포함 보호 정책을 Probes 어셈블리 리소스에서 읽습니다(없거나 너무 크거나 읽지 못하면 null → 무효).
+    /// 출력 폴더(<see cref="AppContext.BaseDirectory"/>)의 파일은 읽지 않으므로 사용자 쓰기 가능한 폴더의 파일을 바꿔 보호 정책을 약하게 만들 수 없습니다.
     /// </summary>
     /// <returns>정책 JSON 또는 null.</returns>
     public static string? ReadBundledPolicy()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, POLICY_RELATIVE_PATH);
         try
         {
-            var info = new FileInfo(path);
-            return info.Exists && info.Length <= MAX_POLICY_BYTES ? File.ReadAllText(path) : null;
+            using var stream = typeof(FileScanService).Assembly.GetManifestResourceStream(POLICY_RESOURCE_NAME);
+            if (stream is null || stream.Length > MAX_POLICY_BYTES)
+            {
+                return null;
+            }
+
+            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+            return reader.ReadToEnd();
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
+        catch (Exception ex) when (ex is IOException or DecoderFallbackException)
         {
             return null;
         }
