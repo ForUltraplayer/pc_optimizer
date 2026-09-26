@@ -45,6 +45,13 @@ public sealed class DiskHealthRuleTests
         Assert.Contains("SMART 전체 항목을 검사한 결과가 아니", finding.Evidence, StringComparison.Ordinal);
     }
 
+    /// <summary>Candidate를 내는 스냅샷(Warning 상태 디스크 하나)을 만든다.</summary>
+    public static ScanSnapshot CandidateSnapshot()
+    {
+        return HardwareRuleTestData.Snapshot(
+            HardwareRuleTestData.DiskResult(new FakeDisk(DISK_ID, "테스트 HDD", PhysicalDiskProbeContract.HEALTH_WARNING, MediaType: PhysicalDiskProbeContract.MEDIA_TYPE_HDD)));
+    }
+
     /// <summary>Warning·Unhealthy는 백업·점검을 권하는 조건부 Candidate다.</summary>
     [Theory]
     [InlineData(PhysicalDiskProbeContract.HEALTH_WARNING, "Warning")]

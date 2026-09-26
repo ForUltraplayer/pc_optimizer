@@ -41,6 +41,18 @@ public sealed class DriverUpdateRuleTests
         return new FakeNvidiaAdapter(NAME, DriverRuleTestData.NVIDIA_PNP, installed, GameReadyVersions: gameReady, GameReadyLatest: latest, StudioVersions: STUDIO, StudioLatest: DriverRuleTestData.STUDIO_LATEST);
     }
 
+    /// <summary>테스트용 공식 링크 표로 규칙을 만든다(<see cref="CandidateExplanationTests"/>가 쓰는 헬퍼).</summary>
+    public static DriverUpdateRule CreateRule()
+    {
+        return new DriverUpdateRule(DriverRuleTestData.CATALOG);
+    }
+
+    /// <summary>Candidate를 내는 스냅샷(같은 계열 최신이 설치 버전보다 높은 어댑터 하나)을 만든다.</summary>
+    public static ScanSnapshot CandidateSnapshot()
+    {
+        return HardwareRuleTestData.Snapshot(DriverRuleTestData.NvidiaResult(ProbeStatus.Success, GameReadyAdapter("616.64", GR_ONLY, DriverRuleTestData.GR_LATEST)));
+    }
+
     /// <summary>같은 계열 최신이 설치 버전보다 높으면 조건부 후보이며 근거·권장 조건·영향·공식 링크 두 개·자세히 보기가 있다.</summary>
     [Fact]
     public void 같은_계열_최신이_높으면_후보다()

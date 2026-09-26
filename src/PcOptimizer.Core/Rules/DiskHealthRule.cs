@@ -41,6 +41,9 @@ public sealed class DiskHealthRule : IRule
     private const string GIB_FORMAT = "0.0";
     private const long BYTES_PER_GIB = 1024L * 1024 * 1024;
 
+    /// <summary>Candidate 안전 수준(데이터 손실 전 백업을 권함).</summary>
+    private static readonly SafetyLevel CANDIDATE_SAFETY = SafetyLevel.Caution;
+
     /// <summary>알려진 버스 종류 이름(MSFT_PhysicalDisk.BusType).</summary>
     private static readonly Dictionary<long, string> BUS_TYPE_NAMES = new()
     {
@@ -206,6 +209,10 @@ public sealed class DiskHealthRule : IRule
             detail: null,
             recommendation: recommendation,
             impact: impact,
-            actions: actions);
+            actions: actions,
+            explanation: verdict == Verdict.Candidate
+                ? new Explanation(CoreStrings.DiskHealth_Explain_What, CoreStrings.DiskHealth_Explain_Effect, CoreStrings.DiskHealth_Explain_Caution)
+                : null,
+            safety: verdict == Verdict.Candidate ? CANDIDATE_SAFETY : null);
     }
 }

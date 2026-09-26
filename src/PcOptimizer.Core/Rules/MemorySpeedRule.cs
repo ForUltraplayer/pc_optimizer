@@ -41,6 +41,9 @@ public sealed class MemorySpeedRule : IRule
     private const string INDEX_ID_FORMAT = "index-{0}";
     private const int DISPLAY_INDEX_OFFSET = 1;
 
+    /// <summary>Candidate 안전 수준(BIOS 변경이 필요해 되돌리기 비용이 있음).</summary>
+    private static readonly SafetyLevel CANDIDATE_SAFETY = SafetyLevel.Caution;
+
     /// <inheritdoc />
     public string Id => RULE_ID;
 
@@ -141,7 +144,9 @@ public sealed class MemorySpeedRule : IRule
             detail: null,
             recommendation: new Recommendation(CoreStrings.Memory_Recommendation_Text, CoreStrings.Memory_Recommendation_Condition),
             impact: new Impact(CoreStrings.Memory_Impact_Benefit, CoreStrings.Memory_Impact_SideEffect),
-            actions: [new ShowDetailsAction(), new KeepAction(), new ApplyAction()]);
+            actions: [new ShowDetailsAction(), new KeepAction(), new ApplyAction()],
+            explanation: new Explanation(CoreStrings.Memory_Explain_What, CoreStrings.Memory_Explain_Effect, CoreStrings.Memory_Explain_Caution),
+            safety: CANDIDATE_SAFETY);
     }
 
     /// <summary>

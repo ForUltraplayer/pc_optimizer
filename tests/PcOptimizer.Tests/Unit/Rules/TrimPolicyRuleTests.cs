@@ -56,11 +56,17 @@ public sealed class TrimPolicyRuleTests
         Assert.Contains("수행되는지", finding.Evidence, StringComparison.Ordinal);
     }
 
+    /// <summary>Candidate를 내는 스냅샷(NTFS 정책 값 1, 꺼짐)을 만든다.</summary>
+    public static ScanSnapshot CandidateSnapshot()
+    {
+        return Snapshot(1, null);
+    }
+
     /// <summary>1(삭제 알림 막음)은 확인을 권하는 조건부 Candidate다.</summary>
     [Fact]
     public void 값_1은_확인_후보다()
     {
-        var finding = Assert.Single(RULE.Evaluate(Snapshot(1, null)));
+        var finding = Assert.Single(RULE.Evaluate(CandidateSnapshot()));
 
         Assert.Equal(Verdict.Candidate, finding.Verdict);
         Assert.Contains("꺼짐", finding.Title, StringComparison.Ordinal);

@@ -49,13 +49,17 @@ public sealed class MemorySpeedRuleTests
         ];
     }
 
+    /// <summary>Candidate를 내는 스냅샷(설정 속도가 보고 속도보다 낮은 모듈 하나)을 만든다.</summary>
+    public static ScanSnapshot CandidateSnapshot()
+    {
+        return RuleTestData.MemorySnapshot(ProbeStatus.Success, new FakeModule("DIMM A", "BANK 0", REPORTED_SPEED, LOWER_CONFIGURED_SPEED));
+    }
+
     /// <summary>설정 속도가 보고 속도보다 낮으면 조건부 Candidate와 필수 문장이 붙는다.</summary>
     [Fact]
     public void 설정_속도가_낮으면_조건부_후보와_필수_문장을_낸다()
     {
-        var snapshot = RuleTestData.MemorySnapshot(ProbeStatus.Success, new FakeModule("DIMM A", "BANK 0", REPORTED_SPEED, LOWER_CONFIGURED_SPEED));
-
-        var finding = Assert.Single(ModuleFindings(RULE.Evaluate(snapshot)));
+        var finding = Assert.Single(ModuleFindings(RULE.Evaluate(CandidateSnapshot())));
 
         Assert.Equal(Verdict.Candidate, finding.Verdict);
         Assert.Equal(FindingCategory.Memory, finding.Category);

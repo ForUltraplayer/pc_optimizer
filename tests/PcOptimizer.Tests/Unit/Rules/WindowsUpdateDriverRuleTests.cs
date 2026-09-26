@@ -25,6 +25,13 @@ public sealed class WindowsUpdateDriverRuleTests
         return RULE.Evaluate(HardwareRuleTestData.Snapshot(DriverRuleTestData.WindowsUpdateResult(status, resultCode, reboot, titles)));
     }
 
+    /// <summary>Candidate를 내는 스냅샷(검색된 드라이버 후보 2개)을 만든다.</summary>
+    public static ScanSnapshot CandidateSnapshot()
+    {
+        return HardwareRuleTestData.Snapshot(DriverRuleTestData.WindowsUpdateResult(
+            ProbeStatus.Success, WindowsUpdateProbeContract.RESULT_SUCCEEDED, false, "테스트 제조사 - Display - 1.2.3.4", "테스트 제조사 - Net - 5.6.7.8"));
+    }
+
     /// <summary>후보가 있으면 Candidate 하나이며 Windows 업데이트 설정 열기와 제목 목록, 전체 제조사를 포괄하지 않는다는 안내가 있다.</summary>
     [Fact]
     public void 후보가_있으면_설정_열기와_제목을_준다()

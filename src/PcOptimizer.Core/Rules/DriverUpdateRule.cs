@@ -40,6 +40,9 @@ public sealed class DriverUpdateRule : IRule
     private const string INDEX_ID_FORMAT = "index-{0}";
     private const int DISPLAY_INDEX_OFFSET = 1;
 
+    /// <summary>Candidate 안전 수준(설치 중 화면 깜빡임·재부팅이 필요할 수 있음).</summary>
+    private static readonly SafetyLevel CANDIDATE_SAFETY = SafetyLevel.Caution;
+
     private readonly VendorLinkCatalog? _catalog;
 
     /// <summary>
@@ -206,7 +209,9 @@ public sealed class DriverUpdateRule : IRule
             detail: CoreStrings.DriverUpdate_Detail_Candidate,
             recommendation: new Recommendation(CoreStrings.DriverUpdate_Recommendation_Text, CoreStrings.DriverUpdate_Recommendation_Condition),
             impact: new Impact(CoreStrings.DriverUpdate_Impact_Benefit, CoreStrings.DriverUpdate_Impact_SideEffect),
-            actions: actions);
+            actions: actions,
+            explanation: new Explanation(CoreStrings.DriverUpdate_Explain_What, CoreStrings.DriverUpdate_Explain_Effect, CoreStrings.DriverUpdate_Explain_Caution),
+            safety: CANDIDATE_SAFETY);
     }
 
     /// <summary>
