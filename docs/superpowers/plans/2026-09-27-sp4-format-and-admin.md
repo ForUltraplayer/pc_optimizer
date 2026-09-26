@@ -1674,6 +1674,13 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 ### Task 11: 문서·원장·검증 마무리
 
+**2026-09-27 이월 minor 편입(컨트롤러 룰링, Task 10·13 리뷰 후속):** Step 3 문서 갱신에 아래를 추가한다.
+
+- `Strings.resx` `Cleanup_ToolUserWritable` 문구를 "이 도구는 사용자 폴더에 설치돼 있어 관리자 권한 앱이 실행하지 않습니다. 터미널에서 다음 명령을 직접 실행하세요: {0}"로 바꾼다(조사 결합 방지). 이 키를 확인하는 테스트가 있으면 함께 갱신한다.
+- 스펙 `docs/superpowers/specs/2026-09-27-improvement-phase2-design.md` §0의 "원래 계정으로 로그인" 안내를 "관리자 계정으로 로그인해서 실행하면 전부 검사할 수 있어요"로 정정하고, 보호 위치 판정이 환경 변수가 아니라 Windows 시스템 폴더 API(`Environment.SpecialFolder.ProgramFiles`·`ProgramFilesX86` 및 `ProgramW6432`)로 읽는다는 문장을 §0에 한 줄 추가한다.
+- 원장 Step 2의 새 절에 REV-016·017·018의 Task 10·13 커밋과 테스트 이름, 그리고 남은 한계(npm이 `C:\node_modules`를 루트로 잡을 가능성은 파일 생성 불가로 저위험, `NUGET_`·`NPM_CONFIG_`·`PIP_` 환경 변수는 유지하기로 룰링, pip 실제 실행 스모크 없음)를 적는다. 상태는 모두 `수정됨·재검증 대기`.
+- HANDOFF의 수동 검증 목록에 "일반 셸에서 UAC 프롬프트", "표준 계정+다른 관리자 자격 증명 승격 시 SystemOnly 배너·정리 버튼 비활성", "Program Files에 Python만 있는 PC에서 정리 버튼 노출"을 남긴다.
+
 **Files:**
 - Modify: `README.md`(실행 권한·사양 화면·명령), `docs/HANDOFF.md`(SP4 완료 상태), `docs/superpowers/plans/2026-09-26-pc-optimizer-implementation-plan.md`(§5 2차 착수 기록), `docs/reviews/REVIEW_LEDGER.md`, 이 계획 파일의 체크박스
 
