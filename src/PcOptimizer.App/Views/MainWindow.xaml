@@ -1,16 +1,281 @@
 <!--
   @file    : MainWindow.xaml
   @author  : rudals252
-  @brief   : P0 골격 단계의 빈 메인 창 (실제 화면 구성은 P2에서 진행)
+  @brief   : 메인 진단 화면(상단 시작/취소·상태·Finding 기준 요약·마지막 측정 시각·온라인 확인, 왼쪽 분류 목록, 가운데 판정 카드 목록)
 -->
-<Window x:Class="PcOptimizer.App.Views.MainWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d"
-        Height="450" Width="800">
-    <Grid>
+<ui:FluentWindow x:Class="PcOptimizer.App.Views.MainWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:res="clr-namespace:PcOptimizer.App.Resources"
+                 xmlns:vm="clr-namespace:PcOptimizer.App.ViewModels"
+                 xmlns:models="clr-namespace:PcOptimizer.Core.Models;assembly=PcOptimizer.Core"
+                 mc:Ignorable="d"
+                 d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+                 Title="{x:Static res:Strings.MainWindow_Title}"
+                 Width="1180" Height="780" MinWidth="720" MinHeight="480"
+                 WindowStartupLocation="CenterScreen"
+                 ExtendsContentIntoTitleBar="True"
+                 WindowBackdropType="None"
+                 WindowCornerPreference="Round"
+                 KeyboardNavigation.TabNavigation="Cycle">
 
+    <ui:FluentWindow.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+
+        <!-- 판정 배지: 색과 함께 항상 텍스트를 표시해 색 없이도 판정을 읽을 수 있게 한다 -->
+        <Style x:Key="VerdictBadgeStyle" TargetType="Border">
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="8,2" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="#FF6E6E6E" />
+            <Setter Property="Background" Value="#FFEDEDED" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Verdict}" Value="{x:Static models:Verdict.Candidate}">
+                    <Setter Property="Background" Value="#FFFFE7B3" />
+                    <Setter Property="BorderBrush" Value="#FF8A5A00" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Verdict}" Value="{x:Static models:Verdict.Ok}">
+                    <Setter Property="Background" Value="#FFD6F0D6" />
+                    <Setter Property="BorderBrush" Value="#FF1E6B1E" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Verdict}" Value="{x:Static models:Verdict.Info}">
+                    <Setter Property="Background" Value="#FFDCEBFA" />
+                    <Setter Property="BorderBrush" Value="#FF1F5A96" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Verdict}" Value="{x:Static models:Verdict.CannotVerify}">
+                    <Setter Property="Background" Value="#FFEDEDED" />
+                    <Setter Property="BorderBrush" Value="#FF5A5A5A" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,8,0,2" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
+        <Style x:Key="BodyTextStyle" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,1,0,1" />
+        </Style>
+
+        <Style x:Key="CardButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Margin" Value="0,8,8,0" />
+            <Setter Property="MinWidth" Value="88" />
+        </Style>
+
+        <!-- Finding 카드 -->
+        <DataTemplate DataType="{x:Type vm:FindingCardViewModel}">
+            <Border Margin="0,0,0,12"
+                    Padding="16,12"
+                    CornerRadius="8"
+                    BorderThickness="1"
+                    BorderBrush="#FFD0D0D0"
+                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
+                <StackPanel>
+                    <!-- 제목 줄: 판정 배지(텍스트) + 분류 + 한 문장 제목 -->
+                    <DockPanel LastChildFill="True">
+                        <Border DockPanel.Dock="Left" Style="{StaticResource VerdictBadgeStyle}" VerticalAlignment="Top">
+                            <TextBlock Text="{Binding VerdictText}" FontWeight="SemiBold" Foreground="#FF1A1A1A" />
+                        </Border>
+                        <TextBlock DockPanel.Dock="Left" Text="{Binding CategoryText}" Margin="0,2,8,0" Opacity="0.75" VerticalAlignment="Top" />
+                        <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Top" />
+                    </DockPanel>
+
+                    <!-- 유지(접힘) 상태 -->
+                    <StackPanel Orientation="Horizontal" Visibility="{Binding IsKept, Converter={StaticResource BoolToVisibility}}" Margin="0,6,0,0">
+                        <TextBlock Text="{x:Static res:Strings.Card_KeptNote}" TextWrapping="Wrap" VerticalAlignment="Center" Opacity="0.8" MaxWidth="560" />
+                        <Button Content="{x:Static res:Strings.Button_Unkeep}" Command="{Binding UnkeepCommand}" Margin="8,0,0,0"
+                                AutomationProperties.Name="{x:Static res:Strings.Button_Unkeep}" />
+                    </StackPanel>
+
+                    <!-- 본문 -->
+                    <StackPanel Visibility="{Binding IsBodyVisible, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel Visibility="{Binding HasMeasurements, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="{x:Static res:Strings.Card_MeasuredHeader}" Style="{StaticResource SectionHeaderStyle}" />
+                            <ItemsControl ItemsSource="{Binding Measurements}" Focusable="False">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding SummaryText}" Style="{StaticResource BodyTextStyle}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <StackPanel Visibility="{Binding HasEvidence, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="{x:Static res:Strings.Card_EvidenceHeader}" Style="{StaticResource SectionHeaderStyle}" />
+                            <TextBlock Text="{Binding Evidence}" Style="{StaticResource BodyTextStyle}" />
+                        </StackPanel>
+
+                        <TextBlock Text="{Binding ReasonText}" Style="{StaticResource BodyTextStyle}" FontWeight="SemiBold" Margin="0,6,0,0"
+                                   Visibility="{Binding HasReason, Converter={StaticResource BoolToVisibility}}" />
+                        <TextBlock Text="{Binding Detail}" Style="{StaticResource BodyTextStyle}"
+                                   Visibility="{Binding HasDetail, Converter={StaticResource BoolToVisibility}}" />
+
+                        <StackPanel Visibility="{Binding HasRecommendation, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="{x:Static res:Strings.Card_RecommendationHeader}" Style="{StaticResource SectionHeaderStyle}" />
+                            <TextBlock Text="{Binding RecommendationText}" Style="{StaticResource BodyTextStyle}" />
+                            <TextBlock Text="{Binding ConditionText}" Style="{StaticResource BodyTextStyle}" Opacity="0.85" />
+                        </StackPanel>
+
+                        <StackPanel Visibility="{Binding HasImpact, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="{x:Static res:Strings.Card_ImpactHeader}" Style="{StaticResource SectionHeaderStyle}" />
+                            <TextBlock Text="{Binding BenefitText}" Style="{StaticResource BodyTextStyle}" />
+                            <TextBlock Text="{Binding SideEffectText}" Style="{StaticResource BodyTextStyle}" />
+                        </StackPanel>
+
+                        <TextBlock Text="{x:Static res:Strings.Card_ManualPathHint}" Style="{StaticResource BodyTextStyle}" Opacity="0.85" Margin="0,6,0,0"
+                                   Visibility="{Binding ShowManualPathHint, Converter={StaticResource BoolToVisibility}}" />
+
+                        <!-- 가능한 버튼만 표시 -->
+                        <WrapPanel Orientation="Horizontal">
+                            <Button Style="{StaticResource CardButtonStyle}"
+                                    Content="{Binding DetailsButtonText}"
+                                    Command="{Binding ToggleDetailsCommand}"
+                                    AutomationProperties.Name="{Binding DetailsButtonText}"
+                                    Visibility="{Binding CanShowDetails, Converter={StaticResource BoolToVisibility}}" />
+                            <Button Style="{StaticResource CardButtonStyle}"
+                                    Content="{x:Static res:Strings.Button_OpenSettings}"
+                                    Command="{Binding OpenSettingsCommand}"
+                                    AutomationProperties.Name="{x:Static res:Strings.Button_OpenSettings}"
+                                    Visibility="{Binding CanOpenSettings, Converter={StaticResource BoolToVisibility}}" />
+                            <Button Style="{StaticResource CardButtonStyle}"
+                                    Content="{x:Static res:Strings.Button_Keep}"
+                                    Command="{Binding KeepCommand}"
+                                    ToolTip="{x:Static res:Strings.Tooltip_Keep}"
+                                    AutomationProperties.Name="{x:Static res:Strings.Button_Keep}"
+                                    AutomationProperties.HelpText="{x:Static res:Strings.Tooltip_Keep}"
+                                    Visibility="{Binding HasKeepAction, Converter={StaticResource BoolToVisibility}}" />
+                            <StackPanel Orientation="Horizontal" Visibility="{Binding HasApplyAction, Converter={StaticResource BoolToVisibility}}">
+                                <Button Style="{StaticResource CardButtonStyle}"
+                                        Content="{x:Static res:Strings.Button_Apply}"
+                                        IsEnabled="{Binding IsApplyEnabled}"
+                                        ToolTip="{Binding ApplyTooltip}"
+                                        ToolTipService.ShowOnDisabled="True"
+                                        AutomationProperties.Name="{x:Static res:Strings.Button_Apply}"
+                                        AutomationProperties.HelpText="{Binding ApplyTooltip}" />
+                                <TextBlock Text="{Binding ApplyTooltip}" VerticalAlignment="Bottom" Margin="0,0,8,6" Opacity="0.7" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </WrapPanel>
+
+                        <!-- 자세히 보기: 측정값 출처·품질·관측 시각 -->
+                        <Border Visibility="{Binding IsDetailsVisible, Converter={StaticResource BoolToVisibility}}"
+                                Margin="0,10,0,0" Padding="10,8" CornerRadius="6" BorderThickness="1" BorderBrush="#FFD8D8D8">
+                            <StackPanel>
+                                <TextBlock Text="{x:Static res:Strings.Details_Header}" Style="{StaticResource SectionHeaderStyle}" Margin="0,0,0,4" />
+                                <TextBlock Text="{x:Static res:Strings.Details_Empty}" Style="{StaticResource BodyTextStyle}"
+                                           Visibility="{Binding HasNoMeasurements, Converter={StaticResource BoolToVisibility}}" />
+                                <ItemsControl ItemsSource="{Binding Measurements}" Focusable="False">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DetailText}" Style="{StaticResource BodyTextStyle}" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+    </ui:FluentWindow.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar Grid.Row="0" Title="{x:Static res:Strings.MainWindow_Title}" />
+
+        <!-- 상단: 시작/취소·내보내기·온라인 확인 -->
+        <WrapPanel Grid.Row="1" Margin="16,8,16,0" Orientation="Horizontal">
+            <ui:Button x:Name="StartScanButton"
+                       Appearance="Primary"
+                       Content="{Binding StartButtonText}"
+                       Command="{Binding StartScanCommand}"
+                       AutomationProperties.AutomationId="StartScanButton"
+                       AutomationProperties.Name="{Binding StartButtonText}"
+                       Margin="0,0,8,8" MinWidth="110" />
+            <Button Content="{x:Static res:Strings.Button_CancelScan}"
+                    Command="{Binding CancelScanCommand}"
+                    AutomationProperties.AutomationId="CancelScanButton"
+                    AutomationProperties.Name="{x:Static res:Strings.Button_CancelScan}"
+                    Margin="0,0,8,8" MinWidth="100" />
+            <Button Content="{x:Static res:Strings.Button_Export}"
+                    Command="{Binding ExportCommand}"
+                    ToolTip="{x:Static res:Strings.Tooltip_Export}"
+                    AutomationProperties.AutomationId="ExportButton"
+                    AutomationProperties.Name="{x:Static res:Strings.Button_Export}"
+                    Margin="0,0,8,8" />
+            <Button Content="{x:Static res:Strings.Button_DiagnosticExport}"
+                    IsEnabled="False"
+                    ToolTip="{x:Static res:Strings.Tooltip_DiagnosticExport}"
+                    ToolTipService.ShowOnDisabled="True"
+                    AutomationProperties.Name="{x:Static res:Strings.Button_DiagnosticExport}"
+                    AutomationProperties.HelpText="{x:Static res:Strings.Tooltip_DiagnosticExport}"
+                    Margin="0,0,16,8" />
+            <ui:ToggleSwitch Content="{x:Static res:Strings.Toggle_OnlineCheck}"
+                             IsChecked="{Binding IsOnlineCheckRequested}"
+                             IsEnabled="{Binding CanChangeOptions}"
+                             AutomationProperties.AutomationId="OnlineCheckToggle"
+                             AutomationProperties.Name="{x:Static res:Strings.Toggle_OnlineCheck}"
+                             VerticalAlignment="Center" Margin="0,0,8,8" />
+        </WrapPanel>
+
+        <!-- 상태·요약 영역 -->
+        <StackPanel Grid.Row="2" Margin="16,0,16,8">
+            <WrapPanel Orientation="Horizontal">
+                <TextBlock Text="{Binding StateText}" FontWeight="SemiBold" Margin="0,0,16,0"
+                           AutomationProperties.AutomationId="StateText" />
+                <TextBlock Text="{Binding SummaryText}" Margin="0,0,16,0" AutomationProperties.AutomationId="SummaryText" />
+                <TextBlock Text="{Binding LastMeasuredText}" Margin="0,0,16,0" AutomationProperties.AutomationId="LastMeasuredText" />
+                <TextBlock Text="{Binding OnlineCheckText}" />
+            </WrapPanel>
+            <TextBlock Text="{x:Static res:Strings.Summary_Disclaimer}" TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0" />
+            <TextBlock Text="{Binding DrainingNote}" TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,2,0,0"
+                       AutomationProperties.AutomationId="DrainingNote"
+                       Visibility="{Binding HasDrainingNote, Converter={StaticResource BoolToVisibility}}" />
+            <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" Margin="0,2,0,0" AutomationProperties.AutomationId="StatusMessage" />
+        </StackPanel>
+
+        <!-- 본문: 왼쪽 분류, 가운데 카드 -->
+        <Grid Grid.Row="3" Margin="16,0,16,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <DockPanel Grid.Column="0" Margin="0,0,16,0">
+                <TextBlock DockPanel.Dock="Top" Text="{x:Static res:Strings.Categories_Header}" FontWeight="SemiBold" Margin="0,0,0,6" />
+                <ListBox ItemsSource="{Binding Categories}"
+                         SelectedItem="{Binding SelectedCategory}"
+                         DisplayMemberPath="Label"
+                         AutomationProperties.AutomationId="CategoryList"
+                         AutomationProperties.Name="{x:Static res:Strings.Categories_Header}">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                            <Setter Property="AutomationProperties.Name" Value="{Binding Label}" />
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                </ListBox>
+            </DockPanel>
+
+            <Grid Grid.Column="1">
+                <TextBlock Text="{x:Static res:Strings.Cards_Empty}" Opacity="0.7" TextWrapping="Wrap" Margin="4"
+                           Visibility="{Binding ShowEmptyHint, Converter={StaticResource BoolToVisibility}}" />
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                              Focusable="False" AutomationProperties.AutomationId="CardList">
+                    <ItemsControl ItemsSource="{Binding Cards}" Focusable="False" KeyboardNavigation.TabNavigation="Continue" />
+                </ScrollViewer>
+            </Grid>
+        </Grid>
     </Grid>
-</Window>
+</ui:FluentWindow>

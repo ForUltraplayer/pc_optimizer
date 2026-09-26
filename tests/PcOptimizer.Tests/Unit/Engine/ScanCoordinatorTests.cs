@@ -11,6 +11,7 @@ using System.Diagnostics;
 using PcOptimizer.Core.Abstractions;
 using PcOptimizer.Core.Engine;
 using PcOptimizer.Core.Models;
+using PcOptimizer.Core.Resources;
 using PcOptimizer.Tests.Unit.Engine.Fakes;
 
 namespace PcOptimizer.Tests.Unit.Engine;
@@ -226,7 +227,7 @@ public class ScanCoordinatorTests
         Assert.True(summary.IsStillRunning);
         var issue = Assert.Single(ResultOf(result, "hanging").Issues);
         Assert.Equal(CannotVerifyReason.Cancelled, issue.Reason);
-        Assert.Contains("still finishing after cancel", issue.Summary, StringComparison.Ordinal);
+        Assert.Equal(CoreStrings.ProbeIssue_CancelledStillRunning, issue.Summary);
         Assert.Contains("hanging", coordinator.DrainingProbeIds);
         Assert.Equal(ProbeStatus.Success, SummaryOf(result, "ok").Status);
         Assert.Equal(ScanOutcome.Cancelled, result.Report.Outcome);
@@ -234,7 +235,7 @@ public class ScanCoordinatorTests
         var next = await coordinator.RunScanAsync(CreateContext(), CancellationToken.None).WaitAsync(SCAN_UPPER_BOUND);
         Assert.Equal(1, hanging.InvocationCount);
         Assert.Equal(ProbeStatus.Skipped, SummaryOf(next, "hanging").Status);
-        Assert.Equal(ScanCoordinator.DRAINING_SKIP_SUMMARY, Assert.Single(ResultOf(next, "hanging").Issues).Summary);
+        Assert.Equal(CoreStrings.ProbeIssue_DrainingSkip, Assert.Single(ResultOf(next, "hanging").Issues).Summary);
     }
 
     /// <summary>
@@ -352,7 +353,7 @@ public class ScanCoordinatorTests
         Assert.Equal(ProbeStatus.Skipped, SummaryOf(secondScan, "delayed").Status);
         var issue = Assert.Single(ResultOf(secondScan, "delayed").Issues);
         Assert.Equal(CannotVerifyReason.ProbeError, issue.Reason);
-        Assert.Contains("previous run still finishing", issue.Summary, StringComparison.Ordinal);
+        Assert.Equal(CoreStrings.ProbeIssue_DrainingSkip, issue.Summary);
         Assert.Equal(ScanOutcome.Partial, secondScan.Report.Outcome);
 
         delayed.Complete();

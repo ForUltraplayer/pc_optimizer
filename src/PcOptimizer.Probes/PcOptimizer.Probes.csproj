@@ -4,7 +4,20 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <NeutralLanguage>ko-KR</NeutralLanguage>
+    <!-- LibraryImport 소스 생성기가 만드는 P/Invoke 마샬링 코드에 필요 -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 한국어 문자열 리소스: 빌드 시 강한 형식 접근자(ProbeStrings)를 obj에 생성한다 -->
+    <EmbeddedResource Update="Resources\ProbeStrings.resx">
+      <StronglyTypedLanguage>CSharp</StronglyTypedLanguage>
+      <StronglyTypedNamespace>PcOptimizer.Probes.Resources</StronglyTypedNamespace>
+      <StronglyTypedClassName>ProbeStrings</StronglyTypedClassName>
+      <StronglyTypedFileName>$(IntermediateOutputPath)ProbeStrings.Designer.cs</StronglyTypedFileName>
+    </EmbeddedResource>
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\PcOptimizer.Core\PcOptimizer.Core.csproj" />

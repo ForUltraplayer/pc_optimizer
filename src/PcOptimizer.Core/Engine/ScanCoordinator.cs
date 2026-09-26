@@ -10,6 +10,7 @@ using System.Collections.Frozen;
 // 사용자 패키지
 using PcOptimizer.Core.Abstractions;
 using PcOptimizer.Core.Models;
+using PcOptimizer.Core.Resources;
 
 namespace PcOptimizer.Core.Engine;
 
@@ -31,16 +32,9 @@ namespace PcOptimizer.Core.Engine;
 /// </remarks>
 public sealed class ScanCoordinator
 {
-    /// <summary>이전 실행이 아직 종료 중이라 건너뛴 프로브의 Issue 요약.</summary>
-    public const string DRAINING_SKIP_SUMMARY = "이전 실행이 아직 종료 중이에요 (previous run still finishing)";
-
     private const string LOG_CATEGORY = nameof(ScanCoordinator);
     private const int SCAN_IDLE = 0;
     private const int SCAN_RUNNING = 1;
-
-    private const string ELEVATION_REQUIRED_SUMMARY = "관리자 권한이 필요해 실행하지 않았어요";
-    private const string NOT_REQUESTED_SUMMARY = "온라인 확인을 요청하지 않아 실행하지 않았어요";
-    private const string CANCELLED_BEFORE_START_SUMMARY = "검사를 취소해서 시작하지 않았어요";
 
     private readonly IReadOnlyList<IProbe> _probes;
     private readonly FrozenDictionary<string, FindingCategory> _probeCategories;
@@ -171,7 +165,7 @@ public sealed class ScanCoordinator
             if (!await TryEnterGateAsync(gate, cancellationToken).ConfigureAwait(false))
             {
                 runs[index] = Task.FromResult(ProbeExecutor.CreateIssueResult(
-                    probe.Id, context, ProbeStatus.Cancelled, CannotVerifyReason.Cancelled, CANCELLED_BEFORE_START_SUMMARY, _clock.UtcNow, TimeSpan.Zero));
+                    probe.Id, context, ProbeStatus.Cancelled, CannotVerifyReason.Cancelled, CoreStrings.ProbeIssue_CancelledBeforeStart, _clock.UtcNow, TimeSpan.Zero));
                 continue;
             }
 
@@ -189,13 +183,13 @@ public sealed class ScanCoordinator
         if (probe.RequiresElevation && !context.IsElevated)
         {
             return ProbeExecutor.CreateIssueResult(
-                probe.Id, context, ProbeStatus.Skipped, CannotVerifyReason.ElevationRequired, ELEVATION_REQUIRED_SUMMARY, _clock.UtcNow, TimeSpan.Zero);
+                probe.Id, context, ProbeStatus.Skipped, CannotVerifyReason.ElevationRequired, CoreStrings.ProbeIssue_ElevationRequired, _clock.UtcNow, TimeSpan.Zero);
         }
 
         if (probe.RequiresNetwork && !context.OnlineCheckRequested)
         {
             return ProbeExecutor.CreateIssueResult(
-                probe.Id, context, ProbeStatus.Skipped, CannotVerifyReason.NotRequested, NOT_REQUESTED_SUMMARY, _clock.UtcNow, TimeSpan.Zero);
+                probe.Id, context, ProbeStatus.Skipped, CannotVerifyReason.NotRequested, CoreStrings.ProbeIssue_NotRequested, _clock.UtcNow, TimeSpan.Zero);
         }
 
         if (_executor.TryGetDrainingScan(probe.Id, out var drainingScanId))
@@ -204,7 +198,7 @@ public sealed class ScanCoordinator
                 LOG_CATEGORY,
                 $"{ScanLogEvents.PROBE_DRAINING_SKIPPED} probe={probe.Id} scan={context.ScanId} drainingFromScan={drainingScanId}");
             return ProbeExecutor.CreateIssueResult(
-                probe.Id, context, ProbeStatus.Skipped, CannotVerifyReason.ProbeError, DRAINING_SKIP_SUMMARY, _clock.UtcNow, TimeSpan.Zero);
+                probe.Id, context, ProbeStatus.Skipped, CannotVerifyReason.ProbeError, CoreStrings.ProbeIssue_DrainingSkip, _clock.UtcNow, TimeSpan.Zero);
         }
 
         return null;

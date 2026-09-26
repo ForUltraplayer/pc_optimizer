@@ -11,6 +11,7 @@ using System.Diagnostics;
 // 사용자 패키지
 using PcOptimizer.Core.Abstractions;
 using PcOptimizer.Core.Models;
+using PcOptimizer.Core.Resources;
 
 namespace PcOptimizer.Core.Engine;
 
@@ -22,13 +23,6 @@ namespace PcOptimizer.Core.Engine;
 internal sealed class ProbeExecutor
 {
     private const string LOG_CATEGORY = nameof(ScanCoordinator);
-
-    private const string TIMEOUT_SUMMARY = "제한 시간 안에 끝나지 않았어요";
-    private const string CANCELLED_SUMMARY = "사용자가 검사를 취소했어요";
-    private const string CANCELLED_STILL_RUNNING_SUMMARY = "취소 후에도 아직 종료 중이에요 (still finishing after cancel)";
-    private const string NULL_RESULT_SUMMARY = "프로브가 결과를 돌려주지 않았어요";
-    private const string MISMATCHED_ID_SUMMARY = "프로브가 다른 ID의 결과를 돌려줬어요";
-    private const string NULL_COLLECTION_SUMMARY = "프로브 결과의 측정값 또는 Issue 목록에 null이 있어요";
 
     private readonly IClock _clock;
     private readonly IAppLogger _logger;
@@ -190,13 +184,13 @@ internal sealed class ProbeExecutor
         catch (OperationCanceledException) when (userToken.IsCancellationRequested)
         {
             return CreateIssueResult(
-                probe.Id, context, ProbeStatus.Cancelled, CannotVerifyReason.Cancelled, CANCELLED_SUMMARY, startedAt, stopwatch.Elapsed);
+                probe.Id, context, ProbeStatus.Cancelled, CannotVerifyReason.Cancelled, CoreStrings.ProbeIssue_Cancelled, startedAt, stopwatch.Elapsed);
         }
         catch (OperationCanceledException) when (timeoutToken.IsCancellationRequested)
         {
             _logger.Warn(LOG_CATEGORY, $"{ScanLogEvents.PROBE_TIMED_OUT} probe={probe.Id} scan={context.ScanId} finished=true");
             return CreateIssueResult(
-                probe.Id, context, ProbeStatus.Failed, CannotVerifyReason.Timeout, TIMEOUT_SUMMARY, startedAt, stopwatch.Elapsed);
+                probe.Id, context, ProbeStatus.Failed, CannotVerifyReason.Timeout, CoreStrings.ProbeIssue_Timeout, startedAt, stopwatch.Elapsed);
         }
         catch (Exception ex)
         {
@@ -223,7 +217,7 @@ internal sealed class ProbeExecutor
         {
             _logger.Warn(LOG_CATEGORY, $"{ScanLogEvents.PROBE_FAILED} probe={probe.Id} scan={context.ScanId} error=NullResult");
             return CreateIssueResult(
-                probe.Id, context, ProbeStatus.Failed, CannotVerifyReason.ProbeError, NULL_RESULT_SUMMARY, startedAt, elapsed);
+                probe.Id, context, ProbeStatus.Failed, CannotVerifyReason.ProbeError, CoreStrings.ProbeIssue_NullResult, startedAt, elapsed);
         }
 
         if (result.Measurements is null
@@ -233,14 +227,14 @@ internal sealed class ProbeExecutor
         {
             _logger.Warn(LOG_CATEGORY, $"{ScanLogEvents.PROBE_FAILED} probe={probe.Id} scan={context.ScanId} error=NullCollection");
             return CreateIssueResult(
-                probe.Id, context, ProbeStatus.Failed, CannotVerifyReason.ProbeError, NULL_COLLECTION_SUMMARY, startedAt, elapsed);
+                probe.Id, context, ProbeStatus.Failed, CannotVerifyReason.ProbeError, CoreStrings.ProbeIssue_NullCollection, startedAt, elapsed);
         }
 
         if (!string.Equals(result.ProbeId, probe.Id, StringComparison.Ordinal))
         {
             _logger.Warn(LOG_CATEGORY, $"{ScanLogEvents.PROBE_FAILED} probe={probe.Id} scan={context.ScanId} error=MismatchedProbeId");
             return CreateIssueResult(
-                probe.Id, context, ProbeStatus.Failed, CannotVerifyReason.ProbeError, MISMATCHED_ID_SUMMARY, startedAt, elapsed);
+                probe.Id, context, ProbeStatus.Failed, CannotVerifyReason.ProbeError, CoreStrings.ProbeIssue_MismatchedId, startedAt, elapsed);
         }
 
         return result with { StartedAtUtc = startedAt, Duration = elapsed };
@@ -261,14 +255,14 @@ internal sealed class ProbeExecutor
         {
             _logger.Warn(LOG_CATEGORY, $"{ScanLogEvents.PROBE_STILL_RUNNING_AFTER_CANCEL} probe={probe.Id} scan={context.ScanId}");
             return CreateIssueResult(
-                probe.Id, context, ProbeStatus.Cancelled, CannotVerifyReason.Cancelled, CANCELLED_STILL_RUNNING_SUMMARY, startedAt, elapsed);
+                probe.Id, context, ProbeStatus.Cancelled, CannotVerifyReason.Cancelled, CoreStrings.ProbeIssue_CancelledStillRunning, startedAt, elapsed);
         }
 
         _logger.Warn(
             LOG_CATEGORY,
             $"{ScanLogEvents.PROBE_TIMED_OUT} probe={probe.Id} scan={context.ScanId} timeoutMs={timeout.TotalMilliseconds} finished=false");
         return CreateIssueResult(
-            probe.Id, context, ProbeStatus.Failed, CannotVerifyReason.Timeout, TIMEOUT_SUMMARY, startedAt, elapsed);
+            probe.Id, context, ProbeStatus.Failed, CannotVerifyReason.Timeout, CoreStrings.ProbeIssue_Timeout, startedAt, elapsed);
     }
 
     /// <summary>

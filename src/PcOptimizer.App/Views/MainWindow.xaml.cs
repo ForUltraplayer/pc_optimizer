@@ -1,34 +1,31 @@
 /**
  * @file    : MainWindow.xaml.cs
  * @author  : rudals252
- * @brief   : P0 골격 단계의 빈 메인 창 코드 비하인드. 창 제목을 리소스 문자열에서 읽어 설정한다.
+ * @brief   : 메인 진단 창 코드 비하인드. 화면 모델을 DataContext로 연결하고 첫 포커스를 검사 시작 버튼에 둔다
  */
 
-// 기본 패키지
-using System.Resources;
-using System.Windows;
+// 서드파티 패키지
+using Wpf.Ui.Controls;
+
+// 사용자 패키지
+using PcOptimizer.App.ViewModels;
 
 namespace PcOptimizer.App.Views;
 
 /// <summary>
-/// 애플리케이션의 메인 창입니다. P0 단계에서는 빈 창만 제공하며,
-/// 실제 진단 화면 구성은 이후 작업(P2)에서 채워진다.
+/// 애플리케이션의 메인 창입니다. 모든 동작은 <see cref="MainViewModel"/>에 있고 여기서는 연결만 합니다.
 /// </summary>
-public partial class MainWindow : Window
+public partial class MainWindow : FluentWindow
 {
     /// <summary>
-    /// 한국어 UI 문자열을 담고 있는 리소스 매니저입니다.
+    /// 화면 모델로 메인 창을 만듭니다.
     /// </summary>
-    private static readonly ResourceManager UiStrings = new(
-        "PcOptimizer.App.Resources.Strings",
-        typeof(MainWindow).Assembly);
-
-    /// <summary>
-    /// 메인 창을 초기화하고 리소스에서 읽은 제목을 설정합니다.
-    /// </summary>
-    public MainWindow()
+    /// <param name="viewModel">메인 화면 모델.</param>
+    public MainWindow(MainViewModel viewModel)
     {
+        ArgumentNullException.ThrowIfNull(viewModel);
         InitializeComponent();
-        Title = UiStrings.GetString("MainWindow_Title") ?? string.Empty;
+        DataContext = viewModel;
+        Loaded += (_, _) => StartScanButton.Focus();
     }
 }
