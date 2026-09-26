@@ -182,6 +182,17 @@ public sealed class ScanService
     }
 
     /// <summary>
+    /// 새 검사 ID·검사 단위 익명 사용자 ID·현재 권한·시스템 범위 제한으로 검사 컨텍스트를 만듭니다(검사 실행과 사양 스냅샷이 함께 씀).
+    /// </summary>
+    /// <param name="onlineCheckRequested">사용자가 온라인 업데이트 확인을 켰는지 여부.</param>
+    /// <returns>새 검사 컨텍스트.</returns>
+    public ScanContext CreateContext(bool onlineCheckRequested)
+    {
+        var userContext = new UserContext(ANONYMOUS_ID_PREFIX + Guid.NewGuid().ToString(GUID_COMPACT_FORMAT), _isElevated());
+        return new ScanContext(Guid.NewGuid(), userContext, onlineCheckRequested, _clock.UtcNow) { LimitToSystemScope = _limitToSystemScope };
+    }
+
+    /// <summary>
     /// 새 검사 ID·검사 단위 익명 사용자 ID로 검사를 한 번 실행합니다.
     /// </summary>
     /// <param name="onlineCheckRequested">사용자가 온라인 업데이트 확인을 켰는지 여부.</param>
@@ -190,8 +201,7 @@ public sealed class ScanService
     /// <exception cref="InvalidOperationException">다른 검사가 진행 중인 경우.</exception>
     public async Task<ScanResult> RunScanAsync(bool onlineCheckRequested, CancellationToken ct)
     {
-        var userContext = new UserContext(ANONYMOUS_ID_PREFIX + Guid.NewGuid().ToString(GUID_COMPACT_FORMAT), _isElevated());
-        var context = new ScanContext(Guid.NewGuid(), userContext, onlineCheckRequested, _clock.UtcNow) { LimitToSystemScope = _limitToSystemScope };
+        var context = CreateContext(onlineCheckRequested);
 
         _logger.Info(
             LOG_CATEGORY,
