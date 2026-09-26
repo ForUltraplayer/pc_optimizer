@@ -18,6 +18,84 @@ namespace PcOptimizer.Tests.Unit.App;
 public sealed class CacheCleanupTests
 {
     private const string PROTECTED_NODE = @"C:\Program Files\nodejs\node.exe";
+    private const string USER_NODE = @"C:\Users\kim\AppData\Roaming\nvm\v20\node.exe";
+
+    /// <summary>관리자 권한이어도 보호 위치 도구는 실행하고, 사용자 폴더 도구는 직접 실행 안내로 거절한다.</summary>
+    /// <remarks>백엔드는 더 이상 승격 여부를 입력으로 받지 않는다. 앱은 항상 관리자 권한이므로 위치만으로 판정한다.</remarks>
+    [Theory]
+    [InlineData(@"C:\Program Files\nodejs\node.exe", true)]
+    [InlineData(@"C:\Users\kim\AppData\Roaming\nvm\v20\node.exe", false)]
+    public async Task ElevatedRunsOnlyProtectedLocationTools(string toolPath, bool expectedAllowed)
+    {
+        var backend = CreateBackend(toolPath);
+        var plan = await new CacheCleanupService(backend).PrepareAsync(CacheTool.Npm, CancellationToken.None);
+        if (expectedAllowed) { Assert.True(plan.Plan is not null); }
+        else { Assert.False(plan.Plan is not null); Assert.Equal("ToolNotInProtectedLocation", plan.Reason); }
+    }
+
+    /// <summary>PATH 탐색 결과도 보호 위치 검사를 거치며, 사용자 폴더 후보는 실행하지 않고 보호 위치 후보를 고릅니다.</summary>
+    [Fact]
+    public async Task PathCandidatesOutsideProtectedLocationAreNeverRun()
+    {
+        var fixture = new ToolFixture(USER_NODE, PROTECTED_NODE);
+        var preparation = await new CacheCleanupService(fixture.Create()).PrepareAsync(CacheTool.Npm, default);
+        Assert.Equal(PROTECTED_NODE, preparation.Plan!.Location.Executable);
+        Assert.DoesNotContain(USER_NODE, fixture.RunExecutables);
+    }
+
+    /// <summary>pip은 python.exe 위치로 판정합니다.</summary>
+    [Theory]
+    [InlineData(@"C:\Program Files\Python312\python.exe", true)]
+    [InlineData(@"C:\Users\kim\AppData\Local\Programs\Python\Python312\python.exe", false)]
+    public async Task PipIsJudgedByPythonLocation(string python, bool expectedAllowed)
+    {
+        var fixture = new ToolFixture(python);
+        var preparation = await new CacheCleanupService(fixture.Create()).PrepareAsync(CacheTool.Pip, default);
+        Assert.Equal(expectedAllowed, preparation.Plan is not null);
+        if (!expectedAllowed)
+        {
+            Assert.Equal(SystemCacheToolBackend.TOOL_NOT_IN_PROTECTED_LOCATION, preparation.Reason);
+            Assert.Equal(0, fixture.Runs);
+        }
+    }
+
+    /// <summary>실행 직전에도 도구 위치를 다시 확인해 보호 위치 밖이면 시작하지 않습니다.</summary>
+    [Fact]
+    public async Task ClearRechecksProtectedLocation()
+    {
+        var fixture = new ToolFixture(USER_NODE);
+        var script = Path.Combine(Path.GetDirectoryName(USER_NODE)!, "node_modules", "npm", "bin", "npm-cli.js");
+        var location = new CacheToolLocation(CacheTool.Npm, USER_NODE, ToolFixture.CACHE, ToolFixture.FINGERPRINT, script);
+        var execution = await fixture.Create().ClearAsync(location, default);
+        Assert.False(execution.Started);
+        Assert.Equal(SystemCacheToolBackend.TOOL_NOT_IN_PROTECTED_LOCATION, execution.Code);
+        Assert.Equal(0, fixture.Clears);
+    }
+
+    /// <summary>사용자 폴더 도구는 정리 창에서 터미널로 직접 실행할 공식 명령을 안내하고 실행 이력을 만들지 않습니다.</summary>
+    [Fact]
+    public async Task UserFolderToolShowsDirectRunCommand()
+    {
+        var fixture = new ToolFixture(USER_NODE);
+        var vm = new CacheToolsViewModel(new CacheCleanupService(fixture.Create()), _ => true);
+        await vm.PrepareCommand.ExecuteAsync(null);
+        Assert.Equal(DisplayText.Format(Strings.Cleanup_ToolUserWritable, "npm cache clean --force"), vm.Message);
+        Assert.False(vm.ClearCommand.CanExecute(null));
+        Assert.Null(vm.Outcome);
+    }
+
+    /// <summary>실제 보호 위치는 사용자 환경으로 바꿀 수 있는 프로세스 환경 변수 대신 Known Folder 값으로 읽고, 모르는 이름은 건너뜁니다.</summary>
+    [Fact]
+    public void ProductionProgramRootsUseKnownFolders()
+    {
+        Assert.Equal(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), SystemCacheToolBackend.ProtectedProgramRoot("ProgramFiles"));
+        Assert.Equal(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), SystemCacheToolBackend.ProtectedProgramRoot("ProgramFiles(x86)"));
+        Assert.Equal(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), SystemCacheToolBackend.ProtectedProgramRoot("ProgramW6432"));
+        Assert.Null(SystemCacheToolBackend.ProtectedProgramRoot("Path"));
+    }
+
+    /// <summary>가짜 파일 시스템에 도구 하나를 둔 실제 백엔드를 만듭니다.</summary>
+    private static SystemCacheToolBackend CreateBackend(string toolPath) => new ToolFixture(toolPath).Create();
 
     /// <summary>실행 후 조회 실패는 0바이트로 바꾸지 않습니다.</summary>
     [Fact]
@@ -331,15 +409,25 @@ public sealed class CacheCleanupTests
         public const string FINGERPRINT = "fixture-hash";
         private const string POLICY = """{"schemaVersion":1,"protectedRoots":[{"kind":"knownFolder","folder":"Documents"}]}""";
         private static readonly TimeSpan BUDGET = TimeSpan.FromSeconds(15);
-        private readonly Dictionary<string, List<DirectoryEntry>> _tree = new(StringComparer.OrdinalIgnoreCase);
-        private readonly string _toolPath;
-
-        public ToolFixture(string toolPath)
+        private static readonly Dictionary<string, string> PROGRAM_ROOTS = new(StringComparer.Ordinal)
         {
-            _toolPath = toolPath;
+            ["ProgramFiles"] = @"C:\Program Files",
+            ["ProgramFiles(x86)"] = @"C:\Program Files (x86)",
+            ["ProgramW6432"] = @"C:\Program Files",
+        };
+        private readonly Dictionary<string, List<DirectoryEntry>> _tree = new(StringComparer.OrdinalIgnoreCase);
+        private readonly string[] _toolPaths;
+
+        /// <summary>PATH 탐색 순서대로 도구 후보를 둡니다. 각 후보 옆에는 npm 진입 파일도 둡니다.</summary>
+        public ToolFixture(params string[] toolPaths)
+        {
+            _toolPaths = toolPaths;
             AddDirectory(CACHE);
-            AddFile(toolPath);
-            AddFile(Path.Combine(Path.GetDirectoryName(toolPath)!, "node_modules", "npm", "bin", "npm-cli.js"));
+            foreach (var toolPath in toolPaths)
+            {
+                AddFile(toolPath);
+                AddFile(Path.Combine(Path.GetDirectoryName(toolPath)!, "node_modules", "npm", "bin", "npm-cli.js"));
+            }
             foreach (var (directory, entries) in _tree) { Files.Dir(directory, [.. entries]); }
             Files.OnProbeRoot = _ => Observations++;
             Files.OnEnumerate = _ => Observations++;
@@ -354,16 +442,18 @@ public sealed class CacheCleanupTests
         public int Runs { get; private set; }
         public int Clears { get; private set; }
         public int Fingerprints { get; private set; }
+        public List<string> RunExecutables { get; } = [];
 
-        public SystemCacheToolBackend Create(bool limitToSystemScope = false, bool elevated = false)
+        public SystemCacheToolBackend Create(bool limitToSystemScope = false)
         {
-            var inspector = new CachePathInspector(Environment, new FakeRegistryReader(), Files, () => elevated, () => "S-1-5-21-1",
-                () => POLICY, new ManualTimeProvider(), BUDGET);
-            return new SystemCacheToolBackend(NullAppLogger.Instance, limitToSystemScope, Environment, Files, inspector, () => elevated,
-                _ => { Finds++; return [_toolPath]; },
-                (_, clear, _) =>
+            var inspector = new CachePathInspector(Environment, new FakeRegistryReader(), Files, name => PROGRAM_ROOTS.GetValueOrDefault(name),
+                () => "S-1-5-21-1", () => POLICY, new ManualTimeProvider(), BUDGET);
+            return new SystemCacheToolBackend(NullAppLogger.Instance, limitToSystemScope, Environment, Files, inspector,
+                _ => { Finds++; return _toolPaths; },
+                (location, clear, _) =>
                 {
                     Runs++;
+                    RunExecutables.Add(location.Executable);
                     if (clear) { Clears++; }
                     return Task.FromResult(new CacheProcessResult(true, clear ? string.Empty : CACHE, true, "Completed"));
                 },

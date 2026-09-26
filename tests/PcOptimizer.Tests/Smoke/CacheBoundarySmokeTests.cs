@@ -86,7 +86,7 @@ public sealed class CacheBoundarySmokeTests(Xunit.Abstractions.ITestOutputHelper
         Assert.Equal(protectedPath, CachePathInspector.CanonicalPath(SystemPathEnvironment.Instance, shortPath));
         var environment = new ProtectedFixtureEnvironment(tree.PathOf(""), protectedPath);
         var inspector = new CachePathInspector(environment, new FakeRegistryReader(), FileSystemDirectoryEntrySource.Instance,
-            () => false, () => "fixture", () => """{"schemaVersion":1,"protectedRoots":[{"kind":"knownFolder","folder":"Documents"}]}""",
+            _ => null, () => "fixture", () => """{"schemaVersion":1,"protectedRoots":[{"kind":"knownFolder","folder":"Documents"}]}""",
             TimeProvider.System, TimeSpan.FromSeconds(15));
         foreach (var path in new[] { shortPath, Path.Combine(shortPath, "missing-leaf") })
         {
