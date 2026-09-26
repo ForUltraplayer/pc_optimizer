@@ -174,7 +174,10 @@ public class ScanCoordinatorTests
     {
         var cancellable = new CancellableProbe("cancellable");
         var waiting = new SuccessProbe("waiting");
-        var coordinator = CreateCoordinator([cancellable, waiting], options: new ScanOptions { MaxParallelism = 1 });
+        // 협조 프로브는 취소 즉시 끝나므로 긴 유예 시간은 비용이 없고, 유예 시간과 스레드 풀 지연 사이의 경쟁을 없앤다.
+        var coordinator = CreateCoordinator(
+            [cancellable, waiting],
+            options: new ScanOptions { MaxParallelism = 1, CancellationGracePeriod = SIGNAL_WAIT });
         using var cts = new CancellationTokenSource();
 
         var scan = coordinator.RunScanAsync(CreateContext(), cts.Token);
@@ -204,7 +207,10 @@ public class ScanCoordinatorTests
     {
         var hanging = new HangingProbe("hanging", LONG_TIMEOUT);
         var ok = new SuccessProbe("ok");
-        var coordinator = CreateCoordinator([ok, hanging]);
+
+        // 병렬도 1: hanging이 시작됐다면 ok는 이미 끝나 슬롯을 돌려준 상태이므로, ok 결과 유지는 유예 시간에 의존하지 않는다.
+        // 유예 시간은 운영 기본값을 그대로 써서 취소 후 반환 시간 상한을 확인한다.
+        var coordinator = CreateCoordinator([ok, hanging], options: new ScanOptions { MaxParallelism = 1 });
         using var cts = new CancellationTokenSource();
 
         var scan = coordinator.RunScanAsync(CreateContext(), cts.Token);
@@ -399,6 +405,32 @@ public class ScanCoordinatorTests
         Assert.Equal(ProbeStatus.Failed, SummaryOf(result, "wrong").Status);
         Assert.Equal(CannotVerifyReason.ProbeError, Assert.Single(ResultOf(result, "wrong").Issues).Reason);
         Assert.False(result.Snapshot.TryGetProbe("wrong-other", out _));
+    }
+
+    /// <summary>
+    /// 측정값·Issue 목록이 null이거나 null 항목을 담은 결과는 성공으로 받지 않고 Failed/ProbeError로 바꾸며, 다른 프로브 결과와 리포트는 그대로 만든다.
+    /// </summary>
+    [Fact]
+    public async Task 목록이_null인_결과는_ProbeError로_처리하고_다른_결과는_유지한다()
+    {
+        var nullIssues = new NullCollectionsProbe("null-issues", nullMeasurements: false, nullIssues: true);
+        var nullMeasurements = new NullCollectionsProbe("null-measurements", nullMeasurements: true, nullIssues: false);
+        var nullIssueItem = new NullCollectionsProbe("null-issue-item", nullMeasurements: false, nullIssues: false, nullIssueItem: true);
+        var ok = new SuccessProbe("ok");
+        var coordinator = CreateCoordinator([nullIssues, ok, nullMeasurements, nullIssueItem]);
+
+        var result = await coordinator.RunScanAsync(CreateContext(), CancellationToken.None);
+
+        foreach (var probeId in new[] { "null-issues", "null-measurements", "null-issue-item" })
+        {
+            Assert.Equal(ProbeStatus.Failed, SummaryOf(result, probeId).Status);
+            Assert.Equal(CannotVerifyReason.ProbeError, Assert.Single(ResultOf(result, probeId).Issues).Reason);
+            Assert.NotNull(ResultOf(result, probeId).Measurements);
+        }
+
+        Assert.Equal(ProbeStatus.Success, SummaryOf(result, "ok").Status);
+        Assert.NotNull(result.Snapshot.GetMeasurement("ok", SuccessProbe.MEASUREMENT_NAME));
+        Assert.Equal(3, result.Report.Findings.Count(f => f.CannotVerifyReason == CannotVerifyReason.ProbeError));
     }
 
     /// <summary>
