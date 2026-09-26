@@ -1,6 +1,6 @@
 # 공유 리뷰 원장
 
-사용자 요청에 따라 Codex의 검토 결과를 구현자·리뷰어가 파일로 확인하고 대응하기 위한 원장이다. 마지막 기록일: 2026-09-27(REV-008~014 수정 근거 추가, SP4 Task 5의 REV-014·015 대응 기록). 사용자의 ‘이어서 작업 진행’ 지시 이후 Codex가 구현도 인계받았다. 이후 자기 수정 검증과 별도 독립 리뷰를 구분한다.
+사용자 요청에 따라 Codex의 검토 결과를 구현자·리뷰어가 파일로 확인하고 대응하기 위한 원장이다. 마지막 기록일: 2026-09-27(SP4 Task 9 시점 REV-016~018 신규 재현, REV-010 잔여 재현 확인). 사용자의 ‘이어서 작업 진행’ 지시 이후 Codex가 구현도 인계받았다. 이후 자기 수정 검증과 별도 독립 리뷰를 구분한다.
 
 ## 읽기와 대응
 
@@ -22,12 +22,15 @@
 | REV-007 | P2 | 수정됨·재검증 대기 | P5 앱 설정 읽기 | 읽기 실패 보존 및 기본 캐시 미탐지 시 최종 사유 카드 회귀 통과 |
 | REV-008 | P1 | 검증 완료 | P7 정리 실행기 | 8.3 별칭 정규화(CanonicalPath) 및 별칭 fixture 거절 테스트 독립 확인 |
 | REV-009 | P2 | 검증 완료 | P7 정리 실행기 | CachePathInspector 주입·관문 7종 테스트 독립 확인(ProfileList SID 분기·루프 내 ProtectedOrLinkedChild는 간접 커버) |
-| REV-010 | P2 | 부분 수정·재현 미완 | P7 정리 실행기 | 가드·전용 코드·문구는 됐으나 Kill(entireProcessTree)의 AggregateException이 가드를 우회 — 영구 차단·'실행하지 않음' 오표시 경로 남음 |
+| REV-010 | P2 | 부분 수정·잔여 재현 확인 | P7 정리 실행기 | 가드·전용 코드·문구는 됐으나 Kill(entireProcessTree)의 AggregateException이 가드를 우회 — 영구 차단·'실행하지 않음' 오표시 경로 남음 |
 | REV-011 | P2 | 검증 완료 | UI 커밋 | 헤더 6파일·공개 멤버 한글 주석·테스트 summary 독립 확인 |
 | REV-012 | P3 | 검증 완료 | P7 정리 실행기 | 인자 2개 제거로 스펙 문구와 일치, 고정 인자 테스트 일치, NuGet --list 파싱 ko/ja/en 무관 확인 |
 | REV-013 | P2 | 검증 완료 | UI 정리 결과 | Started 플래그로 미실행 코드 분리·Outcome 미생성·메인 화면 미잔존 독립 확인 |
 | REV-014 | P2 | 수정됨·재검증 대기 | UI 개요 | SP4 Task 5: 드라이버 타일 제거, 온라인 완료 판정에서 로컬 Driver CannotVerify 제외(온라인 공급자·NVIDIA 비교 규칙만), 온라인 상태는 옵션 영역 `LastOnlineCheckText`만 |
 | REV-015 | 제품 범위 | 수정됨·재검증 대기 | 개요 화면 | SP4 Task 5: 제안 1·2항(요약 타일 '바로 할 수 있는 것/직접 해야 하는 것', 0이면 숨김, 정리 창은 보호 위치 도구 있을 때만) 구현. 3·4항은 후속 단계 |
+| REV-016 | P1(Task 10 선행) | 미해결 | Task 9→10 사용자 범위 | SystemOnly여도 정리 진입 허용, backend에 대화형 사용자 범위 전달 없음. 현재 승격 거절을 없애기 전 보완 필수 |
+| REV-017 | P2 | 미해결 | SP4 사양 수집 | WaitAsync 타임아웃 후 살아 있는 프로브 재진입 — 반복 Capture에서 호출 2회 재현 |
+| REV-018 | P2 | 미해결 | SP4 실행 상호 배제 | Spec.IsLoading=true인데 CanOpenCacheTools=true. 상태 변경 알림도 검사 명령만 갱신 |
 
 ## REV-001 — 보호 경로와 스캔 경로의 검증 정책을 분리
 
@@ -402,3 +405,41 @@
 - 우선 [수정·검증 기록](2026-09-27-rev008-014-fixes.md)을 읽고 각 REV의 재현 테스트와 실제 생산 경로 연결을 검토할 것. 자체 검증을 독립 승인으로 바꾸지 않는다.
 - 평가 배포물은 `artifacts/win-x64-review-fixes/PcOptimizer.App.exe`. 실행 중인 이전 앱은 교체/종료하지 않았다. 폴더 전체를 함께 사용한다.
 - 남은 범위: 이 수정분 독립 재검증, REV-015 제품 구성 결정, 기존 이월 minor, 일반 권한 실제 UI·UAC·다른 SID·DPI 전환·.NET 없는 별도 PC 검증.
+
+
+## REV-016 — SystemOnly 사용자 범위가 정리 조치로 전달되지 않음
+
+- 발견: 2026-09-27, Codex, `66cd7cb` 고정 복사본. Task 9 구현과 Task 10 활성화 경계 검토.
+- 위치: `MainViewModel.cs:175,226`, `MainWindow.xaml.cs:43-46`, `CacheToolsWindow.xaml.cs:27`.
+- 조건/실제: SystemOnly + 보호 위치 도구. `SystemOnlyMustNotOfferUserCacheActions`는 CanOpenCacheTools=false 기대, 실제 true. 새 정리 backend는 사용자 범위를 전달받지 않는다.
+- 영향과 한계: 현재 NormalUserRequired가 실제 정리를 차단한다. **다른 사용자 데이터 삭제 재현이 아니라 Task 10 활성화 전 보완할 계약 결함**이다. 승격 거절만 제거하면 관리자 프로필과 대화형 사용자 프로필의 구분이 사라진다.
+- 요청: 사용자별 정리의 UI·준비·실행 직전 관문에 범위 전달/재확인. SystemOnly 거절 Started=false, 동일 사용자 허용 회귀를 추가한다.
+- 근거: [Task 9 리뷰](2026-09-27-sp4-task9-review.md), [실패 재현 소스](repro/Sp4Task9ReviewTests.cs).
+- 대응 기록: 아직 없음. Task 9 fix 또는 Task 10 필수 선행 항목으로 구현자가 배정할 것.
+
+## REV-017 — 사양 수집 타임아웃 이후 살아 있는 프로브 재실행
+
+- 발견: 2026-09-27, Codex, `66cd7cb`. Task 7~8 연결부이며 Task 9에서 새로 도입된 코드라고 보지는 않는다.
+- 위치: `PcSpecService.cs:172-197`, `MainViewModel.cs:403-414`.
+- 재현: `TimedOutSpecMustNotReenterLiveSharedProbe`. 취소를 무시하는 40ms 제한 프로브로 CaptureAsync 두 번. 첫 Task가 살아 있는데 호출 수 Expected 1 / Actual 2.
+- 실제: WaitAsync 타임아웃 뒤 내부 Task/종료 중 상태를 보존하지 않는다. 사양 새로 고침과 공유 인스턴스를 쓰는 일반 검사가 다시 실행될 수 있다. 일반 검사 종료 중→사양의 반대 방향도 별도 확인할 것.
+- 요청: 두 경로의 실제 실행/종료 상태를 공유하고, 타임아웃과 실제 종료를 분리한다. 재진입 차단·늦은 종료 후 복구를 양방향으로 검증한다.
+- 근거: [Task 9 리뷰](2026-09-27-sp4-task9-review.md), [실패 재현 소스](repro/Sp4Task9ReviewTests.cs).
+- 대응 기록: 아직 없음.
+
+## REV-018 — 사양 읽기 중 정리 창 진입 가드 누락
+
+- 발견: 2026-09-27, Codex, `66cd7cb`. Task 8 보고서의 가드 반영 주장과 실제 조건 불일치.
+- 위치: `MainViewModel.cs:223-226,421-426`.
+- 재현: `SpecLoadingMustBlockCacheActions`. IsLoading=true와 StartScan.CanExecute=false를 확인했지만 CanOpenCacheTools=true라 실패.
+- 요청: 사양 읽기/종료 중 상태를 실행 가능 조건에 반영하고 CanOpenCacheTools 변경 알림을 연결한다. 실제 정리가 현재 차단돼 있다는 사실과 별개로 Task 10 활성화 전 처리한다. REV-017과 함께 실제 수명을 기준으로 판단한다.
+- 근거: [Task 9 리뷰](2026-09-27-sp4-task9-review.md), [실패 재현 소스](repro/Sp4Task9ReviewTests.cs).
+- 대응 기록: 아직 없음.
+
+## 2026-09-27 Task 9 시점 재검증 (Codex)
+
+- 기준 `66cd7cb`, Task 9 `c9ba0d7`. 소스 수정 없이 git archive 복사본에서 Release 0경고/0오류, 기존 기본 1196/1196, Smoke 22/22. 추가 재현 4건 모두 실패하여 REV-016~018 등록 및 기존 REV-010 잔여를 확인했다. Online/ToolSmoke는 미실행.
+- REV-010 추가 근거: `AggregateKillFailureMustNotEscapeGuard`에서 AggregateException이 CacheProcessGuard.StopAsync 밖으로 전파됨. 원장의 이전 정적 지적을 실행 확인했으며 `부분 수정·잔여 재현 확인`으로 기록한다. Codex의 이전 구현에 대한 자기 재현이므로 독립 승인으로 취급하지 않는다.
+- 상세 결과/명령/한계: [Task 9 리뷰](2026-09-27-sp4-task9-review.md). Task 10 실행 허용 전에 REV-016/018 및 기존 REV-010을 브리프에 반영하고, REV-017의 사양·검사 공통 실행 수명을 추가 설계에 포함할 것.
+- 검토 도중 `1463afe`의 HANDOFF 정정을 확인했다. 원본 인계서와 구현 소스는 변경하지 않았다. 원래 요청의 windows 경로 대신 Task 9가 존재하는 pc_optimizer를 검토했음을 보고서에 명시했다.
+- 마감 전 `512a82e`도 diff로 확인했다. 네 재현 경로는 변경되지 않았다. 위 테스트 수치는 `66cd7cb` 복사본 기준이며 최신 HEAD 전체 검증 수치가 아니다.
