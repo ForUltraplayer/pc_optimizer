@@ -1,6 +1,6 @@
 # 공유 리뷰 원장
 
-사용자 요청에 따라 Codex의 검토 결과를 구현자·리뷰어가 파일로 확인하고 대응하기 위한 원장이다. 마지막 기록일: 2026-09-27. 사용자의 ‘이어서 작업 진행’ 지시 이후 Codex가 구현도 인계받았다. 이후 자기 수정 검증과 별도 독립 리뷰를 구분한다.
+사용자 요청에 따라 Codex의 검토 결과를 구현자·리뷰어가 파일로 확인하고 대응하기 위한 원장이다. 마지막 기록일: 2026-09-27(Claude 독립 리뷰 추가). 사용자의 ‘이어서 작업 진행’ 지시 이후 Codex가 구현도 인계받았다. 이후 자기 수정 검증과 별도 독립 리뷰를 구분한다.
 
 ## 읽기와 대응
 
@@ -20,6 +20,11 @@
 | REV-005 | P2 | 검증 완료(장치 ID 범위) | P3a 내보내기 | 장치 내부 ID 원문 노출 보완 확인 |
 | REV-006 | P2 | 수정됨·재검증 대기 | P5 앱 설정 읽기 | 사전 메타데이터 검사·본문 읽기 공급자 경계, 실제 링크 fixture 통과 |
 | REV-007 | P2 | 수정됨·재검증 대기 | P5 앱 설정 읽기 | 읽기 실패 보존 및 기본 캐시 미탐지 시 최종 사유 카드 회귀 통과 |
+| REV-008 | P1 | 미해결 | P7 정리 실행기 | 도구 보고 캐시 경로를 8.3 별칭 정규화 없이 접두 비교 — 보호 우회 가능 |
+| REV-009 | P2 | 미해결 | P7 정리 실행기 | `Inspect` 관문 7종에 직접 테스트 없음(실제 OS 의존 private) |
+| REV-010 | P2 | 미해결 | P7 정리 실행기 | Kill 실패 시 무기록·기능 영구 비활성·'도구 미설치' 오진 |
+| REV-011 | P2 | 미해결 | UI 커밋 | 필수 파일 헤더 누락/삭제(3파일), 공개 멤버 한글 XML 주석 누락 |
+| REV-012 | P3 | 미해결 | P7 정리 실행기 | pip·dotnet 인자가 사용자 승인 스펙 문구보다 2개 많음 |
 
 ## REV-001 — 보호 경로와 스캔 경로의 검증 정책을 분리
 
@@ -188,6 +193,50 @@
 - 영향: 사용자가 별도 캐시 위치를 설정했지만 읽을 권한이 없을 때 ‘설정 없음/기본 위치만’처럼 보일 수 있다.
 - 요청: Missing만 부재로 처리하고 접근 거부·조회 오류는 읽기 실패/확인 불가로 구분한다. 리더 결과뿐 아니라 `AppCacheProbe.ConfigDetectedRuleIds`/`reportedConfigs`까지 확인해, 기본 탐지가 없는 앱도 실제 설정 읽기 실패 사유가 요약 또는 카드에 남게 한다. 후자의 전파 경로는 소스상 확인 필요 사항이며 별도 파이프라인 재현은 아직 하지 않았다.
 - 완료 근거: 재현 통과, 없는 파일은 NotConfigured 유지, 실패 사유가 최종 결과에서 사라지지 않는 회귀 검증.
+- 대응 기록: 아직 없음.
+
+## 2026-09-27 독립 리뷰 (Claude 세션, 범위 `9aa45b3..ad06cca`)
+
+전체 보고서: [2026-09-27-claude-independent-review.md](2026-09-27-claude-independent-review.md). diff·커밋 문서·`.trx`만으로 검토했고 빌드·테스트는 재실행하지 않았다(동시 작업 세션의 미커밋 변경으로 작업 트리 빌드가 깨져 있었음). 작업 트리 미커밋 변경은 범위 밖.
+
+- 실행기 안전: 승인 허용 목록 안에서만 동작. 셸 없음, 규칙 문자열 인자 없음, 승격·현재 프로필·포함 보호 정책·다른 사용자·reparse/placeholder·완전 열거·NuGet .dat 전용 관문이 코드에서 강제되고 실행 직전 재검사됨. Critical 없음.
+- REV-002/003/006/007: diff와 편입된 회귀 테스트로 수정 확인(ADDRESSED). 독립 재실행은 하지 않았으므로 상태는 바꾸지 않는다(Codex 독립 재검증 몫).
+- REV-004: 09-27 스펙 허용 목록과 구현 일치. 인자 2개 초과분은 REV-012.
+- 판정: 일반 권한 수동 검증 진행 가능. 출시 전 REV-008~012 필수.
+
+## REV-008 — 캐시 경로 8.3 별칭 미정규화
+
+- 위치: `src/PcOptimizer.Probes/Actions/SystemCacheToolBackend.cs:44`(`Path.GetFullPath`만), `Inspect :118-122`(`StartsWith`/`IsProtected` 접두 비교).
+- 실제: `DOCUME~1` 같은 8.3 별칭으로 설정된 캐시 경로가 프로필 하위 검사를 통과하고 Known Folder 보호를 우회할 수 있다(IsProtected 내부의 GetLongPathNameW 여부는 diff에서 미확인). 악용성은 낮음(자기 설정, npm/pip는 하위만 삭제, NuGet은 .dat 검사).
+- 기대: P4/P5 가드와 동일하게 `environment.NormalizePath`(GetFullPath+GetLongPathNameW) 정규화 후 비교.
+- 완료 근거: 8.3 별칭 fixture가 보호 경로로 거절되는 테스트, 기존 정리 테스트 회귀.
+- 대응 기록: 아직 없음.
+
+## REV-009 — Inspect 관문 직접 테스트 부재
+
+- 위치: `SystemCacheToolBackend.Inspect`(private/static, 실제 WindowsIdentity·레지스트리·FS 의존). 보호 거절 테스트는 가짜 `Allowed=false`(`CacheCleanupTests.cs:83`)뿐.
+- 미검증 관문: OutsideUserProfile, ProtectedPath, 다른 사용자, 링크/placeholder 하위, InspectionIncomplete, UnexpectedHttpCacheContent, 승격 거절. 09-27 스펙 출시 검증 항목 "보호 거절"에 해당.
+- 기대: IPathEnvironment/IRegistryReader/IDirectoryEntrySource/승격 상태 주입, 관문별 가짜 FS 테스트.
+- 대응 기록: 아직 없음.
+
+## REV-010 — Kill 실패 경로 무기록·오진
+
+- 위치: `src/PcOptimizer.Probes/Actions/CacheToolProcess.cs:69-71`.
+- 실제: Kill 예외를 삼키고 전역 `_unfinishedProcess`를 세워 이후 모든 RunAsync(LocateAsync 포함)가 false → UI가 `Cleanup_Unavailable`("도구가 설치돼 있어야…")로 표시. 로그 없음.
+- 기대: 실패 로그(형식 이름), 별도 코드(ProcessStillRunning)로 UI 안내, 거절 플래그는 유지(올바름).
+- 대응 기록: 아직 없음.
+
+## REV-011 — 파일 헤더·XML 주석 누락
+
+- 위치: `src/PcOptimizer.App/ViewModels/MainViewModel.Overview.cs:1`(신규, 헤더 없음), `Views/CacheToolsWindow.xaml:1`(신규, 없음), `Views/MainWindow.xaml:1`(이 범위에서 헤더 제거). 공개 멤버 주석: `FindingCardViewModel.cs:92,163-166`, `MainViewModel.Overview.cs:14-41`, `MainViewModel.cs:94`.
+- 기대: 공통 제약의 헤더·한글 XML 주석 복구. 브랜치 마무리 전 필수.
+- 대응 기록: 아직 없음.
+
+## REV-012 — 승인 인자 목록 초과
+
+- 위치: `CacheToolProcess.cs:89`(`--disable-pip-version-check`), `:91`(`--force-english-output`).
+- 실제: 09-27 스펙 "…만 허용한다" 목록에 없는 인자. 무해하나 사용자 승인 목록·고정 인자 테스트(`CacheCleanupTests.cs:133`)와 정확히 일치해야 한다.
+- 기대: 인자 삭제(pip는 `PIP_DISABLE_PIP_VERSION_CHECK=1` env와 중복) 또는 스펙 개정 후 테스트 갱신. 사용자 확인 필요.
 - 대응 기록: 아직 없음.
 
 ## 독립 검증 기록
