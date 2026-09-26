@@ -119,6 +119,43 @@ public sealed class MainViewModelTests
         ];
     }
 
+    [Fact]
+    public async Task GoalNavigationFiltersResultsWithoutChangingTheReport()
+    {
+        using var vm = CreateViewModel([new FixtureMemoryProbe()]);
+        await vm.StartScanCommand.ExecuteAsync(null);
+        var report = vm.LastResult;
+        vm.ShowSettingsCommand.Execute(null);
+        Assert.True(vm.ShowSettingsOnly);
+        Assert.Single(vm.VisibleCards);
+        vm.ShowDriversCommand.Execute(null);
+        Assert.True(vm.ShowAllResults);
+        Assert.Equal(FindingCategory.Driver, vm.SelectedCategory!.Category);
+        Assert.Empty(vm.VisibleCards); // Never falls back to unrelated findings.
+        vm.ShowRecommendationsCommand.Execute(null);
+        Assert.False(vm.ShowSettingsOnly);
+        Assert.Single(vm.VisibleCards);
+        Assert.Same(report, vm.LastResult);
+    }
+
+    [Fact]
+    public async Task OfflineComparisonAndLastCleanupRemainExplicitAfterRescan()
+    {
+        using var vm = CreateViewModel([new FixtureMemoryProbe()]);
+        vm.LastCleanupOutcome = new CleanupOutcomeViewModel("npm", new(true, 0, "Completed") { BeforeBytes = 500 });
+        var outcome = vm.LastCleanupOutcome;
+        await vm.StartScanCommand.ExecuteAsync(null);
+        Assert.Equal(Strings.Overview_OnlineNotChecked, vm.DriverCount);
+        vm.IsOnlineCheckRequested = true;
+        Assert.Equal(Strings.Overview_OnlineNotChecked, vm.DriverCount); // Toggling is not a completed comparison.
+        await vm.StartScanCommand.ExecuteAsync(null);
+        Assert.Equal(DisplayText.Format(Strings.Overview_CandidateCount, 0), vm.DriverCount);
+        vm.IsOnlineCheckRequested = false;
+        await vm.StartScanCommand.ExecuteAsync(null);
+        Assert.Equal(Strings.Overview_OnlineNotChecked, vm.DriverCount);
+        Assert.Same(outcome, vm.LastCleanupOutcome);
+    }
+
     /// <summary>검사가 끝나면 Finding 기준 건수·분류·카드·마지막 측정 시각을 UI 마샬러로 반영한다.</summary>
     [Fact]
     public async Task 검사_결과를_건수와_카드로_반영한다()

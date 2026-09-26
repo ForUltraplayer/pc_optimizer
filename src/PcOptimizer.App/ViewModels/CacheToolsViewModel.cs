@@ -31,6 +31,12 @@ public sealed partial class CacheToolsViewModel : ObservableObject
     [ObservableProperty]
     private string _message = Strings.Cleanup_Intro;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasOutcome))]
+    private CleanupOutcomeViewModel? _outcome;
+
+    public bool HasOutcome => Outcome is not null;
+
     /// <summary>실행을 시도한 뒤에는 메인 진단을 다시 읽습니다.</summary>
     public bool NeedsRescan { get; private set; }
 
@@ -65,9 +71,7 @@ public sealed partial class CacheToolsViewModel : ObservableObject
         {
             var result = await _service.PrepareAsync((CacheTool)SelectedTool, CancellationToken.None);
             _plan = result.Plan;
-            Message = _plan is null ? FailureText(result.Reason) : DisplayText.Format(Strings.Cleanup_Preview,
-                Tools[SelectedTool], _plan.Location.Executable, _plan.Location.CachePath,
-                (_plan.ObservedBytes / 1_000_000d).ToString("N1", System.Globalization.CultureInfo.CurrentCulture));
+            Message = _plan is null ? FailureText(result.Reason) : FormatPreview(_plan);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException) { Message = Strings.Cleanup_Failed; }
         finally { IsBusy = false; }
@@ -78,7 +82,8 @@ public sealed partial class CacheToolsViewModel : ObservableObject
     private async Task ClearAsync()
     {
         var plan = _plan;
-        if (plan is null || !_confirm(Message + Environment.NewLine + Strings.Cleanup_Confirm)) { return; }
+        if (plan is null || !_confirm(FormatPreview(plan) + Environment.NewLine + Strings.Cleanup_Impact
+            + Environment.NewLine + Strings.Cleanup_Confirm)) { return; }
         _plan = null;
         IsBusy = true;
         NeedsRescan = true;
@@ -86,15 +91,24 @@ public sealed partial class CacheToolsViewModel : ObservableObject
         try
         {
             var result = await _service.ExecuteAsync(plan.Id, CancellationToken.None);
+            Outcome = new CleanupOutcomeViewModel(Tools[(int)plan.Location.Tool], result);
             Message = result.ToolSucceeded
                 ? DisplayText.Format(Strings.Cleanup_Done, result.RemainingBytes is { } bytes
                     ? (bytes / 1_000_000d).ToString("N1", System.Globalization.CultureInfo.CurrentCulture) + " MB"
                     : Strings.Cleanup_Unverified)
                 : FailureText(result.Code);
         }
-        catch (Exception ex) when (ex is not OutOfMemoryException) { Message = Strings.Cleanup_Failed; }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Message = Strings.Cleanup_Failed;
+            Outcome = new CleanupOutcomeViewModel(Tools[(int)plan.Location.Tool], new(false, null, "ToolFailed"));
+        }
         finally { IsBusy = false; }
     }
+
+    private string FormatPreview(CacheCleanupPlan plan) => DisplayText.Format(Strings.Cleanup_Preview,
+        Tools[(int)plan.Location.Tool], plan.Location.Executable, plan.Location.CachePath,
+        (plan.ObservedBytes / 1_000_000d).ToString("N1", System.Globalization.CultureInfo.CurrentCulture));
 
     private static string FailureText(string? code) => code switch
     {

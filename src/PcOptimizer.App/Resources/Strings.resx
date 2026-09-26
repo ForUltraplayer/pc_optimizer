@@ -251,4 +251,21 @@
   <data name="Cleanup_StepSelect" xml:space="preserve"><value>1. 정리할 도구 선택</value></data>
   <data name="Cleanup_StepPreview" xml:space="preserve"><value>2. 대상과 영향을 확인한 뒤 정리</value></data>
   <data name="Cleanup_WindowsTitle" xml:space="preserve"><value>Windows 임시 파일도 확인하려면</value></data>
+  <data name="Overview_SettingsButton" xml:space="preserve"><value>설정 후보 보기 →</value></data>
+  <data name="Overview_DriverButton" xml:space="preserve"><value>드라이버 결과 보기 →</value></data>
+  <data name="Overview_OnlineNotChecked" xml:space="preserve"><value>온라인 비교 전</value></data>
+  <data name="Overview_SettingsFocusHelp" xml:space="preserve"><value>설정 개선 후보만 보고 있습니다. ‘추천 조치’를 누르면 모든 개선 후보로 돌아갑니다.</value></data>
+  <data name="Overview_EmptySettings" xml:space="preserve"><value>표시할 설정 개선 후보가 없습니다. ‘추천 조치’에서 다른 후보를 보거나 ‘전체 결과’에서 확인 불가 항목을 검토하세요.</value></data>
+  <data name="Cleanup_Before" xml:space="preserve"><value>실행 직전</value></data>
+  <data name="Cleanup_After" xml:space="preserve"><value>실행 직후</value></data>
+  <data name="Cleanup_OutcomeFailed" xml:space="preserve"><value>최근 정리: 완료를 확인하지 못했습니다</value></data>
+  <data name="Cleanup_OutcomeUnverified" xml:space="preserve"><value>도구는 종료했지만 크기 변화는 확인하지 못했습니다</value></data>
+  <data name="Cleanup_OutcomeReduced" xml:space="preserve"><value>최근 정리: 캐시 크기 감소를 확인했습니다</value></data>
+  <data name="Cleanup_OutcomeUnchanged" xml:space="preserve"><value>최근 정리: 관측한 크기는 같습니다</value></data>
+  <data name="Cleanup_OutcomeIncreased" xml:space="preserve"><value>최근 정리: 관측한 크기가 늘었습니다</value></data>
+  <data name="Cleanup_Reduction" xml:space="preserve"><value>관측한 캐시 크기가 {0} 줄었습니다.</value></data>
+  <data name="Cleanup_NoReduction" xml:space="preserve"><value>도구는 정상 종료했지만 관측 가능한 크기 감소는 없었습니다.</value></data>
+  <data name="Cleanup_IncreaseHelp" xml:space="preserve"><value>다른 프로그램이 캐시를 다시 만들었을 수 있습니다. 대상 상태를 확인하세요.</value></data>
+  <data name="Cleanup_OutcomeUnknownHelp" xml:space="preserve"><value>크기 비교를 완료하지 못했습니다. ‘다시 검사’로 현재 상태를 확인하세요.</value></data>
+  <data name="Cleanup_ObservationNote" xml:space="preserve"><value>파일의 논리 크기 비교입니다. 디스크 여유 공간 증가량과 다를 수 있고 캐시는 다시 생성될 수 있습니다.</value></data>
 </root>

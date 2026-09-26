@@ -22,6 +22,7 @@ public sealed class CacheCleanupTests
         var result = await service.ExecuteAsync(plan.Id, default);
         Assert.True(result.ToolSucceeded);
         Assert.Null(result.RemainingBytes);
+        Assert.Equal(500, result.BeforeBytes);
     }
 
     /// <summary>도구가 없거나 처음부터 보호된 대상이면 계획을 발급하지 않습니다.</summary>
@@ -126,6 +127,53 @@ public sealed class CacheCleanupTests
         await vm.ClearCommand.ExecuteAsync(null);
         Assert.Equal(0, backend.Clears);
         Assert.False(vm.NeedsRescan);
+        Assert.Null(vm.Outcome);
+    }
+
+    [Fact]
+    public async Task ConfirmationUsesPreparedTargetEvenIfStatusMessageChanges()
+    {
+        var backend = new Backend();
+        string? confirmation = null;
+        var vm = new CacheToolsViewModel(new CacheCleanupService(backend), text => { confirmation = text; return false; });
+        await vm.PrepareCommand.ExecuteAsync(null);
+        vm.Message = "Windows 저장소 설정을 열었습니다.";
+        await vm.ClearCommand.ExecuteAsync(null);
+        Assert.Contains(backend.Location.CachePath, confirmation, StringComparison.Ordinal);
+        Assert.Contains(backend.Location.Executable, confirmation, StringComparison.Ordinal);
+        Assert.Contains(PcOptimizer.App.Resources.Strings.Cleanup_Impact, confirmation, StringComparison.Ordinal);
+        Assert.Equal(0, backend.Clears);
+    }
+
+    [Fact]
+    public async Task OutcomeComparesImmediatePreflightInsteadOfStalePreview()
+    {
+        var backend = new Backend { BeforeBytes = 500 };
+        var vm = new CacheToolsViewModel(new CacheCleanupService(backend), _ => true);
+        await vm.PrepareCommand.ExecuteAsync(null);
+        backend.BeforeBytes = 900; // Cache grew between preview and confirmed execution.
+        await vm.ClearCommand.ExecuteAsync(null);
+        Assert.Equal("900 B", vm.Outcome!.BeforeText);
+        Assert.Equal("0 B", vm.Outcome.AfterText);
+        Assert.Contains("900 B", vm.Outcome.ChangeText, StringComparison.Ordinal);
+        Assert.True(vm.NeedsRescan);
+        var outcome = vm.Outcome;
+        vm.SelectedTool = 1;
+        Assert.Same(outcome, vm.Outcome); // A new selection does not erase the last attempted action.
+        Assert.Equal("npm", vm.Outcome.Tool);
+    }
+
+    [Theory]
+    [InlineData(true, null, "Cleanup_OutcomeUnverified")]
+    [InlineData(true, 500L, "Cleanup_OutcomeUnchanged")]
+    [InlineData(true, 700L, "Cleanup_OutcomeIncreased")]
+    [InlineData(false, 0L, "Cleanup_OutcomeFailed")]
+    public void OutcomeDoesNotInventSuccessfulSavings(bool success, long? after, string expectedKey)
+    {
+        var outcome = new CleanupOutcomeViewModel("npm", new(success, after, "fixture") { BeforeBytes = 500 });
+        Assert.Equal(PcOptimizer.App.Resources.Strings.ResourceManager.GetString(expectedKey), outcome.Title);
+        Assert.DoesNotContain("줄었습니다", outcome.ChangeText, StringComparison.Ordinal);
+        if (after is null) { Assert.Equal(PcOptimizer.App.Resources.Strings.Cleanup_Unverified, outcome.AfterText); }
     }
 
     /// <summary>NuGet 명령은 HTTP 캐시만 지정하며 패키지 전체를 지우는 인자가 없습니다.</summary>
@@ -147,8 +195,9 @@ public sealed class CacheCleanupTests
         public bool BlockAfterClear { get; set; }
         public TaskCompletionSource? ClearGate { get; set; }
         public int Clears { get; private set; }
+        public long BeforeBytes { get; set; } = 500;
         public Task<CacheToolLocation?> LocateAsync(CacheTool tool, CancellationToken ct) => Task.FromResult<CacheToolLocation?>(Location);
-        public Task<CacheInspection> InspectAsync(CacheToolLocation location, CancellationToken ct) => Task.FromResult(new CacheInspection(Allowed, Clears == 0 ? 500 : 0, "Blocked"));
+        public Task<CacheInspection> InspectAsync(CacheToolLocation location, CancellationToken ct) => Task.FromResult(new CacheInspection(Allowed, Clears == 0 ? BeforeBytes : 0, "Blocked"));
         public async Task<bool> ClearAsync(CacheToolLocation location, CancellationToken ct)
         {
             Clears++;
