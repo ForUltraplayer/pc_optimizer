@@ -11,6 +11,9 @@ using System.Text.RegularExpressions;
 
 // 사용자 패키지
 using PcOptimizer.App.Services;
+using PcOptimizer.App.ViewModels;
+using PcOptimizer.App.Views;
+using PcOptimizer.Tests.Unit.App.Fakes;
 using PcOptimizer.Core.Abstractions;
 using PcOptimizer.Core.Models;
 using PcOptimizer.Core.Rules;
@@ -19,7 +22,7 @@ using Xunit.Abstractions;
 namespace PcOptimizer.Tests.Smoke;
 
 /// <summary>
-/// App의 검사 서비스 → 규칙 → 익명화 내보내기까지의 종단 스모크 테스트입니다(네트워크·관리자 권한 없음).
+/// App의 검사 서비스 → 화면 모델 → 익명화 내보내기 종단 스모크입니다. 네트워크는 사용하지 않고 현재 프로세스 권한으로 조회합니다.
 /// 결과 JSON은 <see cref="EXPORT_FILE_NAME"/>로 임시 폴더에 남겨 사람이 확인할 수 있게 합니다.
 /// </summary>
 [Trait("Category", "Smoke")]
@@ -34,7 +37,24 @@ public sealed class ScanServiceSmokeTests(ITestOutputHelper output)
     {
         var service = ScanService.CreateDefault(NullAppLogger.Instance);
 
-        var result = await service.RunScanAsync(onlineCheckRequested: false, CancellationToken.None);
+        var elevation = WindowsElevationState.Capture();
+        using var vm = new MainViewModel(service, new ReportExporter(PersonalDataScrubber.FromEnvironment()),
+            new FixedExportPathPicker(null), new SettingsUriPolicy(NullAppLogger.Instance, _ => { }),
+            new LinkPolicy(null, NullAppLogger.Instance, _ => { }), new ImmediateUiDispatcher(), NullAppLogger.Instance,
+            elevation, new ElevationRelauncher(new RecordingProcessStarter(), elevation, () => null, NullAppLogger.Instance),
+            ScanLaunchMode.Normal);
+        await vm.StartScanCommand.ExecuteAsync(null);
+        var result = vm.LastResult!;
+        Assert.NotNull(result);
+        Assert.All(vm.VisibleCards, card => Assert.Equal(Verdict.Candidate, card.Verdict));
+        var recommendations = vm.RecommendedCards.Count;
+        vm.ShowDriversCommand.Execute(null);
+        Assert.All(vm.VisibleCards, card => Assert.Equal(FindingCategory.Driver, card.Finding.Category));
+        vm.ShowRecommendationsCommand.Execute(null);
+        Assert.Equal(recommendations, vm.VisibleCards.Count());
+        Assert.Same(result, vm.LastResult);
+        output.WriteLine($"UI recommendations={recommendations}; total={result.Report.Findings.Count}; driver={vm.DriverCount}");
+        RenderOverviewIfRequested(vm);
 
         foreach (var summary in result.Report.ProbeSummaries)
         {
@@ -113,6 +133,38 @@ public sealed class ScanServiceSmokeTests(ITestOutputHelper output)
                 (PersonalDataScrubber.PROFILE_PLACEHOLDER + @"\" + relative).Replace(@"\", @"\\", StringComparison.Ordinal), json, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("'" + Path.GetFileName(candidatePath) + "'", unclassifiedJson, StringComparison.OrdinalIgnoreCase);
         }
+    }
+
+    private static void RenderOverviewIfRequested(MainViewModel vm)
+    {
+        var directory = Environment.GetEnvironmentVariable("PCOPTIMIZER_UI_ARTIFACTS");
+        if (string.IsNullOrWhiteSpace(directory)) { return; }
+        Exception? error = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var window = new MainWindow(vm);
+                var root = (System.Windows.FrameworkElement)window.Content;
+                var size = new System.Windows.Size(1100, 840);
+                root.Measure(size);
+                root.Arrange(new System.Windows.Rect(size));
+                root.UpdateLayout();
+                var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(1100, 840, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+                bitmap.Render(root);
+                var png = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                png.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+                Directory.CreateDirectory(directory);
+                using var file = File.Create(Path.Combine(directory, "actual-overview.png"));
+                png.Save(file);
+                window.Close();
+            }
+            catch (Exception ex) { error = ex; }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        Assert.True(thread.Join(TimeSpan.FromSeconds(20)), "실측 UI 렌더 시간 초과");
+        Assert.Null(error);
     }
 
     /// <summary>

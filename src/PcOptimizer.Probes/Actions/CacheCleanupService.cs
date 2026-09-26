@@ -23,7 +23,11 @@ public sealed record CacheCleanupPlan(Guid Id, CacheToolLocation Location, long 
 public sealed record CachePreparation(CacheCleanupPlan? Plan, string? Reason);
 
 /// <summary>실행 결과입니다. 성공 종료와 후속 관측을 구분합니다.</summary>
-public sealed record CacheCleanupResult(bool ToolSucceeded, long? RemainingBytes, string Code);
+public sealed record CacheCleanupResult(bool ToolSucceeded, long? RemainingBytes, string Code)
+{
+    /// <summary>미리보기 시점이 아닌 실제 명령 실행 직전의 논리 크기입니다.</summary>
+    public long? BeforeBytes { get; init; }
+}
 
 /// <summary>실제 OS 및 공식 도구 경계입니다. 테스트에서는 가짜 구현을 씁니다.</summary>
 public interface ICacheToolBackend
@@ -77,7 +81,7 @@ public sealed class CacheCleanupService(ICacheToolBackend backend, TimeProvider?
             var success = await backend.ClearAsync(current, ct).ConfigureAwait(false);
             var after = await backend.InspectAsync(current, ct).ConfigureAwait(false);
             _logger.Info(nameof(CacheCleanupService), $"CleanupFinished tool={current.Tool} success={success} verified={after.Allowed}");
-            return new(success, after.Allowed ? after.Bytes : null, success ? "Completed" : "ToolFailed");
+            return new(success, after.Allowed ? after.Bytes : null, success ? "Completed" : "ToolFailed") { BeforeBytes = inspection.Bytes };
         }
         finally { _gate.Release(); }
     }

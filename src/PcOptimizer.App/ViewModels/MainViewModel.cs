@@ -333,6 +333,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void ApplyResult(ScanResult result, bool onlineRequested)
     {
         var report = result.Report;
+        _lastScanIncludedOnline = onlineRequested;
         _allCards = [.. report.Findings.Select(finding => new FindingCardViewModel(finding, _settingsPolicy, _linkPolicy))];
         OnPropertyChanged(nameof(CommunitySummary));
         if (onlineRequested)
