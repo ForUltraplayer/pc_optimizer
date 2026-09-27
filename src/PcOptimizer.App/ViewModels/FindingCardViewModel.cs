@@ -264,7 +264,7 @@ public sealed partial class FindingCardViewModel : ObservableObject
         {
             LinkOpenResult.Opened => null,
             LinkOpenResult.Refused => Strings.Link_Refused,
-            _ => DisplayText.Format(Strings.Link_OpenFailedCopyFormat, url),
+            _ => DisplayText.Format(Strings.Link_OpenFailedCopyFormat, new Uri(url, UriKind.Absolute).AbsoluteUri),
         };
     }
 

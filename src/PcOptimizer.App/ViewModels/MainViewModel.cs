@@ -181,7 +181,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         UserScope = userScope;
         IsUserScopeUnresolved = userScopeUnresolved;
         _actionAvailability = actionAvailability;
-        CacheToolsAvailable = actionAvailability.CacheToolsAvailable;
         Spec = spec;
         Spec.PropertyChanged += OnSpecPropertyChanged;
 
@@ -229,8 +228,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>검사 옵션(온라인 확인 등)을 바꿀 수 있는지 여부(검사 중에는 바꾸지 않음).</summary>
     public bool CanChangeOptions => !IsScanning;
 
-    /// <summary>보호 위치(Program Files 계열)에 npm·pip·dotnet 중 하나라도 실행 가능한 상태로 있어(실행 규칙과 같은 후보·판정) 정리 창을 보여 줄지 여부(생성 시 한 번 확인).</summary>
-    public bool CacheToolsAvailable { get; }
+    /// <summary>마지막 도구 위치 갱신에서 정리 창을 열 수 있었는지. 검사 시작 때 갱신하며 속성 읽기는 디스크를 조회하지 않습니다.</summary>
+    public bool CacheToolsAvailable => _actionAvailability.CacheToolsAvailable;
 
     /// <summary>
     /// 보호 위치에 도구가 있고, 진단·사양 읽기와 양쪽의 프로브 종료 대기가 끝났으며, 이 계정의 사용자 범위를 다룰 수 있을 때(SystemOnly 아님)만 정리 도구를 엽니다.
@@ -283,6 +282,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanStartScan))]
     private async Task StartScanAsync()
     {
+        _actionAvailability.Refresh();
+        OnPropertyChanged(nameof(CacheToolsAvailable));
+        OnPropertyChanged(nameof(CanOpenCacheTools));
         var generation = ++_scanGeneration;
         using var cancellation = new CancellationTokenSource();
         _scanCancellation = cancellation;

@@ -229,7 +229,7 @@ public sealed class AppCacheRulesTests
 
         var finding = Assert.Single(new AppCacheRule().Evaluate(snapshot));
 
-        Assert.Contains("관리자 권한 검사", finding.Detail!, StringComparison.Ordinal);
+        Assert.Contains("사용자 설정 경로는 보안상 적용하지 않고 기본 위치만", finding.Detail!, StringComparison.Ordinal);
     }
 
     /// <summary>부분 관측 카드는 부분 문구와 보호 위치 수·건너뛴 항목을 상세에 남긴다.</summary>

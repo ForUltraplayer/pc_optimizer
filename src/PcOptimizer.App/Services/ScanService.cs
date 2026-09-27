@@ -23,7 +23,7 @@ namespace PcOptimizer.App.Services;
 
 /// <summary>
 /// 검사 한 번을 실행하는 App 서비스입니다. 수집·판정은 <see cref="ScanCoordinator"/>에 맡기고,
-/// 여기서는 컨텍스트 구성과 등록 목록 관리만 합니다. 관리자 권한 동작은 하지 않으며, 네트워크 프로브(NVIDIA·Windows Update)는
+/// 여기서는 컨텍스트 구성과 등록 목록 관리만 합니다. 검사에서는 설정을 변경하지 않으며, 네트워크 프로브(NVIDIA·Windows Update)는
 /// 사용자가 온라인 확인을 켠 검사에서만 실행 조율기가 호출합니다(그 밖에는 NotRequested로 건너뜀).
 /// 대화형 사용자와 다른 관리자 계정으로 실행된 인스턴스는 <c>limitToSystemScope</c>로 만들어 사용자별 프로브를 건너뜁니다.
 /// </summary>

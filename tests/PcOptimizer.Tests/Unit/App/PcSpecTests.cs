@@ -49,6 +49,30 @@ public sealed class PcSpecTests
     private static readonly TimeSpan Bound = TimeSpan.FromSeconds(3);
     private static readonly byte[] UTF8_BOM = [0xEF, 0xBB, 0xBF];
 
+    /// <summary>익명 사양은 사용자 지정 볼륨 이름을 숨기되 용량과 파일 시스템은 유지합니다.</summary>
+    [Fact]
+    public void VolumeNameRequiresIdentityOptIn()
+    {
+        string Field(string name) => VolumeProbeContract.VolumeMeasurementName(0, name);
+        var results = new Dictionary<string, ProbeResult>
+        {
+            [VolumeProbeContract.PROBE_ID] = Result(VolumeProbeContract.PROBE_ID,
+                (VolumeProbeContract.VOLUME_COUNT, new IntegerValue(1)),
+                (Field(VolumeProbeContract.FIELD_DRIVE_LETTER), new TextValue("C:")),
+                (Field(VolumeProbeContract.FIELD_LABEL), new TextValue("민수 고객 자료")),
+                (Field(VolumeProbeContract.FIELD_FILE_SYSTEM), new TextValue("NTFS")),
+                (Field(VolumeProbeContract.FIELD_SIZE), new IntegerValue(128 * BYTES_PER_GIB)))
+        };
+        var snapshot = PcSpecService.BuildSnapshot(results, AT);
+        var section = snapshot.Sections[SECTION_STORAGE];
+        var anonymous = Assert.Single(PcSpecTextFormatter.VisibleItems(section, false), i => i.Label.Contains("C:"));
+        Assert.DoesNotContain("민수", anonymous.Value);
+        Assert.Contains("NTFS", anonymous.Value);
+        Assert.Contains("128", anonymous.Value);
+        var identified = Assert.Single(PcSpecTextFormatter.VisibleItems(section, true), i => i.Label.Contains("C:"));
+        Assert.Contains("민수 고객 자료", identified.Value);
+    }
+
     /// <summary>프로브 결과에서 9개 섹션을 순서대로 만들고, 없는 프로브는 확인 불가 섹션으로 표시한다.</summary>
     [Fact]
     public void BuildsSectionsInOrderAndMarksUnavailable()

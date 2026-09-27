@@ -299,7 +299,7 @@
   <data name="AppCache_Detail_AppVersion" xml:space="preserve"><value>확인한 앱 버전 범위: {0}</value><comment>{0}=메타데이터의 앱 버전 메모</comment></data>
   <data name="AppCache_Detail_ConfigUser" xml:space="preserve"><value>사용자 설정 경로: 앱 설정에서 읽은 위치와 기본 위치를 함께 확인했어요</value></data>
   <data name="AppCache_Detail_ConfigDefaultOnly" xml:space="preserve"><value>기본 위치만 확인했어요. 앱 설정에서 다른 위치를 지정했다면 그 위치는 이번 결과에 없어요(프로젝트별 설정·실행 인수는 확인 범위 밖)</value></data>
-  <data name="AppCache_Detail_ConfigElevated" xml:space="preserve"><value>관리자 권한 검사라 사용자 설정 경로는 적용하지 않고 기본 위치만 확인했어요</value></data>
+  <data name="AppCache_Detail_ConfigElevated" xml:space="preserve"><value>사용자 설정 경로는 보안상 적용하지 않고 기본 위치만 확인했어요</value></data>
   <data name="AppCache_Detail_ConfigAdobe" xml:space="preserve"><value>기본 위치만 확인했어요. Adobe 앱 환경설정에서 바꾼 미디어 캐시 위치는 형식을 검증하지 못해 읽지 않았어요</value></data>
   <data name="AppCache_Detail_SharedWith" xml:space="preserve"><value>같은 위치를 가리킨 규칙: {0}</value><comment>{0}=규칙 ID 목록</comment></data>
   <data name="AppCache_Detail_Protected" xml:space="preserve"><value>보호 폴더 안이라 관측하지 않은 위치 {0}곳</value><comment>{0}=위치 수</comment></data>
@@ -333,7 +333,7 @@
   <data name="AppCache_Catalog_Detail_Unsupported" xml:space="preserve"><value>해석하지 않고 건너뛴 규칙(사유별): {0}</value><comment>{0}=사유와 개수 목록</comment></data>
   <data name="AppCache_Catalog_Detail_Runtime" xml:space="preserve"><value>탐지됐지만 이 PC에서 경로를 확정하지 못해 건너뛴 규칙: {0}</value><comment>{0}=사유와 개수 목록</comment></data>
   <data name="AppCache_Catalog_Detail_Unknown" xml:space="preserve"><value>탐지 여부를 확인하지 못한 규칙 {0}개(접근 거부·보호 폴더 안의 와일드카드 등)</value><comment>{0}=규칙 수</comment></data>
-  <data name="AppCache_Catalog_Detail_Elevated" xml:space="preserve"><value>관리자 권한 검사라 앱 설정의 사용자 경로는 적용하지 않았어요</value></data>
+  <data name="AppCache_Catalog_Detail_Elevated" xml:space="preserve"><value>앱 설정의 사용자 경로는 보안상 적용하지 않고 기본 위치만 확인했어요</value></data>
   <data name="AppCache_Catalog_Detail_Effects" xml:space="preserve"><value>레지스트리 항목(RegKey)과 삭제 지시(REMOVESELF 등)는 조회에 쓰지 않고, 파일도 지우지 않아요</value></data>
   <data name="AppCache_Catalog_Detail_License" xml:space="preserve"><value>winapp2.ini: the winapp2 project, CC-BY-SA-4.0 (줄 끝만 LF로 바꿈)</value></data>
   <data name="AppCache_Catalog_Title_Failed" xml:space="preserve"><value>앱 캐시 규칙 파일을 확인하지 못해 앱 캐시 검사를 하지 않았어요</value></data>

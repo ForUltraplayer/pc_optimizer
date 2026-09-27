@@ -42,14 +42,15 @@ public sealed class ScanServiceSmokeTests(ITestOutputHelper output)
         using var vm = new MainViewModel(service, new ReportExporter(PersonalDataScrubber.FromEnvironment()),
             new FixedExportPathPicker(null), new SettingsUriPolicy(NullAppLogger.Instance, _ => { }),
             new LinkPolicy(null, NullAppLogger.Instance, _ => { }), new ImmediateUiDispatcher(), NullAppLogger.Instance,
-            elevation, UserScopeMode.Full, new CacheToolActionAvailability(SystemCacheToolBackend.AnyToolInProtectedLocation, CacheToolActionAvailability.DEFAULT_REVIEWED_APP_IDS),
+            elevation, UserScopeMode.Full, new CacheToolActionAvailability(SystemCacheToolBackend.IsToolInProtectedLocation, CacheToolActionAvailability.DEFAULT_REVIEWED_APP_IDS),
             SpecTestFactory.Create());
         await vm.StartScanCommand.ExecuteAsync(null);
         var result = vm.LastResult!;
         Assert.NotNull(result);
         Assert.All(vm.VisibleCards, card => Assert.Equal(Verdict.Candidate, card.Verdict));
         var recommendations = vm.RecommendedCards.Count;
-        vm.ShowDriversCommand.Execute(null);
+        vm.ShowAllCommand.Execute(null);
+        vm.SelectedCategory = vm.Categories.Single(c => c.Category == FindingCategory.Driver);
         Assert.All(vm.VisibleCards, card => Assert.Equal(FindingCategory.Driver, card.Finding.Category));
         vm.ShowRecommendationsCommand.Execute(null);
         Assert.Equal(recommendations, vm.VisibleCards.Count());

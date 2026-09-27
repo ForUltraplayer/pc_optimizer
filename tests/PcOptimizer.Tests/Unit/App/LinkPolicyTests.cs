@@ -5,7 +5,6 @@
  */
 
 // 기본 패키지
-using System.Diagnostics;
 using System.IO;
 
 // 사용자 패키지
@@ -97,59 +96,64 @@ public sealed class LinkPolicyTests
         Assert.Equal(LinkOpenResult.Failed, policy.TryOpen("https://www.dell.com/support/home/"));
     }
 
-    /// <summary>
-    /// 기본 실행기는 관리자 권한 프로세스에서 URL을 직접 셸 실행하지 않고, 이미 실행 중인 비승격 셸(explorer.exe)에 검증한 AbsoluteUri만 인자로 넘긴다
-    /// (최종 리뷰 필수 1: 관리자 권한 브라우저 방지). URL은 실행 파일 이름으로 쓰이지 않는다.
-    /// </summary>
+    /// <summary>비승격 셸에만 정규 URL을 전달하고 연결을 해제합니다.</summary>
+    [Fact]
+    public void ExistingDesktopReceivesCanonicalUrl()
+    {
+        var shell = new Shell();
+        var policy = new LinkPolicy(DriverRuleTestData.CATALOG, NullAppLogger.Instance, new UnelevatedShellLauncher(() => shell));
+        Assert.Equal(LinkOpenResult.Opened, policy.TryOpen("HTTPS://WWW.NVIDIA.COM/en-us/drivers/"));
+        Assert.Equal("https://www.nvidia.com/en-us/drivers/", shell.Url);
+        Assert.True(shell.Disposed);
+    }
+
+    /// <summary>셸 없음·승격·확인 실패·서버 종료 시 관리자 실행으로 폴백하지 않습니다.</summary>
     [Theory]
-    [InlineData("https://www.dell.com/support/home/", "https://www.dell.com/support/home/")]
-    [InlineData("HTTPS://WWW.NVIDIA.COM/en-us/drivers/", "https://www.nvidia.com/en-us/drivers/")]
-    public void 기본_실행기는_비승격_셸에_검증한_URL만_넘긴다(string url, string expectedArgument)
+    [InlineData(0)] [InlineData(1)] [InlineData(2)] [InlineData(3)]
+    public void MissingOrUntrustedShellFailsClosed(int scenario)
     {
-        var started = new List<ProcessStartInfo>();
-        var policy = new LinkPolicy(DriverRuleTestData.CATALOG, NullAppLogger.Instance, new UnelevatedShellLauncher(start =>
+        var shell = new Shell { Unelevated = scenario != 1, Fail = scenario == 3 };
+        var launcher = new UnelevatedShellLauncher(() => scenario switch
         {
-            started.Add(start);
-            return true;
-        }));
-
-        Assert.Equal(LinkOpenResult.Opened, policy.TryOpen(url));
-
-        var start = Assert.Single(started);
-        var expectedExplorer = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe");
-        Assert.Equal(expectedExplorer, start.FileName, ignoreCase: true);
-        Assert.EndsWith(@"\explorer.exe", start.FileName, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal([expectedArgument], start.ArgumentList);
-        Assert.False(start.UseShellExecute);
-        Assert.True(string.IsNullOrEmpty(start.Arguments));
-        Assert.DoesNotContain("://", start.FileName, StringComparison.Ordinal);
-        Assert.NotEqual(url, start.FileName, StringComparer.OrdinalIgnoreCase);
+            0 => null, 2 => throw new InvalidOperationException("query failed"), _ => shell,
+        });
+        var policy = new LinkPolicy(DriverRuleTestData.CATALOG, NullAppLogger.Instance, launcher);
+        Assert.Equal(LinkOpenResult.Failed, policy.TryOpen("https://www.dell.com/support/home/"));
+        Assert.Null(shell.Url);
+        if (scenario is 1 or 3) { Assert.True(shell.Disposed); }
     }
 
-    /// <summary>거부한 링크는 비승격 셸도 시작하지 않는다.</summary>
-    [Fact]
-    public void 거부한_링크는_셸을_시작하지_않는다()
+    /// <summary>모호한 주소는 COM 연결 전 거절해 복사 안내로 처리합니다.</summary>
+    [Theory]
+    [InlineData("https://www.dell.com/support/home/a,b")]
+    [InlineData("https://www.dell.com/support/home/a%2Cb")]
+    [InlineData("https://www.dell.com/support/home/?x=%2cb")]
+    public void CommaNeverReachesShell(string url)
     {
-        var started = new List<ProcessStartInfo>();
-        var policy = new LinkPolicy(DriverRuleTestData.CATALOG, NullAppLogger.Instance, new UnelevatedShellLauncher(start =>
-        {
-            started.Add(start);
-            return true;
-        }));
+        var calls = 0;
+        var launcher = new UnelevatedShellLauncher(() => { calls++; return new Shell(); });
+        var policy = new LinkPolicy(DriverRuleTestData.CATALOG, NullAppLogger.Instance, launcher);
+        Assert.Equal(LinkOpenResult.Failed, policy.TryOpen(url));
+        Assert.Equal(0, calls);
+    }
 
+    /// <summary>허용 목록 밖 주소는 셸 연결도 만들지 않습니다.</summary>
+    [Fact]
+    public void RefusedUrlNeverConnects()
+    {
+        var policy = new LinkPolicy(DriverRuleTestData.CATALOG, NullAppLogger.Instance,
+            new UnelevatedShellLauncher(() => throw new Xunit.Sdk.XunitException("must not connect")));
         Assert.Equal(LinkOpenResult.Refused, policy.TryOpen("https://evil.com/"));
-        Assert.Empty(started);
     }
 
-    /// <summary>비승격 셸을 시작하지 못하면(시작기 false·예외) 예외 없이 Failed를 돌려줘 카드가 주소 복사 안내로 대체한다.</summary>
-    [Fact]
-    public void 비승격_셸_시작_실패는_Failed다()
+    private sealed class Shell : IDesktopShell
     {
-        var notStarted = new LinkPolicy(DriverRuleTestData.CATALOG, NullAppLogger.Instance, new UnelevatedShellLauncher(_ => false));
-        var throwing = new LinkPolicy(DriverRuleTestData.CATALOG, NullAppLogger.Instance,
-            new UnelevatedShellLauncher(_ => throw new System.ComponentModel.Win32Exception()));
-
-        Assert.Equal(LinkOpenResult.Failed, notStarted.TryOpen("https://www.dell.com/support/home/"));
-        Assert.Equal(LinkOpenResult.Failed, throwing.TryOpen("https://www.dell.com/support/home/"));
+        public bool Unelevated { get; init; } = true;
+        public bool Fail { get; init; }
+        public bool IsUnelevated => Unelevated;
+        public string? Url { get; private set; }
+        public bool Disposed { get; private set; }
+        public void Open(string url) { if (Fail) { throw new InvalidOperationException("closed"); } Url = url; }
+        public void Dispose() => Disposed = true;
     }
 }
