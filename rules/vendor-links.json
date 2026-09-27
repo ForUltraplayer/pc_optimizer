@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "notes": "PC Optimizer 공식 드라이버·제조사 지원 링크 허용 표(스펙 §2·§7). 공급업체의 공식 지원 첫 화면만 두며 모델별 URL을 만들지 않는다. url은 HTTPS이고 officialDomains 안의 호스트여야 하며, 앱은 이 표의 호스트+경로 접두사(와 NVIDIA 응답의 검증된 NVIDIA 호스트)만 연다. key·manufacturers는 소문자로 바꾸고 문장 부호·끝의 Inc./Corp./Co., Ltd./Corporation을 뺀 이름으로 비교한다. 2026-09-26 확인.",
+  "notes": "2026-09-27: 문제 해결 도구함(스펙 §5A)의 외부 도구 공식 배포처를 kind=tool·key=troubleshooting 항목으로 추가(앱은 링크만 열고 파일을 받지 않는다). PC Optimizer 공식 드라이버·제조사 지원 링크 허용 표(스펙 §2·§7). 공급업체의 공식 지원 첫 화면만 두며 모델별 URL을 만들지 않는다. url은 HTTPS이고 officialDomains 안의 호스트여야 하며, 앱은 이 표의 호스트+경로 접두사(와 NVIDIA 응답의 검증된 NVIDIA 호스트)만 연다. key·manufacturers는 소문자로 바꾸고 문장 부호·끝의 Inc./Corp./Co., Ltd./Corporation을 뺀 이름으로 비교한다. 2026-09-26 확인.",
   "entries": [
     {
       "id": "nvidia-drivers",
@@ -167,6 +167,126 @@
       "label": "Xiaomi 지원",
       "url": "https://www.mi.com/global/support/",
       "officialDomains": ["mi.com"]
+    },
+    {
+      "id": "crystaldiskinfo",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "CrystalDiskInfo 공식 다운로드",
+      "url": "https://crystalmark.info/en/software/crystaldiskinfo/",
+      "officialDomains": ["crystalmark.info"]
+    },
+    {
+      "id": "crystaldiskmark",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "CrystalDiskMark 공식 다운로드",
+      "url": "https://crystalmark.info/en/software/crystaldiskmark/",
+      "officialDomains": ["crystalmark.info"]
+    },
+    {
+      "id": "memtest86",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "MemTest86 공식 다운로드(Free Edition)",
+      "url": "https://www.memtest86.com/download.htm",
+      "officialDomains": ["memtest86.com"]
+    },
+    {
+      "id": "testmem5",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "TestMem5 공식 저장소 릴리스",
+      "url": "https://github.com/CoolCmd/TestMem5/releases",
+      "officialDomains": ["github.com"]
+    },
+    {
+      "id": "ddu",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "Display Driver Uninstaller(DDU) 공식 다운로드",
+      "url": "https://www.wagnardsoft.com/display-driver-uninstaller-ddu-",
+      "officialDomains": ["wagnardsoft.com"]
+    },
+    {
+      "id": "windows11-download",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "Windows 11 공식 다운로드(미디어 생성 도구·ISO)",
+      "url": "https://www.microsoft.com/software-download/windows11",
+      "officialDomains": ["microsoft.com"]
+    },
+    {
+      "id": "rufus",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "Rufus 공식 사이트",
+      "url": "https://rufus.ie/",
+      "officialDomains": ["rufus.ie"]
+    },
+    {
+      "id": "hwinfo",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "HWiNFO 공식 다운로드",
+      "url": "https://www.hwinfo.com/download/",
+      "officialDomains": ["hwinfo.com"]
+    },
+    {
+      "id": "cpu-z",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "CPU-Z 공식 다운로드(CPUID)",
+      "url": "https://www.cpuid.com/softwares/cpu-z.html",
+      "officialDomains": ["cpuid.com"]
+    },
+    {
+      "id": "gpu-z",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "GPU-Z 공식 다운로드(TechPowerUp)",
+      "url": "https://www.techpowerup.com/gpuz/",
+      "officialDomains": ["techpowerup.com"]
+    },
+    {
+      "id": "prime95",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "Prime95 공식 다운로드(GIMPS)",
+      "url": "https://www.mersenne.org/download/",
+      "officialDomains": ["mersenne.org"]
+    },
+    {
+      "id": "occt",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "OCCT 공식 다운로드(OCBASE)",
+      "url": "https://www.ocbase.com/download",
+      "officialDomains": ["ocbase.com"]
+    },
+    {
+      "id": "cinebench",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "Cinebench 공식 다운로드(Maxon)",
+      "url": "https://www.maxon.net/en/cinebench",
+      "officialDomains": ["maxon.net"]
+    },
+    {
+      "id": "furmark",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "FurMark 공식 다운로드(Geeks3D)",
+      "url": "https://www.geeks3d.com/furmark/",
+      "officialDomains": ["geeks3d.com"]
+    },
+    {
+      "id": "3dmark",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "3DMark 공식 사이트(UL Benchmarks)",
+      "url": "https://benchmarks.ul.com/3dmark",
+      "officialDomains": ["benchmarks.ul.com", "ul.com"]
     }
   ]
 }

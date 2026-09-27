@@ -1,0 +1,143 @@
+<!--
+@file    : TroubleshootingWindow.xaml
+@author  : rudals252
+@brief   : 문제 해결 도구함 창. 왼쪽 증상 목록, 오른쪽 권장 순서 도구 카드(언제/무엇/주의·안전 배지·절차)와 직접 실행 출력·결과·재부팅 안내
+-->
+<Window x:Class="PcOptimizer.App.Views.TroubleshootingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="문제 해결 도구" Width="1000" Height="820" MinWidth="640" MinHeight="420"
+        WindowStartupLocation="CenterOwner" Background="#F4F6FA" Foreground="#19253B"
+        FontFamily="Segoe UI, Malgun Gothic">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="Visible" />
+        <Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap" /></Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="14,9" /><Setter Property="Margin" Value="0,0,8,8" />
+            <Setter Property="Background" Value="White" /><Setter Property="Foreground" Value="#253652" />
+            <Setter Property="BorderBrush" Value="#CCD5E2" /><Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+                <Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}" CornerRadius="7">
+                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Surface" Property="Opacity" Value="0.4" /></Trigger>
+                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="#122E73" /><Setter TargetName="Surface" Property="BorderThickness" Value="2" /></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate></Setter.Value></Setter>
+        </Style>
+        <Style x:Key="Primary" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="#2563EB" /><Setter Property="Foreground" Value="White" /><Setter Property="BorderBrush" Value="#2563EB" />
+        </Style>
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Padding" Value="18" /><Setter Property="Margin" Value="0,0,0,14" />
+            <Setter Property="Background" Value="White" /><Setter Property="CornerRadius" Value="10" />
+            <Setter Property="BorderBrush" Value="#E3E8EF" /><Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <Style x:Key="Badge" TargetType="Border">
+            <Setter Property="Padding" Value="8,3" /><Setter Property="CornerRadius" Value="5" /><Setter Property="Margin" Value="0,0,6,0" />
+            <Setter Property="Background" Value="#DDF3E8" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding SafetyText}" Value="주의"><Setter Property="Background" Value="#FFF0CC" /></DataTrigger>
+                <DataTrigger Binding="{Binding SafetyText}" Value="되돌릴 수 없음"><Setter Property="Background" Value="#FFD9D9" /></DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="SymptomButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="HorizontalContentAlignment" Value="Left" /><Setter Property="Margin" Value="0,0,0,6" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+        </Style>
+    </Window.Resources>
+    <Grid Margin="20">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="260" /><ColumnDefinition Width="20" /><ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" /><RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <StackPanel Grid.ColumnSpan="3" Margin="0,0,0,12">
+            <TextBlock Text="문제 해결 도구" FontSize="22" FontWeight="SemiBold" />
+            <TextBlock Text="{Binding Status}" Foreground="#53627A" Margin="0,4,0,0" AutomationProperties.LiveSetting="Polite" />
+        </StackPanel>
+        <ScrollViewer Grid.Row="1" Grid.Column="0" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock Text="어떤 문제인가요?" FontWeight="SemiBold" Margin="0,0,0,8" />
+                <ItemsControl ItemsSource="{Binding Symptoms}" AutomationProperties.AutomationId="SymptomList">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Content="{Binding Title}" Style="{StaticResource SymptomButton}"
+                                    Command="{Binding DataContext.SelectSymptomCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="외부 도구는 공식 사이트만 열어 드립니다. 파일은 직접 받고, 절차대로 진행하세요." Foreground="#53627A" FontSize="12" Margin="0,12,0,0" />
+            </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer Grid.Row="1" Grid.Column="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock Text="{Binding SymptomTitle}" FontSize="18" FontWeight="SemiBold" AutomationProperties.AutomationId="SymptomTitle" />
+                <TextBlock Text="{Binding SymptomSummary}" Foreground="#53627A" Margin="0,4,0,14" />
+                <Border Style="{StaticResource Card}" Background="#EEF3FF" Visibility="{Binding HasOutput, Converter={StaticResource Visible}}" AutomationProperties.AutomationId="OutputPanel">
+                    <StackPanel>
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Content="취소" Command="{Binding CancelCommand}" Margin="8,0,0,0" />
+                            <TextBlock Text="{Binding RunningTitle}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <ProgressBar IsIndeterminate="{Binding IsRunning}" Height="6" Margin="0,8,0,8" Visibility="{Binding IsRunning, Converter={StaticResource Visible}}" />
+                        <Border Background="#1F2937" CornerRadius="6" Padding="10" MaxHeight="260">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding Output}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate><TextBlock Text="{Binding}" FontFamily="Consolas, Malgun Gothic" FontSize="12" Foreground="#E5E7EB" /></DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Border>
+                        <TextBlock Text="{Binding ResultText}" FontWeight="SemiBold" Margin="0,10,0,0" Visibility="{Binding HasResult, Converter={StaticResource Visible}}" AutomationProperties.AutomationId="ResultText" />
+                        <TextBlock Text="PC를 다시 시작해야 적용됩니다. 작업을 저장한 뒤 시작 메뉴 → 전원 → 다시 시작을 누르세요." Foreground="#8A5A00" Margin="0,6,0,0"
+                                   Visibility="{Binding ShowRebootNote, Converter={StaticResource Visible}}" />
+                    </StackPanel>
+                </Border>
+                <ItemsControl ItemsSource="{Binding Cards}" AutomationProperties.AutomationId="ToolCards">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <DockPanel Margin="0,0,0,6">
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                            <Border Style="{StaticResource Badge}"><TextBlock Text="{Binding SafetyText}" FontSize="12" /></Border>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding OrderText}" Foreground="#53627A" FontSize="12" />
+                                    </DockPanel>
+                                    <TextBlock Text="{Binding Title}" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,8" />
+                                    <TextBlock Text="{Binding Note}" Foreground="#1D4ED8" Margin="0,0,0,8" Visibility="{Binding HasNote, Converter={StaticResource Visible}}" />
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions><RowDefinition /><RowDefinition /><RowDefinition /></Grid.RowDefinitions>
+                                        <TextBlock Text="언제 쓰나" Foreground="#53627A" FontSize="12" Margin="0,0,12,4" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Tool.When}" Margin="0,0,0,4" />
+                                        <TextBlock Grid.Row="1" Text="무엇을 하나" Foreground="#53627A" FontSize="12" Margin="0,0,12,4" />
+                                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Tool.What}" Margin="0,0,0,4" />
+                                        <TextBlock Grid.Row="2" Text="주의" Foreground="#53627A" FontSize="12" Margin="0,0,12,0" />
+                                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Tool.Caution}" />
+                                    </Grid>
+                                    <TextBlock Text="{Binding Warning}" Foreground="#B91C1C" FontWeight="SemiBold" Margin="0,8,0,0" Visibility="{Binding HasWarning, Converter={StaticResource Visible}}" />
+                                    <StackPanel Visibility="{Binding ShowSteps, Converter={StaticResource Visible}}" Margin="0,10,0,0">
+                                        <ItemsControl ItemsSource="{Binding Steps}">
+                                            <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Margin="0,0,0,4" /></DataTemplate></ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock Text="{Binding ModeText}" Foreground="#53627A" FontSize="12" Margin="0,6,0,0" />
+                                        <TextBlock Text="{Binding RebootText}" Foreground="#53627A" FontSize="12" />
+                                    </StackPanel>
+                                    <WrapPanel Margin="0,12,0,0">
+                                        <Button Content="{Binding ActionText}" Command="{Binding ActCommand}" Style="{StaticResource Primary}" />
+                                        <Button Content="{Binding StepsButtonText}" Command="{Binding ToggleStepsCommand}" />
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>

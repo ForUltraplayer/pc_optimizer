@@ -23,6 +23,7 @@ using PcOptimizer.Probes.Actions.Display;
 using PcOptimizer.Probes.Applications;
 using PcOptimizer.Probes.Drivers;
 using PcOptimizer.Probes.Platform;
+using PcOptimizer.Probes.Troubleshooting;
 
 namespace PcOptimizer.App;
 
@@ -185,7 +186,17 @@ public partial class App : Application
                 await viewModel.StartScanCommand.ExecuteAsync(null);
             });
         }
-        window = new MainWindow(viewModel, logger, displayTrials);
+        // 문제 해결 도구함: 카탈로그는 임베드 리소스와 공식 링크 표로 검증하며, 실패하면 버튼을 숨긴다(부분 적용 없음).
+        TroubleshootingViewModel? troubleshooting = null;
+        var troubleshootingCatalog = TroubleshootingCatalogLoader.LoadEmbedded(vendorLinks.Catalog);
+        if (troubleshootingCatalog.Catalog is { } toolCatalog)
+        {
+            var troubleshootingLinks = new LinkPolicy(vendorLinks.Catalog, logger);
+            troubleshooting = new TroubleshootingViewModel(toolCatalog, new TroubleshootingService(scanService.Operations, logger), dispatcher,
+                url => troubleshootingLinks.TryOpen(url) == LinkOpenResult.Opened, new SettingsUriPolicy(logger).TryOpen, vendorLinks.Catalog, logger);
+        }
+        else { logger.Warn(LOG_CATEGORY, $"TroubleshootingCatalogUnavailable errors={troubleshootingCatalog.Errors.Count}"); }
+        window = new MainWindow(viewModel, logger, displayTrials, troubleshooting);
         MainWindow = window;
         window.Show();
     }

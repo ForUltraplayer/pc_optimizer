@@ -135,7 +135,7 @@ internal static class CacheToolProcess
     }
 
     /// <summary>주입 가능 이름이거나 런타임 접두사로 시작하는 환경 변수인지 판단합니다.</summary>
-    private static bool IsStrippedVariable(string key) =>
+    internal static bool IsStrippedVariable(string key) =>
         INJECTION_ENVIRONMENT_VARIABLES.Contains(key, StringComparer.OrdinalIgnoreCase)
         || STRIPPED_ENVIRONMENT_PREFIXES.Any(prefix => key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
 

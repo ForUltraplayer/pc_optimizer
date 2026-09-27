@@ -192,6 +192,7 @@
                         </WrapPanel>
                         <Button Content="개선할 작업 선택 · 결과 · 되돌리기" Click="OpenActionCenter" HorizontalAlignment="Left" AutomationProperties.AutomationId="OpenActionCenter" />
                         <Button x:Name="DisplayEvaluationButton" Content="주사율 변경 · 되돌리기" Click="OpenDisplayTrials" Visibility="Collapsed" HorizontalAlignment="Left" />
+                        <Button x:Name="TroubleshootingButton" Content="문제 해결 도구 · 증상별 절차" Click="OpenTroubleshooting" Visibility="Collapsed" HorizontalAlignment="Left" Margin="0,8,0,0" AutomationProperties.AutomationId="OpenTroubleshooting" />
                         <TextBlock Text="{Binding Actions.Overview}" TextWrapping="Wrap" Foreground="#53627A" Margin="0,8,0,0" AutomationProperties.LiveSetting="Polite" />
                     </StackPanel>
                 </Border>
