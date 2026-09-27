@@ -144,7 +144,7 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
         new("Windows에서 주사율 설정", "앱의 주사율 시험이 지원되지 않는 화면은 Windows 디스플레이 설정에서 직접 확인하세요.", SettingsUriPolicy.DISPLAY_SETTINGS_URI),
         new("그 밖의 Windows 업데이트 파일 정리", "배달 최적화·업데이트 다운로드 캐시는 위 목록에서 조건을 확인할 수 있습니다. 이전 Windows 설치와 구성 요소 저장소는 Windows 저장소에서 확인하세요.", SettingsUriPolicy.STORAGE_SENSE_SETTINGS_URI),
         new("Steam 다운로드 캐시", "위의 라이브러리 셰이더 캐시와 다른 기능입니다. 다운로드 문제가 있을 때 Steam 자체 정리 절차를 확인하세요. 다시 로그인해야 할 수 있습니다.", null, CacheSupportLinks.SteamDownload),
-        new("NVIDIA 셰이더 캐시", "공식 절차는 캐시 설정 변경·재부팅·정리·설정 복원을 포함합니다. 앱에서 그래픽 작성자의 유휴 상태를 확인하지 못해 자동 삭제는 제공하지 않습니다.", null, CacheSupportLinks.NvidiaShader),
+        new("NVIDIA 셰이더 캐시 전체 초기화", "위 목록의 그래픽 캐시 정리는 30일 이상 쓰이지 않은 파일만 지우는 부분 정리입니다. 캐시를 완전히 비우려면 공식 절차(캐시 끄기·재부팅·정리·설정 복원)를 따르세요.", null, CacheSupportLinks.NvidiaShader),
         new("Direct3D 셰이더 캐시", "Windows 저장소의 임시 파일에서 DirectX 셰이더 캐시 항목을 확인하세요. 정리 후 캐시를 다시 만들 때 로딩·끊김이 늘 수 있습니다.", SettingsUriPolicy.STORAGE_SENSE_SETTINGS_URI)];
     /// <summary>현재 사용자 범위에서 전용 Steam 실행기가 연결된 경우에만 선택을 제공합니다.</summary>
     public bool CanSelectSteamLocation => _pickSteamFolder is not null && _registerSteamFolder is not null && _workflow.Supports(ActionId.SteamShaderCache, false);

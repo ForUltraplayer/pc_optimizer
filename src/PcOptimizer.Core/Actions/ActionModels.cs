@@ -6,7 +6,7 @@
 namespace PcOptimizer.Core.Actions;
 
 /// <summary>자동 조치의 코드 허용 목록입니다. 문자열 명령을 받지 않습니다.</summary>
-public enum ActionId { UserFiles, SystemFiles, AppFiles, Startup, Power, Display, OfficialCache, DeliveryOptimization, MachineStartup, UpdateServices, WindowsUpdateCache, SteamShaderCache, StartupFolder, CommonStartupFolder, StartupApproval, MachineStartupApproval }
+public enum ActionId { UserFiles, SystemFiles, AppFiles, Startup, Power, Display, OfficialCache, DeliveryOptimization, MachineStartup, UpdateServices, WindowsUpdateCache, SteamShaderCache, StartupFolder, CommonStartupFolder, StartupApproval, MachineStartupApproval, GraphicsShaderCache }
 /// <summary>현재 사용자 확인이 필요한지 구분합니다.</summary>
 public enum ActionScope { CurrentUser, System }
 /// <summary>실행 인스턴스의 사용자 범위입니다.</summary>
@@ -44,7 +44,7 @@ public sealed record ActionDefinition(ActionId Id, ActionScope Scope, bool Suppo
     /// <summary>현재 버전은 항목별 확인만 허용하며 일괄 자동 실행은 제공하지 않습니다.</summary>
     public bool BatchEligible => false;
     /// <summary>영구 파일 삭제/공식 purge는 되돌릴 수 없음, 설정 변경은 주의로 표시합니다.</summary>
-    public PcOptimizer.Core.Models.SafetyLevel Safety => Id is ActionId.UserFiles or ActionId.SystemFiles or ActionId.AppFiles or ActionId.OfficialCache or ActionId.DeliveryOptimization or ActionId.WindowsUpdateCache or ActionId.SteamShaderCache
+    public PcOptimizer.Core.Models.SafetyLevel Safety => Id is ActionId.UserFiles or ActionId.SystemFiles or ActionId.AppFiles or ActionId.OfficialCache or ActionId.DeliveryOptimization or ActionId.WindowsUpdateCache or ActionId.SteamShaderCache or ActionId.GraphicsShaderCache
         ? PcOptimizer.Core.Models.SafetyLevel.Irreversible : PcOptimizer.Core.Models.SafetyLevel.Caution;
 }
 /// <summary>어댑터가 검증한 대상과 미리보기 설명입니다.</summary>
