@@ -175,6 +175,12 @@
         </DockPanel>
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
             <StackPanel Margin="28,0,28,28">
+                <Border Background="White" CornerRadius="10" Padding="16" Margin="0,0,0,14" Visibility="{Binding HasActionCenter, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel>
+                        <Button Content="조치 기록 · 되돌리기" Click="OpenActionCenter" HorizontalAlignment="Left" AutomationProperties.AutomationId="OpenActionCenter" />
+                        <TextBlock Text="{Binding Actions.Overview}" TextWrapping="Wrap" Foreground="#53627A" Margin="0,8,0,0" AutomationProperties.LiveSetting="Polite" />
+                    </StackPanel>
+                </Border>
                 <Border Visibility="{Binding IsSpecVisible, Converter={StaticResource BoolToVisibility}}">
                     <views:PcSpecView x:Name="SpecView" DataContext="{Binding Spec}" />
                 </Border>
