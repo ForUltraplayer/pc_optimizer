@@ -196,7 +196,11 @@ public partial class App : Application
                 url => troubleshootingLinks.TryOpen(url) == LinkOpenResult.Opened, new SettingsUriPolicy(logger).TryOpen, vendorLinks.Catalog, logger);
         }
         else { logger.Warn(LOG_CATEGORY, $"TroubleshootingCatalogUnavailable errors={troubleshootingCatalog.Errors.Count}"); }
-        window = new MainWindow(viewModel, logger, displayTrials, troubleshooting);
+        // 드라이버 안내: 검사 결과가 바뀔 때마다 제조사·모델·설치 드라이버를 다시 채운다. 링크는 공식 표 허용 목록만 연다.
+        var driverGuideLinks = new LinkPolicy(vendorLinks.Catalog, logger);
+        var driverGuide = new DriverGuideViewModel(vendorLinks.Catalog, new WpfClipboard(), url => driverGuideLinks.TryOpen(url) == LinkOpenResult.Opened);
+        viewModel.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(MainViewModel.LastResult)) { driverGuide.Refresh(viewModel.LastResult?.Snapshot); } };
+        window = new MainWindow(viewModel, logger, displayTrials, troubleshooting, driverGuide);
         MainWindow = window;
         window.Show();
     }

@@ -26,17 +26,21 @@ public partial class MainWindow : FluentWindow
     private DisplayTrialWindow? _displayWindow;
     private readonly TroubleshootingViewModel? _troubleshooting;
     private TroubleshootingWindow? _troubleshootingWindow;
+    private readonly DriverGuideViewModel? _driverGuide;
+    private DriverGuideWindow? _driverGuideWindow;
     /// <summary>
     /// 화면 모델로 메인 창을 만듭니다.
     /// </summary>
     /// <param name="viewModel">메인 화면 모델.</param>
-    public MainWindow(MainViewModel viewModel, IAppLogger? logger = null, DisplayTrialViewModel? displayTrials = null, TroubleshootingViewModel? troubleshooting = null)
+    public MainWindow(MainViewModel viewModel, IAppLogger? logger = null, DisplayTrialViewModel? displayTrials = null, TroubleshootingViewModel? troubleshooting = null, DriverGuideViewModel? driverGuide = null)
     {
         _logger = logger ?? NullAppLogger.Instance;
         ArgumentNullException.ThrowIfNull(viewModel);
         InitializeComponent();
         _displayTrials = displayTrials;
         _troubleshooting = troubleshooting;
+        _driverGuide = driverGuide;
+        DriverGuideButton.Visibility = driverGuide is null ? Visibility.Collapsed : Visibility.Visible;
         TroubleshootingButton.Visibility = troubleshooting is null ? Visibility.Collapsed : Visibility.Visible;
         DisplayEvaluationButton.Visibility = displayTrials is null ? Visibility.Collapsed : Visibility.Visible;
         DataContext = viewModel;
@@ -48,6 +52,15 @@ public partial class MainWindow : FluentWindow
         };
         Closing += (_, e) => { if (_displayTrials?.IsWorking == true) { _displayTrials.RequestClose(); e.Cancel = true; } };
         Closed += (_, _) => { _displayTrials?.Dispose(); _troubleshooting?.Dispose(); viewModel.Dispose(); };
+    }
+    /// <summary>드라이버 안내 창을 엽니다(하나만, 재열기 시 앞으로).</summary>
+    private void OpenDriverGuide(object sender, RoutedEventArgs e)
+    {
+        if (_driverGuide is null) { return; }
+        if (_driverGuideWindow is not null) { _driverGuideWindow.Activate(); return; }
+        _driverGuideWindow = new DriverGuideWindow(_driverGuide) { Owner = this };
+        _driverGuideWindow.Closed += (_, _) => _driverGuideWindow = null;
+        _driverGuideWindow.Show();
     }
     /// <summary>문제 해결 도구함 창을 엽니다(하나만, 재열기 시 앞으로).</summary>
     private void OpenTroubleshooting(object sender, RoutedEventArgs e)
