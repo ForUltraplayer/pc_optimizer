@@ -392,6 +392,8 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
                 var responsibility = r.Purpose == RollbackPurpose.UserUndo ? "사용자 되돌리기" : "임시 변경 복구";
                 var label = r.ActionId is ActionId.Startup or ActionId.MachineStartup or ActionId.StartupFolder or ActionId.CommonStartupFolder or ActionId.StartupApproval or ActionId.MachineStartupApproval && StartupRegistration.Name(r.TargetKey) is { } name
                     ? $"{(StartupRegistration.IsApproval(StartupRegistration.SourceOfKey(r.TargetKey)) ? "작업 관리자 시작 상태" : "자동 실행 등록")} · {name} · {StartupRegistration.Label(StartupRegistration.SourceOfKey(r.TargetKey)!)}" : ActionText.Name(r.ActionId);
+                if (r.ActionId is ActionId.NvidiaRebar or ActionId.NvidiaVideo or ActionId.AmdVideo)
+                { label += " · " + PcOptimizer.Probes.Actions.Advanced.GpuActionAdapter.TargetLabel(r); }
                 Records.Add(new(r.Id, r.ActionId, label, $"{state} · {responsibility} · {r.UpdatedAt.ToLocalTime():g}", r.NeedsRecovery,
                     !completed && _workflow.Supports(r.ActionId, true)));
             }

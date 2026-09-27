@@ -156,6 +156,11 @@ public sealed class ActionResultViewModel(ActionResult result, ActionId actionId
             "AdvancedValueUnsupported" => "알려지지 않은 설정 형식·값입니다. 원래 설정을 보존하기 위해 변경하지 않았습니다.",
             "HagsSupportUnknown" => "HAGS 명시 설정이 없어 GPU 지원 여부를 확인할 수 없습니다. Windows 고급 그래픽 설정에서 먼저 확인하세요.",
             "AdvancedWriteFailed" => "설정값 저장에 실패했습니다. 현재 상태와 되돌리기 기록을 확인하세요.",
+            "GpuUnavailable" or "GpuApiUnavailable" => "이 GPU·드라이버에서 제어 인터페이스를 사용할 수 없습니다. 고급 탭에서 지원 대상을 다시 조회하세요.",
+            "GpuApiRejected" => "GPU 드라이버가 요청을 완료하지 못했습니다. 현재 설정과 되돌리기 기록을 확인하세요.",
+            "GpuAccessDenied" => "GPU 드라이버가 설정 접근 권한을 거절했습니다. 앱의 관리자 권한과 드라이버 정책을 확인하세요. 복구 기록이 있으면 현재 상태와 함께 확인하세요.",
+            "GpuValueUnsupported" => "이 드라이버의 설정 형식·값을 지원하지 않아 변경하지 않습니다.",
+            "GpuTargetChanged" or "GpuEnumerationIncomplete" => "GPU 또는 프로필 대상을 확인하지 못했습니다. 드라이버·연결 구성이 바뀌었다면 다시 조회하세요.",
             "FirmwareUnavailable" => "UEFI 펌웨어 사용 여부를 확인하지 못했습니다. 재부팅 요청을 보내지 않았습니다.",
             "RestartNotStarted" => "재부팅 요청 도구를 시작하지 못했습니다.",
             "RestartRejected" => "Windows가 재부팅 요청을 완료하지 못했습니다. 펌웨어·복구 환경 지원이나 다른 작업의 종료 여부를 확인하세요.",
@@ -179,6 +184,7 @@ internal static class ActionText
     internal static bool IsSpaceAction(ActionId id) => id is ActionId.UserFiles or ActionId.SystemFiles or ActionId.AppFiles or ActionId.OfficialCache or ActionId.DeliveryOptimization or ActionId.WindowsUpdateCache or ActionId.SteamShaderCache or ActionId.GraphicsShaderCache;
     internal static string Name(ActionId id) => id switch
     {
+        ActionId.NvidiaRebar => "NVIDIA 게임별 ReBAR", ActionId.NvidiaVideo => "NVIDIA RTX 영상 초고해상도", ActionId.AmdVideo => "AMD 동영상 업스케일링",
         ActionId.Mpo => "MPO 화면 오버레이 설정", ActionId.Hags => "GPU 하드웨어 가속 일정 예약", ActionId.GameMode => "Windows 게임 모드", ActionId.Restart => "목적을 선택해 다시 시작",
         ActionId.UserFiles => "사용자 임시 파일 정리", ActionId.SystemFiles => "Windows 캐시 정리", ActionId.AppFiles => "앱 캐시 정리",
         ActionId.StartupFolder => "시작 바로가기 보관", ActionId.CommonStartupFolder => "공용 시작 바로가기 보관", ActionId.Startup => "자동 실행 등록 해제", ActionId.MachineStartup => "모든 사용자 자동 실행 등록 해제", ActionId.Power => "전원 계획 변경", ActionId.Display => "화면 주사율 변경",

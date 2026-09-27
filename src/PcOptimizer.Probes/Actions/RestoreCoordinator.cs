@@ -95,6 +95,13 @@ public sealed class RestoreCoordinator
                         "현재 값이 앱의 적용 값과 같을 때만 원래 값 또는 값 없음으로 되돌립니다. Windows 기본값으로 변경하는 것과 다릅니다.",
                         new(AdvancedOptions.Name(option), "외부 프로그램이 바꾼 값은 덮어쓰지 않습니다.", RequiresRestart: option != AdvancedOption.GameMode));
                 }
+                if (record.ActionId is ActionId.NvidiaRebar or ActionId.NvidiaVideo or ActionId.AmdVideo)
+                {
+                    var feature = record.ActionId == ActionId.NvidiaRebar ? GpuFeature.NvidiaRebar : record.ActionId == ActionId.NvidiaVideo ? GpuFeature.NvidiaVideo : GpuFeature.AmdVideo;
+                    return new(target, GpuOptions.Name(feature) + " 변경 전 값으로 되돌리기",
+                        "같은 드라이버·대상이며 현재 값이 앱의 적용 값과 같을 때만 원래 설정으로 되돌립니다. ReBAR는 드라이버 기본값·상속 여부도 복원합니다.",
+                        new(Advanced.GpuActionAdapter.TargetLabel(record), "드라이버 업데이트·다른 앱의 변경이 있으면 덮어쓰지 않습니다. 게임·재생기는 직접 다시 실행하세요."));
+                }
                 return new(target, "이 앱이 변경한 설정 되돌리기", "현재 값이 앱의 적용 값과 같을 때만 이전 값으로 되돌립니다.");
             }
             finally { await DrainAsync().ConfigureAwait(false); }

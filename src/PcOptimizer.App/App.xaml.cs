@@ -141,8 +141,9 @@ public partial class App : Application
         // 코드 카탈로그만 등록하며 준비/확인 전에는 사용자 파일을 변경하지 않는다.
         var rollbackStore = new RollbackStore();
         var advancedAdapters = Enum.GetValues<AdvancedOption>().Select(option => new AdvancedRegistryAdapter(option, ReadActionSession)).ToArray();
+        var gpuAdapters = Enum.GetValues<GpuFeature>().ToDictionary(feature => feature, feature => new GpuActionAdapter(feature, ReadActionSession));
         var actions = new ActionCenterViewModel(new ActionWorkflow(scanService.Operations, rollbackStore,
-            ReadActionSession, [new RestartActionAdapter(ReadActionSession), new FileCleanupAdapter(ReadActionSession), FileCleanupAdapter.ForSystemTemp(ReadActionSession), FileCleanupAdapter.ForAdobeCache(ReadActionSession, adobeLocations), FileCleanupAdapter.ForSteamCache(ReadActionSession, steamLocations), FileCleanupAdapter.ForGraphicsCache(ReadActionSession), new DeliveryOptimizationAdapter(ReadActionSession), new WindowsUpdateCleanupAdapter(rollbackStore, ReadActionSession), new OfficialCacheActionAdapter(new SystemCacheToolBackend(logger, actionScope != ActionUserScope.Full), ReadActionSession)], [.. advancedAdapters, new PowerActionAdapter(ReadActionSession), new StartupRunActionAdapter(ReadActionSession), StartupRunActionAdapter.ForMachine(ReadActionSession), new UpdateServiceRecoveryAdapter(ReadActionSession), StartupRunActionAdapter.ForFolder(ReadActionSession), StartupRunActionAdapter.ForFolder(ReadActionSession, true), StartupRunActionAdapter.ForApproval(ReadActionSession), StartupRunActionAdapter.ForApproval(ReadActionSession, true)]), dispatcher, async () =>
+            ReadActionSession, [new RestartActionAdapter(ReadActionSession), new FileCleanupAdapter(ReadActionSession), FileCleanupAdapter.ForSystemTemp(ReadActionSession), FileCleanupAdapter.ForAdobeCache(ReadActionSession, adobeLocations), FileCleanupAdapter.ForSteamCache(ReadActionSession, steamLocations), FileCleanupAdapter.ForGraphicsCache(ReadActionSession), new DeliveryOptimizationAdapter(ReadActionSession), new WindowsUpdateCleanupAdapter(rollbackStore, ReadActionSession), new OfficialCacheActionAdapter(new SystemCacheToolBackend(logger, actionScope != ActionUserScope.Full), ReadActionSession)], [.. advancedAdapters, .. gpuAdapters.Values, new PowerActionAdapter(ReadActionSession), new StartupRunActionAdapter(ReadActionSession), StartupRunActionAdapter.ForMachine(ReadActionSession), new UpdateServiceRecoveryAdapter(ReadActionSession), StartupRunActionAdapter.ForFolder(ReadActionSession), StartupRunActionAdapter.ForFolder(ReadActionSession, true), StartupRunActionAdapter.ForApproval(ReadActionSession), StartupRunActionAdapter.ForApproval(ReadActionSession, true)]), dispatcher, async () =>
             {
                 if (viewModel?.StartScanCommand.CanExecute(null) != true) { throw new InvalidOperationException("RescanUnavailable"); }
                 await viewModel.StartScanCommand.ExecuteAsync(null);
@@ -207,7 +208,7 @@ public partial class App : Application
         {
             viewModel.CurrentPage = MainPage.Actions;
             await actions.PrepareAsync(choice.Id, choice.Target);
-        }, dispatcher, new SettingsUriPolicy(logger).TryOpen);
+        }, dispatcher, new SettingsUriPolicy(logger).TryOpen, (feature, ct) => gpuAdapters[feature].Discover(ct), (feature, key) => gpuAdapters[feature].Observe(key));
         window = new MainWindow(viewModel, logger, displayTrials, troubleshooting, driverGuide, advanced);
         MainWindow = window;
         window.Show();
