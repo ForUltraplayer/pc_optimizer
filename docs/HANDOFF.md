@@ -8,7 +8,7 @@
 - 구현: 기존 MPO/HAGS/게임 모드·재부팅에 **NVIDIA 게임별 ReBAR, NVIDIA RTX 영상 On/Off·품질, AMD ADLX 영상 On/Off**와 고급 카드·공통 확인·원본 복구를 추가했다. UI 선택만으로 쓰지 않는다. ReBAR 기본/상속 원복, GPU·드라이버 재대조, SystemOnly 제한, 실제 조회 종료까지 관문 유지.
 - 최종 자체 테스트 **1764/1764 = 기본1761 + 실제 GPU 조회3**, Release 경고0/오류0. UI100/150/200% 및 AMD native vtable 대역 검증. NVIDIA 조회: 프로필73/영상 출력3, AMD 미설치 안내 확인. 독립 검증이 아니다.
 - **실제 GPU 쓰기·복원은 미검증**. 저장하지 않는 DRS 사본 시험도 -137 관리자 권한 필요로 실패했고 권한 상승 재시도는 자동 승인 검토가 거절했다. 해당 시험은 자동 Smoke에서 제거하고 대역 검증을 유지했다. 실제 GPU 설정은 변경하지 않았다. AMD 장치·UEFI/WinRE 실부팅·다른 사용자·.NET 미설치 장치는 평가 대기.
-- 버전 `0.0.2-beta.1`, 배포 대상 `dist/releases/PcOptimizer-v0.0.2-beta.1-win-x64.zip` 및 `.sha256`, [GitHub Pre-release](https://github.com/ForUltraplayer/pc_optimizer/releases/tag/v0.0.2-beta.1). 최종 게시/해시 확인은 원장의 게시 후속 기록 참조. 기존0.0.1 유지.
+- **게시 완료**: 버전/태그 `0.0.2-beta.1`/`v0.0.2-beta.1`, 제품 커밋 `bf6f483`. `dist/releases/PcOptimizer-v0.0.2-beta.1-win-x64.zip` 및 `.sha256`, [공개 GitHub Pre-release](https://github.com/ForUltraplayer/pc_optimizer/releases/tag/v0.0.2-beta.1). ZIP59,866,386bytes, SHA-256 `95C83B800DEAD912619F5C298FEB29C70F5C91BF8F08F1EC37B3AA0A846A5C0B`; 인증 없는 API의 asset digest 일치. 기존0.0.1 유지. 후속 문서 커밋은 제품 ZIP/태그를 바꾸지 않음.
 - 다음 작업: 실제 NVIDIA/AMD 장치에서 사용자가 승인한 적용→원복 평가, WinRE 읽기/부팅 평가, T8 추가 옵션·안전 모드 직행의 별도 설계. 추가 후보 T10은 조사 표이며 모두 구현 승인된 목록이 아니다. GPU 원본 복구 기록은 드라이버/외부 설정 변화 시 덮어쓰지 않는다.
 - AGENTS/공유 리뷰 원장을 먼저 읽는다. 구현→UI→검증, 독립 리뷰·서브에이전트 생략 유지. [기존 후속12개 Task](superpowers/plans/2026-09-28-advanced-options.md)의 표에서 베타 구현과 추가 설계/장치 평가를 구분한다.
 
