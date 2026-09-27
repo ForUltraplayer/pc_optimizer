@@ -17,6 +17,7 @@ using PcOptimizer.Core.Actions;
 using PcOptimizer.Probes.Actions;
 using PcOptimizer.Probes.Actions.Files;
 using PcOptimizer.Probes.Actions.Power;
+using PcOptimizer.Probes.Actions.Display;
 using PcOptimizer.Probes.Applications;
 using PcOptimizer.Probes.Drivers;
 using PcOptimizer.Probes.Platform;
@@ -119,7 +120,17 @@ public partial class App : Application
             // SID를 알아내지 못해 시스템만으로 정한 경우는 "다른 관리자 계정" 배너가 아니라 "확인하지 못함" 배너를 보인다.
             userScopeUnresolved, actions);
 
-        window = new MainWindow(viewModel, logger);
+        // 실제 화면 전환 평가가 끝나기 전에는 명시적인 실행 인자에서만 시험 기능을 제공한다.
+        DisplayTrialViewModel? displayTrials = null;
+        if (actionScope == ActionUserScope.Full && e.Args.Contains("--display-evaluation", StringComparer.Ordinal))
+        {
+            displayTrials = new(new DisplayTrialCoordinator(scanService.Operations, new RollbackStore(), ReadActionSession), scanService.Operations, dispatcher, async () =>
+            {
+                if (!viewModel.StartScanCommand.CanExecute(null)) { throw new InvalidOperationException("RescanUnavailable"); }
+                await viewModel.StartScanCommand.ExecuteAsync(null);
+            });
+        }
+        window = new MainWindow(viewModel, logger, displayTrials);
         MainWindow = window;
         window.Show();
     }

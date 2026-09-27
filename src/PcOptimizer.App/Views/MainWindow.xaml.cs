@@ -22,27 +22,41 @@ namespace PcOptimizer.App.Views;
 public partial class MainWindow : FluentWindow
 {
     private readonly IAppLogger _logger;
+    private readonly DisplayTrialViewModel? _displayTrials;
+    private DisplayTrialWindow? _displayWindow;
     /// <summary>
     /// 화면 모델로 메인 창을 만듭니다.
     /// </summary>
     /// <param name="viewModel">메인 화면 모델.</param>
-    public MainWindow(MainViewModel viewModel, IAppLogger? logger = null)
+    public MainWindow(MainViewModel viewModel, IAppLogger? logger = null, DisplayTrialViewModel? displayTrials = null)
     {
         _logger = logger ?? NullAppLogger.Instance;
         ArgumentNullException.ThrowIfNull(viewModel);
         InitializeComponent();
+        _displayTrials = displayTrials;
+        DisplayEvaluationButton.Visibility = displayTrials is null ? Visibility.Collapsed : Visibility.Visible;
         DataContext = viewModel;
         Loaded += async (_, _) =>
         {
             StartScanButton.Focus();
             if (viewModel.Actions is { } actions && actions.RefreshCommand.CanExecute(null)) { await actions.RefreshCommand.ExecuteAsync(null); }
+            if (_displayTrials?.RefreshCommand.CanExecute(null) == true) { await _displayTrials.RefreshCommand.ExecuteAsync(null); }
         };
-        Closed += (_, _) => viewModel.Dispose();
+        Closing += (_, e) => { if (_displayTrials?.IsWorking == true) { _displayTrials.RequestClose(); e.Cancel = true; } };
+        Closed += (_, _) => { _displayTrials?.Dispose(); viewModel.Dispose(); };
     }
 
     /// <summary>내 PC 사양 화면의 이미지 저장 대상(하단 익명화 표기 포함).</summary>
     public FrameworkElement SpecCaptureRoot => SpecView.CaptureRoot;
     private ActionCenterWindow? _actionWindow;
+    private void OpenDisplayTrials(object sender, RoutedEventArgs e)
+    {
+        if (_displayTrials is null) { return; }
+        if (_displayWindow is not null) { _displayWindow.Activate(); return; }
+        _displayWindow = new DisplayTrialWindow(_displayTrials) { Owner = this };
+        _displayWindow.Closed += (_, _) => _displayWindow = null;
+        _displayWindow.Show();
+    }
     private void OpenActionCenter(object sender, RoutedEventArgs e)
     {
         if (DataContext is not MainViewModel { Actions: { } actions }) { return; }

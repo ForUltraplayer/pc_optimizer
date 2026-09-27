@@ -26,6 +26,7 @@
 
 ## D — 주사율 시험과 복구
 
+- 2026-09-27 후속: [Task 8 실행기·평가 화면 구현](2026-09-27-sp1-display-trial-implementation.md). 대역 41건 및 관리자 조회/CDS_TEST=0 검증. 실제 전환/원복/재부팅 평가는 남아 `--display-evaluation`에서만 제공한다. 강제 종료·네이티브 호출 정지 중 복구 보장을 추가하지 않았다.
 - [ChangeDisplaySettingsExW](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-changedisplaysettingsexw)는 CDS_TEST, 임시 변경, 사용자 프로필 저장 플래그와 DISP_CHANGE 오류를 구분한다. API 성공은 화면의 실제 가독성 확인이 아니다.
 - 제품 조건(T8): 같은 디스플레이·현재 해상도/색 형식 유지, 모드 재열거, 시험 성공, 원래 모드 저장 후 임시 변경. 15초 내 유지 확인이 없으면 원래 모드 적용·재조회한다. 디스플레이 분리/외부 모드 변경을 무시하고 다른 장치에 원래 모드를 쓰지 않는다.
 - 복구 한계: 단일 프로세스는 강제 종료·전원 차단 중 타이머를 실행할 수 없다. 영구 저장은 유지 확인 뒤에만 한다. 프로세스 종료까지 보장하는 별도 watchdog이 없다면 그 한계를 명시한다. 재연결·재부팅의 OS 동작도 VM/실기기 평가 없이 보장하지 않는다.
