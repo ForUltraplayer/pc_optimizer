@@ -16,6 +16,7 @@ using PcOptimizer.Core.Abstractions;
 using PcOptimizer.Core.Actions;
 using PcOptimizer.Probes.Actions;
 using PcOptimizer.Probes.Actions.Files;
+using PcOptimizer.Probes.Actions.Power;
 using PcOptimizer.Probes.Applications;
 using PcOptimizer.Probes.Drivers;
 using PcOptimizer.Probes.Platform;
@@ -89,12 +90,19 @@ public partial class App : Application
         ActionSession ReadActionSession() => SystemActionSession.Read(actionScope);
         // 코드 카탈로그만 등록하며 준비/확인 전에는 사용자 파일을 변경하지 않는다.
         var actions = new ActionCenterViewModel(new ActionWorkflow(scanService.Operations, new RollbackStore(),
-            ReadActionSession, [new FileCleanupAdapter(ReadActionSession)], []), dispatcher, async () =>
+            ReadActionSession, [new FileCleanupAdapter(ReadActionSession), FileCleanupAdapter.ForSystemTemp(ReadActionSession), new OfficialCacheActionAdapter(new SystemCacheToolBackend(logger, actionScope != ActionUserScope.Full), ReadActionSession)], [new PowerActionAdapter(ReadActionSession)]), dispatcher, async () =>
             {
                 if (viewModel?.StartScanCommand.CanExecute(null) != true) { throw new InvalidOperationException("RescanUnavailable"); }
                 await viewModel.StartScanCommand.ExecuteAsync(null);
             }, [new(ActionId.UserFiles, new ActionTarget.Files(UserTempTargets.Temp), "오래된 임시 파일 정리", "7일 이상 지난 임시 파일로 차지한 공간을 줄입니다. 폴더와 최근 파일은 남깁니다."),
-                new(ActionId.UserFiles, new ActionTarget.Files(UserTempTargets.ExplorerCache), "탐색기 미리보기 캐시 정리", "사용 중이 아닌 오래된 썸네일·아이콘 캐시만 확인합니다. 이후 미리보기를 다시 만들 때 잠시 느릴 수 있습니다.")]);
+                new(ActionId.UserFiles, new ActionTarget.Files(UserTempTargets.ExplorerCache), "탐색기 미리보기 캐시 정리", "사용 중이 아닌 오래된 썸네일·아이콘 캐시만 확인합니다. 이후 미리보기를 다시 만들 때 잠시 느릴 수 있습니다."),
+                new(ActionId.SystemFiles, new ActionTarget.Files(SystemTempTargets.Temp), "Windows 임시 파일 정리", "7일 이상 지난 사용 중이 아닌 시스템 임시 파일을 확인합니다. 모든 사용자에게 영향을 줄 수 있으며 업데이트 캐시·설치 파일은 포함하지 않습니다."),
+                new(ActionId.Power, new ActionTarget.Power(PowerActionAdapter.Balanced), "균형 조정 전원 계획", "소비 전력과 응답성의 균형을 선택합니다. 이 PC에 설치된 계획인지 먼저 확인하며 이전 계획으로 되돌릴 수 있습니다."),
+                new(ActionId.Power, new ActionTarget.Power(PowerActionAdapter.HighPerformance), "고성능 전원 계획", "AC 전원이 연결되고 계획이 설치된 경우에만 선택합니다. 발열·소음·소비 전력이 늘 수 있으며 성능 향상을 보장하지 않습니다."),
+                new(ActionId.Power, new ActionTarget.Power(PowerActionAdapter.PowerSaver), "절전 전원 계획", "전력 소비를 줄이는 쪽으로 선택합니다. 작업 응답성이 낮아질 수 있으며 이전 계획으로 되돌릴 수 있습니다."),
+                .. (actionScope == ActionUserScope.Full ? Enum.GetValues<OfficialCacheTool>() : []).Where(t => SystemCacheToolBackend.IsToolInProtectedLocation((CacheTool)t))
+                    .Select(t => new ActionChoice(ActionId.OfficialCache, new ActionTarget.OfficialTool(t), t + " 공식 캐시 정리", "공식 도구로 다운로드 캐시를 정리합니다. 재다운로드가 필요할 수 있으며 개별 파일 미리보기와 처리 범위가 다릅니다."))],
+                    new SettingsUriPolicy(logger).TryOpen);
         viewModel = new MainViewModel(
             scanService,
             new ReportExporter(PersonalDataScrubber.FromEnvironment()),

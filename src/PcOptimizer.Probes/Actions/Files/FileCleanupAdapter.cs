@@ -18,20 +18,23 @@ public sealed class FileCleanupAdapter : IActionAdapter
     private readonly TimeProvider _time;
     private readonly TimeSpan _budget;
     private readonly int _maxEntries;
+    private readonly ActionDefinition _definition;
     private readonly ConditionalWeakTable<ActionPreview, FileCleanupSnapshot> _snapshots = new();
     /// <summary>현재 세션 공급자는 앱의 Full/SystemOnly 범위 판정을 전달해야 합니다.</summary>
     public FileCleanupAdapter(Func<ActionSession> session) : this(UserTempTargets.Resolve, session, new NativeFileCleanupPlatform()) { }
     internal FileCleanupAdapter(Func<string, ActionSession, CleanupTarget> resolve, Func<ActionSession> session, IFileCleanupPlatform platform,
-        TimeProvider? time = null, TimeSpan? budget = null, int maxEntries = 20000)
-    { _resolve = resolve; _session = session; _platform = platform; _time = time ?? TimeProvider.System; _budget = budget ?? TimeSpan.FromSeconds(15); _maxEntries = maxEntries; }
+        TimeProvider? time = null, TimeSpan? budget = null, int maxEntries = 20000, ActionDefinition? definition = null)
+    { _resolve = resolve; _session = session; _platform = platform; _time = time ?? TimeProvider.System; _budget = budget ?? TimeSpan.FromSeconds(15); _maxEntries = maxEntries; _definition = definition ?? new(ActionId.UserFiles, ActionScope.CurrentUser); }
+    /// <summary>Windows 기본 Temp 전용입니다. Update/Installer/WinSxS는 포함하지 않습니다.</summary>
+    public static FileCleanupAdapter ForSystemTemp(Func<ActionSession> session) => new(SystemTempTargets.Resolve, session, new NativeFileCleanupPlatform(), definition: new(ActionId.SystemFiles, ActionScope.System));
     /// <inheritdoc />
-    public ActionDefinition Definition => new(ActionId.UserFiles, ActionScope.CurrentUser);
+    public ActionDefinition Definition => _definition;
     /// <inheritdoc />
     public Task<ActionPreview?> PrepareAsync(ActionTarget target, bool restore, CancellationToken ct)
     {
         if (restore || target is not ActionTarget.Files selected) { return Task.FromResult<ActionPreview?>(null); }
         var session = _session();
-        if (!session.IsKnown || session.Scope != ActionUserScope.Full) { return Task.FromResult<ActionPreview?>(null); }
+        if (!session.IsKnown || (Definition.Scope == ActionScope.CurrentUser && session.Scope != ActionUserScope.Full)) { return Task.FromResult<ActionPreview?>(null); }
         var spec = _resolve(selected.CatalogKey, session);
         var snapshot = Scan(spec, ct);
         var preview = new ActionPreview(target, $"확인한 임시 파일 {snapshot.Files.Count:N0}개만 정리합니다.",

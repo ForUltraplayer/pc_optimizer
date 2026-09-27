@@ -6,6 +6,7 @@
 using System.Diagnostics;
 using System.Text;
 using PcOptimizer.Core.Abstractions;
+using PcOptimizer.Core.Actions;
 
 namespace PcOptimizer.Probes.Actions;
 
@@ -58,7 +59,7 @@ internal static class CacheToolProcess
     private static readonly string TOOL_WORKING_DIRECTORY = Environment.GetFolderPath(Environment.SpecialFolder.System);
 
     /// <summary>허용된 명령을 직렬 실행하고 실제 시작 여부를 전달합니다.</summary>
-    public static async Task<CacheProcessResult> RunAsync(CacheToolLocation tool, bool clear, CancellationToken ct, IAppLogger? logger = null)
+    public static async Task<CacheProcessResult> RunAsync(CacheToolLocation tool, bool clear, CancellationToken ct, IAppLogger? logger = null, IActionExecution? execution = null)
     {
         var log = logger ?? NullAppLogger.Instance;
         // 이미 검사한 대상이 대기열에서 오래된 상태가 되지 않도록 즉시 거절한다.
@@ -74,7 +75,7 @@ internal static class CacheToolProcess
             process = new Process { StartInfo = CreateStartInfo(tool, clear) };
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
             deadline.CancelAfter(clear ? TIMEOUT : QUERY_TIMEOUT);
-            if (!process.Start()) { return new(false, string.Empty, false, "StartFailed"); }
+            if (!(execution is null ? process.Start() : execution.TryStartProcess(process.Start))) { return new(false, string.Empty, false, "StartFailed"); }
             started = true;
             var output = ReadBoundedAsync(process.StandardOutput, deadline.Token);
             var error = ReadBoundedAsync(process.StandardError, deadline.Token);

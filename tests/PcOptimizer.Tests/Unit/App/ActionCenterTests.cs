@@ -17,6 +17,20 @@ public sealed class ActionCenterTests
     internal static readonly ActionSession Session = new("fixture-private-sid", 1, ActionUserScope.Full);
     internal static readonly ActionTarget Target = new ActionTarget.Power(Guid.NewGuid());
 
+    /// <summary>공식 설정 연결은 허용 목록 항목만 열고 자동 적용 결과를 만들지 않습니다.</summary>
+    [Fact]
+    public void ManualActionUsesOnlyRegisteredSettingsAndDoesNotClaimApplied()
+    {
+        string? opened = null;
+        var workflow = new ActionWorkflow(new OperationCoordinator(), new Store(), () => Session, [], []);
+        using var vm = new ActionCenterViewModel(workflow, new Dispatch(), () => Task.CompletedTask, openSettings: uri => { opened = uri; return true; });
+        var item = vm.ManualChoices.First(c => c.HasSettings);
+        Assert.True(vm.OpenManualCommand.CanExecute(item)); vm.OpenManualCommand.Execute(item);
+        Assert.Equal(item.SettingsUri, opened); Assert.False(vm.HasResult); Assert.Empty(vm.Results);
+        Assert.False(vm.OpenManualCommand.CanExecute(new ManualActionChoice("외부", "", "file:///private")));
+        Assert.Contains("다시 검사", vm.Status);
+    }
+
     /// <summary>등록된 선택은 미리보기만 만들며 지원하지 않는 조치는 목록에 노출하지 않습니다.</summary>
     [Fact]
     public async Task ChoiceRequiresSeparateConfirmationAndFiltersUnsupportedActions()

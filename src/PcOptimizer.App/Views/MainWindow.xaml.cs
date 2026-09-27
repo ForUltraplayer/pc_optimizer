@@ -55,6 +55,7 @@ public partial class MainWindow : FluentWindow
     private async void OpenCacheTools(object sender, System.Windows.RoutedEventArgs e)
     {
         if (DataContext is not MainViewModel viewModel || !viewModel.CanOpenCacheTools) { return; }
+        if (viewModel.Actions is not null) { OpenActionCenter(sender, e); return; }
         // UI 관문과 별개로 실행기에도 사용자 범위를 전달해 SystemOnly면 관측·실행 전에 거절한다(REV-016).
         var window = new CacheToolsWindow(_logger, viewModel.IsSystemOnly, viewModel.Operations) { Owner = this };
         window.ShowDialog();

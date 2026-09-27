@@ -27,6 +27,8 @@ public sealed class ActionPreviewViewModel(ActionPlan plan)
     public string Impact => plan.Preview.Impact;
     /// <summary>안전 조건이 제공되지 않았으면 확인 불가라고 표시합니다.</summary>
     public string Safety => plan.Preview.Details?.SafetyNote ?? "실행 직전에 대상과 현재 상태를 다시 확인합니다.";
+    /// <summary>코드 등록의 안전 수준과 개별 확인 정책입니다.</summary>
+    public string SafetyLabel => plan.Definition.Safety == PcOptimizer.Core.Models.SafetyLevel.Irreversible ? "되돌릴 수 없는 정리 · 이 항목만 실행" : "주의가 필요한 설정 변경 · 이 항목만 실행";
     /// <summary>예상 논리 크기이며 실제 확보 공간이 아닙니다.</summary>
     public string Estimate => plan.Preview.Details?.EstimatedLogicalBytes is >= 0 and var bytes
         ? $"대상 파일의 논리 크기: {ActionText.Bytes(bytes)} (예상치)" : "대상 파일의 논리 크기: 제공되지 않음";
@@ -62,6 +64,9 @@ public sealed class ActionResultViewModel(ActionResult result, ActionId actionId
     /// <summary>파일 단위 결과이며 건너뜀/실패를 삭제 성공으로 합산하지 않습니다.</summary>
     public string FileCounts => result.Effect?.ChangedFiles is { } changed
         ? $"삭제 {changed:N0}개 · 건너뜀 {result.Effect.SkippedFiles ?? 0:N0}개 · 사용 중/실패 {result.Effect.FailedFiles ?? 0:N0}개" : "";
+    /// <summary>공식 도구 전후 논리 크기를 디스크 여유 공간과 구분합니다.</summary>
+    public string CacheObservation => result.Effect?.BeforeLogicalBytes is { } before
+        ? $"실행 직전 캐시: {ActionText.Bytes(before)} → 남은 캐시: {(result.Effect.AfterLogicalBytes is { } after ? ActionText.Bytes(after) : "확인 불가")}" : "";
     /// <summary>관측된 볼륨 여유 변화는 음수/미확인을 그대로 표시합니다.</summary>
     public string Actual => result.Effect?.FreeSpaceDeltaBytes switch
     {
@@ -77,10 +82,22 @@ public sealed class ActionResultViewModel(ActionResult result, ActionId actionId
         {
             "AlreadyOriginal" => "다시 쓸 필요가 없어 설정을 변경하지 않았습니다.",
             "AlreadyApplied" => "현재 값이 선택한 설정과 같아 변경하지 않았습니다.",
+            "ToolUnavailable" => "이 도구를 실행할 수 있는 설치를 찾지 못했습니다. Windows 저장소 설정에서도 정리할 수 있습니다.",
+            "ToolNotInProtectedLocation" => "사용자 쓰기 가능 위치의 도구는 관리자 권한으로 실행하지 않습니다. 해당 도구를 일반 터미널에서 직접 사용해 주세요.",
+            "UserScopeExcluded" or "OutsideUserProfile" => "현재 사용자 범위 밖의 캐시여서 실행하지 않았습니다.",
+            "ToolChanged" => "공식 도구나 캐시 경로가 바뀌었습니다. 미리보기를 다시 확인해 주세요.",
+            "StartFailed" or "PreflightFailed" => "공식 도구 실행을 시작하지 못했습니다. 캐시 정리는 수행하지 않았습니다.",
+            "ObservationFailed" => "도구 실행 뒤 남은 캐시를 확인하지 못했습니다. 정리가 일부 진행됐을 수 있으므로 다시 검사해 주세요.",
             "NoEligibleFiles" => "최근 파일과 보호 대상을 제외하면 정리할 파일이 없습니다. 파일을 변경하지 않았습니다.",
+            "Partial" when ActionText.IsSpaceAction(actionId) => "일부 파일만 정리했습니다. 아래 삭제·건너뜀 개수와 재검사 결과를 확인해 주세요. 사용 중인 파일은 강제로 지우지 않았습니다.",
             "FilesUnavailable" => "사용 중이거나 접근할 수 없는 파일은 그대로 두었습니다. 관련 앱을 닫은 뒤 다시 확인할 수 있습니다.",
             "TargetChanged" => "미리보기 이후 파일 또는 위치가 달라져 실행하지 않았습니다. 대상을 다시 확인해 주세요.",
             "CurrentValueChanged" => "확인 이후 설정이 달라졌습니다. 사용자가 바꾼 값을 덮어쓰지 않습니다. 다시 검사해 주세요.",
+            "PowerSchemeMissing" => "선택한 계획이나 되돌릴 계획이 이 PC에 없습니다. 새 전원 계획을 만들지는 않습니다.",
+            "PowerNeedsAc" => "고성능 또는 사용자 지정 계획은 AC 전원이 확인될 때만 적용합니다. 전원 연결 후 다시 확인해 주세요.",
+            "PowerStateChanged" => "미리보기 이후 전원 연결 상태가 달라졌습니다. 현재 상태에서 다시 확인해 주세요.",
+            "PowerReadFailed" => "현재 전원 계획을 확인하지 못했습니다. Windows 전원 설정에서 상태를 확인해 주세요.",
+            "PowerWriteFailed" => "Windows가 전원 계획 변경을 완료하지 못했습니다. 정책과 현재 계획을 확인해 주세요. 복구 기록은 보존했습니다.",
             "PlanExpired" => "확인 시간이 만료되었거나 이미 사용한 계획입니다. 미리보기를 다시 열어 주세요.",
             "SessionChanged" or "ScopeExcluded" => "사용자 또는 실행 범위가 달라졌습니다. 현재 사용자로 다시 확인해 주세요.",
             "Unsupported" or "TargetRejected" or "Blocked" => "이 대상은 현재 앱에서 처리할 수 없습니다. 지원 도구나 Windows 설정에서 확인해 주세요.",
