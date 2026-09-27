@@ -107,12 +107,12 @@ public sealed class LinkPolicyTests
         Assert.True(shell.Disposed);
     }
 
-    /// <summary>셸 없음·승격·확인 실패·서버 종료 시 관리자 실행으로 폴백하지 않습니다.</summary>
+    /// <summary>셸 없음·다른 세션의 셸·확인 실패·서버 종료 시 관리자 실행으로 폴백하지 않습니다.</summary>
     [Theory]
     [InlineData(0)] [InlineData(1)] [InlineData(2)] [InlineData(3)]
     public void MissingOrUntrustedShellFailsClosed(int scenario)
     {
-        var shell = new Shell { Unelevated = scenario != 1, Fail = scenario == 3 };
+        var shell = new Shell { SessionShell = scenario != 1, Fail = scenario == 3 };
         var launcher = new UnelevatedShellLauncher(() => scenario switch
         {
             0 => null, 2 => throw new InvalidOperationException("query failed"), _ => shell,
@@ -121,6 +121,17 @@ public sealed class LinkPolicyTests
         Assert.Equal(LinkOpenResult.Failed, policy.TryOpen("https://www.dell.com/support/home/"));
         Assert.Null(shell.Url);
         if (scenario is 1 or 3) { Assert.True(shell.Disposed); }
+    }
+
+    /// <summary>UAC를 끈 PC처럼 셸 자체가 승격돼 있어도 그 셸에 위임하며(앱이 브라우저를 직접 시작하지 않음), 승격 사실은 기록용으로 남깁니다.</summary>
+    [Fact]
+    public void ElevatedSessionShellStillReceivesUrl()
+    {
+        var shell = new Shell { Unelevated = false };
+        var launcher = new UnelevatedShellLauncher(() => shell);
+        var policy = new LinkPolicy(DriverRuleTestData.CATALOG, NullAppLogger.Instance, launcher);
+        Assert.Equal(LinkOpenResult.Opened, policy.TryOpen("https://www.dell.com/support/home/"));
+        Assert.Equal("https://www.dell.com/support/home/", shell.Url); Assert.True(launcher.ShellWasElevated);
     }
 
     /// <summary>모호한 주소는 COM 연결 전 거절해 복사 안내로 처리합니다.</summary>
@@ -149,8 +160,10 @@ public sealed class LinkPolicyTests
     private sealed class Shell : IDesktopShell
     {
         public bool Unelevated { get; init; } = true;
+        public bool SessionShell { get; init; } = true;
         public bool Fail { get; init; }
-        public bool IsUnelevated => Unelevated;
+        public bool IsSessionShell => SessionShell;
+        public bool IsUnelevated => SessionShell && Unelevated;
         public string? Url { get; private set; }
         public bool Disposed { get; private set; }
         public void Open(string url) { if (Fail) { throw new InvalidOperationException("closed"); } Url = url; }
