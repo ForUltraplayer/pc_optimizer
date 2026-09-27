@@ -41,6 +41,16 @@ public static class UserTempTargets
                 { throw new UnauthorizedAccessException("RelocatedTempUnsupported"); }
             }
         }
+        var protect = ProtectionFor(root, session);
+        return new(key, root, key == Temp ? "7일 이상 지난 사용자 임시 파일" : "사용 중이 아닌 오래된 탐색기 미리보기 캐시", key == Temp,
+            key == Temp ? ["*"] : [ScanRootCatalog.THUMBNAIL_CACHE_PATTERN, ScanRootCatalog.ICON_CACHE_PATTERN], TimeSpan.FromDays(7), protect);
+    }
+
+    // 앱 캐시도 임시 파일과 동일한 보호·타 SID 경계를 통과해야 한다.
+    internal static Func<string, bool> ProtectionFor(string root, ActionSession session)
+    {
+        var environment = SystemPathEnvironment.Instance;
+        string Canonical(string path) => CachePathInspector.CanonicalPath(environment, path);
         var policy = ProtectionPolicyParser.Parse(FileScanService.ReadBundledPolicy() ?? "").Policy ?? throw new UnauthorizedAccessException("ProtectionUnavailable");
         var resolved = new ProtectionPolicyResolver(environment, Win32RegistryReader.Instance).Resolve(policy);
         var protection = new ResolvedProtection(resolved.Roots.Select(p => p with { Path = Canonical(p.Path) }));
@@ -51,8 +61,7 @@ public static class UserTempTargets
         if (others.Any(p => PathScope.IsSameOrUnder(p, root))) { throw new UnauthorizedAccessException("OtherProfileInsideRoot"); }
         if (Protected(root) || protection.Roots.Any(p => p.Path.StartsWith(root + "\\", StringComparison.OrdinalIgnoreCase)))
         { throw new UnauthorizedAccessException("ProtectedRoot"); }
-        return new(key, root, key == Temp ? "7일 이상 지난 사용자 임시 파일" : "사용 중이 아닌 오래된 탐색기 미리보기 캐시", key == Temp,
-            key == Temp ? ["*"] : [ScanRootCatalog.THUMBNAIL_CACHE_PATTERN, ScanRootCatalog.ICON_CACHE_PATTERN], TimeSpan.FromDays(7), Protected);
+        return Protected;
     }
 
     // 조회용 가드의 현재 프로필 우선 허용과 달리 삭제는 중첩된 다른 SID 경로도 반드시 보호한다.

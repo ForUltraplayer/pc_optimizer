@@ -17,7 +17,8 @@ internal sealed record FileStamp(string Path, FileIdentity Identity, long Length
     internal bool IsDirectory => (Attributes & FileAttributes.Directory) != 0;
     internal bool IsPlain => (Attributes & (FileAttributes.ReparsePoint | FileAttributes.Offline | (FileAttributes)0x40000 | (FileAttributes)0x400000)) == 0;
 }
-internal sealed record CleanupTarget(string Key, string Root, string Label, bool Recursive, string[] Patterns, TimeSpan MinimumAge, Func<string, bool> Protected);
+internal sealed record CleanupTarget(string Key, string Root, string Label, bool Recursive, string[] Patterns, TimeSpan MinimumAge,
+    Func<string, bool> Protected, Func<string?>? CheckIdle = null, string? Impact = null);
 internal interface ICleanupFile : IDisposable
 {
     FileStamp Read();

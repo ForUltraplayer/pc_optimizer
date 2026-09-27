@@ -27,6 +27,8 @@ public sealed class FileCleanupAdapter : IActionAdapter
     { _resolve = resolve; _session = session; _platform = platform; _time = time ?? TimeProvider.System; _budget = budget ?? TimeSpan.FromSeconds(15); _maxEntries = maxEntries; _definition = definition ?? new(ActionId.UserFiles, ActionScope.CurrentUser); }
     /// <summary>Windows 기본 Temp 전용입니다. Update/Installer/WinSxS는 포함하지 않습니다.</summary>
     public static FileCleanupAdapter ForSystemTemp(Func<ActionSession> session) => new(SystemTempTargets.Resolve, session, new NativeFileCleanupPlatform(), definition: new(ActionId.SystemFiles, ActionScope.System));
+    /// <summary>Adobe 기본 경로의 오래된 cfa/pek만 확인합니다. 다른 앱·사용자 지정 위치는 포함하지 않습니다.</summary>
+    public static FileCleanupAdapter ForAdobeCache(Func<ActionSession> session) => new(AdobeCacheTargets.Resolve, session, new NativeFileCleanupPlatform(), definition: new(ActionId.AppFiles, ActionScope.CurrentUser));
     /// <inheritdoc />
     public ActionDefinition Definition => _definition;
     /// <inheritdoc />
@@ -36,9 +38,11 @@ public sealed class FileCleanupAdapter : IActionAdapter
         var session = _session();
         if (!session.IsKnown || (Definition.Scope == ActionScope.CurrentUser && session.Scope != ActionUserScope.Full)) { return Task.FromResult<ActionPreview?>(null); }
         var spec = _resolve(selected.CatalogKey, session);
+        if (spec.CheckIdle?.Invoke() is { } busy) { throw new ActionUnavailableException(busy); }
         var snapshot = Scan(spec, ct);
-        var preview = new ActionPreview(target, $"확인한 임시 파일 {snapshot.Files.Count:N0}개만 정리합니다.",
-            "휴지통을 거치지 않습니다. 앱에서 다시 만들거나 다운로드할 수 있으며, 사용 중이거나 바뀐 파일은 건너뜁니다.",
+        if (spec.CheckIdle?.Invoke() is { } changed) { throw new ActionUnavailableException(changed); }
+        var preview = new ActionPreview(target, $"확인한 파일 {snapshot.Files.Count:N0}개만 정리합니다.",
+            spec.Impact ?? "휴지통을 거치지 않습니다. 앱에서 다시 만들거나 다운로드할 수 있으며, 사용 중이거나 바뀐 파일은 건너뜁니다.",
             new(spec.Label + "\n" + spec.Root, $"최근 파일·보호 대상 등 {snapshot.Excluded:N0}개 제외. 폴더는 남기고 파일별로 재확인합니다.", snapshot.Bytes, false));
         _snapshots.Add(preview, snapshot);
         return Task.FromResult<ActionPreview?>(preview);
@@ -88,6 +92,7 @@ public sealed class FileCleanupAdapter : IActionAdapter
         _snapshots.Remove(plan.Preview);
         if (_session() != plan.Session) { return Task.FromResult(new ActionResult(plan.Id, false, false, "SessionChanged")); }
         var current = _resolve(snapshot.Target.Key, _session());
+        if (current.CheckIdle?.Invoke() is { } busy) { return Task.FromResult(new ActionResult(plan.Id, false, false, busy)); }
         if (!current.Root.Equals(snapshot.Target.Root, StringComparison.OrdinalIgnoreCase)) { return Task.FromResult(new ActionResult(plan.Id, false, false, "TargetChanged")); }
         using var root = _platform.Open(current.Root, true, false);
         if (root.Read().Identity != snapshot.Root.Identity || current.Protected(current.Root)) { return Task.FromResult(new ActionResult(plan.Id, false, false, "TargetChanged")); }
@@ -106,6 +111,7 @@ public sealed class FileCleanupAdapter : IActionAdapter
         }
         var before = _platform.FreeBytes(current.Root);
         var started = false; var removed = 0; var skipped = 0; var failed = 0;
+        string? stopReason = null;
         foreach (var file in snapshot.Files)
         {
             if (ct.IsCancellationRequested || _session() != plan.Session) { break; }
@@ -114,6 +120,8 @@ public sealed class FileCleanupAdapter : IActionAdapter
                 using var item = _platform.Open(file.Path, false, true); // 독점 핸들: 사용 중이면 거절.
                 var actual = item.Read();
                 if (!file.Matches(actual) || actual.Links != 1 || !actual.IsPlain || current.Protected(file.Path)) { skipped++; continue; }
+                // 전체 확인 후 시작된 앱도 삭제 직전에 다시 조회한다. 이미 처리한 개수는 보존한다.
+                if (current.CheckIdle?.Invoke() is { } reason) { stopReason = reason; break; }
                 ct.ThrowIfCancellationRequested();
                 if (!started) { execution.MarkStarted(); started = true; }
                 item.MarkForDeletion();
@@ -127,8 +135,8 @@ public sealed class FileCleanupAdapter : IActionAdapter
         skipped += snapshot.Files.Count - removed - skipped - failed;
         var after = _platform.FreeBytes(current.Root);
         long? delta = before is not null && after is not null ? after - before : null;
-        var code = !started ? snapshot.Files.Count == 0 ? "NoEligibleFiles" : ct.IsCancellationRequested ? "Cancelled" : "FilesUnavailable"
-            : skipped + failed > 0 ? "Partial" : "Completed";
+        var code = stopReason ?? (!started ? snapshot.Files.Count == 0 ? "NoEligibleFiles" : ct.IsCancellationRequested ? "Cancelled" : "FilesUnavailable"
+            : skipped + failed > 0 ? "Partial" : "Completed");
         return Task.FromResult(new ActionResult(plan.Id, started, started && skipped + failed == 0, code, new(delta, removed, skipped, failed)));
     }
 }

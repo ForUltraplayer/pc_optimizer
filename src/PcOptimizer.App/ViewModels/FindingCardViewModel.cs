@@ -53,7 +53,7 @@ public sealed partial class FindingCardViewModel : ObservableObject
     /// <param name="finding">표시할 Finding.</param>
     /// <param name="settingsPolicy">설정 URI 허용 정책.</param>
     /// <param name="linkPolicy">외부 링크 허용 정책.</param>
-    public FindingCardViewModel(Finding finding, SettingsUriPolicy settingsPolicy, LinkPolicy linkPolicy, bool displayTrialsAvailable = false)
+    public FindingCardViewModel(Finding finding, SettingsUriPolicy settingsPolicy, LinkPolicy linkPolicy, bool displayTrialsAvailable = false, bool adobeCleanupAvailable = false)
     {
         ArgumentNullException.ThrowIfNull(finding);
         ArgumentNullException.ThrowIfNull(settingsPolicy);
@@ -65,6 +65,9 @@ public sealed partial class FindingCardViewModel : ObservableObject
         var displayTarget = displayTrialsAvailable ? DisplayFindingTarget.Read(finding) : null;
         CanTrialDisplay = displayTarget is not null;
         DisplayTrialButtonText = displayTarget is null ? "주사율 시험 적용" : $"{displayTarget.Hz}Hz 시험 적용";
+        CanPrepareAdobe = adobeCleanupAvailable && finding.Category == FindingCategory.AppCache
+            && finding.Verdict is Verdict.Info or Verdict.Candidate
+            && finding.Id == PcOptimizer.Core.Rules.AppCacheRule.FINDING_ID_PREFIX + "Adobe 미디어 캐시";
         Measurements = [.. finding.Measured.Select(m => new MeasurementItemViewModel(m))];
         VerdictText = DisplayText.Verdict(finding.Verdict);
         CategoryText = DisplayText.Category(finding.Category);
@@ -89,6 +92,8 @@ public sealed partial class FindingCardViewModel : ObservableObject
     public bool CanTrialDisplay { get; }
     /// <summary>선택할 주사율을 버튼에서 명시합니다. 누르면 실제 사전 검사와 확인 화면으로 이동합니다.</summary>
     public string DisplayTrialButtonText { get; }
+    /// <summary>관측 크기를 삭제량으로 간주하지 않고 기본 미디어 캐시를 새로 확인합니다.</summary>
+    public bool CanPrepareAdobe { get; }
 
     /// <summary>한 문장 제목.</summary>
     public string Title => Finding.Title;
@@ -199,6 +204,7 @@ public sealed partial class FindingCardViewModel : ObservableObject
     public string? CandidateBenefit => Finding.Impact?.Benefit;
     /// <summary>설정 변경·공식 안내·확인의 동작 종류.</summary>
     public string ActionModeText => CanTrialDisplay ? "앱에서 사전 확인 후 시험 적용할 수 있습니다."
+        : CanPrepareAdobe ? "기본 캐시 중 90일 이상 된 파일만 다시 확인합니다. 카드의 전체 관측 크기와 정리량은 다릅니다."
         : CanOpenSettings ? Strings.Overview_ManualSetting
         : HasLinks ? Strings.Overview_OfficialGuide : Strings.Overview_ReviewFirst;
     /// <summary>분류에 맞는 설정 버튼 문구.</summary>
