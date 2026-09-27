@@ -2,6 +2,8 @@
 
 기준 `1aabef1`, 브랜치 `codex/sp1-actions`. 사용자 지시: 구현 → UI/UX → 검증. 독립 리뷰/서브에이전트 없음. 프리뷰/ZIP 생성 없음. 이 문서는 구현자의 변경 기록이며 동작 검증 보고서가 아니다.
 
+구현 커밋 `2b32a8e` (`1aabef1..2b32a8e`, 27파일). 후속 커밋은 인계/원장의 커밋 참조만 추가한다.
+
 ## T6 — 모든 사용자 Run
 
 - `Core/Actions/StartupRegistration.cs`, `StartupSelection.cs`: HKCU, HKLM64, HKLM32의 출처·보기·이름 식별. 원래 HKCU `hkcu-run-v1:` 복구 키 호환. 새 키는 `hklm64-run-v1:`/`hklm32-run-v1:`. 같은 이름을 출처별로 분리한다.
