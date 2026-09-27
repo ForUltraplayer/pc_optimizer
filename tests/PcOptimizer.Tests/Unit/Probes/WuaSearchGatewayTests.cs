@@ -77,10 +77,10 @@ public sealed class WuaSearchGatewayTests
     {
         var job = new FakeSearchJob(completedAtStart: false);
         var searcher = new FakeUpdateSearcher(job, () => new FakeSearchResult(WindowsUpdateProbeContract.RESULT_ABORTED));
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
-
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => Gateway(new FakeUpdateSession(searcher)).SearchAsync(WindowsUpdateProbeContract.SEARCH_CRITERIA, cts.Token));
+        using var cts = new CancellationTokenSource();
+        var search = Gateway(new FakeUpdateSession(searcher)).SearchAsync(WindowsUpdateProbeContract.SEARCH_CRITERIA, cts.Token);
+        cts.Cancel(); // 작업 생성 전 타이머 만료와 검색 중 취소를 혼동하지 않는다.
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => search);
 
         Assert.Equal(1, job.AbortRequests);
         Assert.Equal(1, searcher.EndSearchCalls);
@@ -92,10 +92,10 @@ public sealed class WuaSearchGatewayTests
     {
         var job = new FakeSearchJob(completedAtStart: false, completesOnAbort: false);
         var searcher = new FakeUpdateSearcher(job, () => new FakeSearchResult(WindowsUpdateProbeContract.RESULT_ABORTED));
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(20));
-
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => Gateway(new FakeUpdateSession(searcher)).SearchAsync(WindowsUpdateProbeContract.SEARCH_CRITERIA, cts.Token));
+        using var cts = new CancellationTokenSource();
+        var search = Gateway(new FakeUpdateSession(searcher)).SearchAsync(WindowsUpdateProbeContract.SEARCH_CRITERIA, cts.Token);
+        cts.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => search);
 
         Assert.Equal(1, job.AbortRequests);
         Assert.Equal(0, searcher.EndSearchCalls);

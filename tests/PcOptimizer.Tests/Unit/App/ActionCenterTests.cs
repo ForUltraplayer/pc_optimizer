@@ -17,6 +17,23 @@ public sealed class ActionCenterTests
     internal static readonly ActionSession Session = new("fixture-private-sid", 1, ActionUserScope.Full);
     internal static readonly ActionTarget Target = new ActionTarget.Power(Guid.NewGuid());
 
+    /// <summary>등록된 선택은 미리보기만 만들며 지원하지 않는 조치는 목록에 노출하지 않습니다.</summary>
+    [Fact]
+    public async Task ChoiceRequiresSeparateConfirmationAndFiltersUnsupportedActions()
+    {
+        var adapter = new Adapter();
+        var workflow = new ActionWorkflow(new OperationCoordinator(), new Store(), () => Session, [adapter], []);
+        var choice = new ActionChoice(ActionId.Power, Target, "전원", "효과");
+        using var vm = new ActionCenterViewModel(workflow, new Dispatch(), () => Task.CompletedTask,
+            [choice, new(ActionId.Startup, new ActionTarget.Startup("run", "test"), "미지원", "")]);
+        Assert.Single(vm.Choices);
+        Assert.True(vm.PrepareChoiceCommand.CanExecute(choice));
+        await vm.PrepareChoiceCommand.ExecuteAsync(choice);
+        Assert.True(vm.HasPreview); Assert.Equal(0, adapter.Executions);
+        await vm.ExecuteCommand.ExecuteAsync(null);
+        Assert.Equal(1, adapter.Executions);
+    }
+
     /// <summary>미리보기만으로 실행하지 않으며 확인 취소 뒤 실행할 수 없습니다.</summary>
     [Fact]
     public async Task PreviewAndDismissNeverExecute()

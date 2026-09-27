@@ -49,6 +49,7 @@ public sealed class ActionResultViewModel(ActionResult result, ActionId actionId
         : result.Succeeded ? restore ? "이전 설정으로 되돌렸습니다" : "선택한 조치를 완료했습니다"
         : result.Code == "AlreadyOriginal" ? "이미 원래 설정입니다"
         : result.Code == "AlreadyApplied" ? "이미 선택한 설정이 적용되어 있습니다"
+        : result.Code == "NoEligibleFiles" ? "지금 정리할 대상이 없습니다"
         : result.Started ? restore ? "되돌리기를 끝내지 못했습니다" : "변경 결과를 확인해야 합니다" : "설정을 변경하기 전에 멈췄습니다";
     /// <summary>뒤늦게 종료되는 작업을 완료로 표시하지 않습니다.</summary>
     public bool IsDraining => result.Code is "Draining" or "Running" or "Validating";
@@ -58,6 +59,9 @@ public sealed class ActionResultViewModel(ActionResult result, ActionId actionId
     public string Estimate => estimate;
     /// <summary>설정 조치에 관련 없는 공간 확인 불가 문구를 나열하지 않습니다.</summary>
     public bool HasSpaceEffect => ActionText.IsSpaceAction(actionId) || result.Effect is not null;
+    /// <summary>파일 단위 결과이며 건너뜀/실패를 삭제 성공으로 합산하지 않습니다.</summary>
+    public string FileCounts => result.Effect?.ChangedFiles is { } changed
+        ? $"삭제 {changed:N0}개 · 건너뜀 {result.Effect.SkippedFiles ?? 0:N0}개 · 사용 중/실패 {result.Effect.FailedFiles ?? 0:N0}개" : "";
     /// <summary>관측된 볼륨 여유 변화는 음수/미확인을 그대로 표시합니다.</summary>
     public string Actual => result.Effect?.FreeSpaceDeltaBytes switch
     {
@@ -73,6 +77,9 @@ public sealed class ActionResultViewModel(ActionResult result, ActionId actionId
         {
             "AlreadyOriginal" => "다시 쓸 필요가 없어 설정을 변경하지 않았습니다.",
             "AlreadyApplied" => "현재 값이 선택한 설정과 같아 변경하지 않았습니다.",
+            "NoEligibleFiles" => "최근 파일과 보호 대상을 제외하면 정리할 파일이 없습니다. 파일을 변경하지 않았습니다.",
+            "FilesUnavailable" => "사용 중이거나 접근할 수 없는 파일은 그대로 두었습니다. 관련 앱을 닫은 뒤 다시 확인할 수 있습니다.",
+            "TargetChanged" => "미리보기 이후 파일 또는 위치가 달라져 실행하지 않았습니다. 대상을 다시 확인해 주세요.",
             "CurrentValueChanged" => "확인 이후 설정이 달라졌습니다. 사용자가 바꾼 값을 덮어쓰지 않습니다. 다시 검사해 주세요.",
             "PlanExpired" => "확인 시간이 만료되었거나 이미 사용한 계획입니다. 미리보기를 다시 열어 주세요.",
             "SessionChanged" or "ScopeExcluded" => "사용자 또는 실행 범위가 달라졌습니다. 현재 사용자로 다시 확인해 주세요.",

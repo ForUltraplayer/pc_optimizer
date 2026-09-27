@@ -51,7 +51,7 @@ public sealed record ActionPreparation(ActionPlan? Plan, string? Code);
 /// <summary>관측 결과와 실제 변경 시작 여부입니다. 성공·실패·거절을 코드로 구분합니다.</summary>
 public sealed record ActionResult(Guid PlanId, bool Started, bool Succeeded, string Code, ActionEffect? Effect = null);
 /// <summary>관측한 여유 공간 변화입니다. null은 확인 불가, 음수는 여유 공간 감소입니다.</summary>
-public sealed record ActionEffect(long? FreeSpaceDeltaBytes);
+public sealed record ActionEffect(long? FreeSpaceDeltaBytes, int? ChangedFiles = null, int? SkippedFiles = null, int? FailedFiles = null);
 
 /// <summary>어댑터의 변경 직전 재검증·시작 기록과 실제 자식 작업 추적 계약입니다.</summary>
 public interface IActionExecution

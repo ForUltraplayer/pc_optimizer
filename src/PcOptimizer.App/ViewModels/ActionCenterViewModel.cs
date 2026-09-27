@@ -11,6 +11,9 @@ using PcOptimizer.Core.Actions;
 
 namespace PcOptimizer.App.ViewModels;
 
+/// <summary>앱 코드에서 등록한 대상과 사용자에게 설명할 효과입니다.</summary>
+public sealed record ActionChoice(ActionId Id, ActionTarget Target, string Title, string Benefit);
+
 /// <summary>창이 닫혀도 보존하는 공통 조치 화면 모델입니다. Dispose는 실제 작업을 취소하지 않습니다.</summary>
 public sealed partial class ActionCenterViewModel : ObservableObject, IDisposable
 {
@@ -27,11 +30,12 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     private bool _rescanPending;
 
     /// <summary>앱에서 한 번 만들고 같은 실행 관문/조율기를 연결합니다.</summary>
-    public ActionCenterViewModel(IActionWorkflow workflow, IUiDispatcher dispatcher, Func<Task> rescan)
+    public ActionCenterViewModel(IActionWorkflow workflow, IUiDispatcher dispatcher, Func<Task> rescan, IEnumerable<ActionChoice>? choices = null)
     {
         _workflow = workflow;
         _dispatcher = dispatcher;
         _rescan = rescan;
+        Choices = (choices ?? []).Where(c => workflow.Supports(c.Id, false)).ToArray();
         workflow.Operations.Changed += OnOperationsChanged;
     }
     /// <summary>실행기에서 발급한 읽기 전용 확인 화면입니다.</summary>
@@ -62,6 +66,8 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     public ObservableCollection<RollbackItemViewModel> Records { get; } = [];
     /// <summary>최근 완료 결과는 화면을 전환해도 보존합니다.</summary>
     public ObservableCollection<ActionResultViewModel> Results { get; } = [];
+    /// <summary>현재 범위와 코드 등록이 허용하는 조치만 표시합니다. 실행 가능 여부는 미리보기에서 다시 검사합니다.</summary>
+    public IReadOnlyList<ActionChoice> Choices { get; }
     /// <summary>실행 확인 영역 표시 여부입니다.</summary>
     public bool HasPreview => Preview is not null;
     /// <summary>결과 표시 여부입니다.</summary>
@@ -80,12 +86,17 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
         OnPropertyChanged(nameof(IsBlocked)); OnPropertyChanged(nameof(Overview));
         ExecuteCommand.NotifyCanExecuteChanged(); RefreshCommand.NotifyCanExecuteChanged();
         RestoreCommand.NotifyCanExecuteChanged(); CancelCommand.NotifyCanExecuteChanged(); DismissPreviewCommand.NotifyCanExecuteChanged();
+        PrepareChoiceCommand.NotifyCanExecuteChanged();
     }
     private bool CanPrepare() => !_disposed && !IsBlocked;
     private bool CanExecute() => CanPrepare() && Preview is not null;
     private bool CanDismiss() => !_disposed && !IsWorking && Preview is not null;
     private bool CanCancel() => !_disposed && _cancellation is not null && IsWorking && !_cancellation.IsCancellationRequested;
     private bool CanRestore(RollbackItemViewModel? item) => CanPrepare() && item?.CanRestore == true;
+    private bool CanPrepareChoice(ActionChoice? choice) => CanPrepare() && choice is not null && Choices.Contains(choice);
+    /// <summary>선택한 카탈로그 대상을 조회합니다. 실행은 별도 확인이 필요합니다.</summary>
+    [RelayCommand(CanExecute = nameof(CanPrepareChoice))]
+    private Task PrepareChoiceAsync(ActionChoice? choice) => choice is null ? Task.CompletedTask : PrepareAsync(choice.Id, choice.Target);
 
     /// <summary>후속 조치 카드에서 호출하는 미리보기 진입점입니다. 준비만으로 실행하지 않습니다.</summary>
     public async Task PrepareAsync(ActionId id, ActionTarget target, bool restore = false)
