@@ -1,12 +1,18 @@
-# HANDOFF — PC Optimizer (2026-09-27)
+﻿# HANDOFF — PC Optimizer (2026-09-27)
 
-이 문서의 **재개 안내와 현재 상태가 아래 과거 기록보다 우선**한다. SP1 전체 완료/정식 출시 상태가 아니다. 사용자 마지막 요청은 인계 문서 작성이며, 기능 변경을 추가로 수행하지 않았다.
+이 문서의 **재개 안내와 현재 상태가 아래 과거 기록보다 우선**한다. SP1 전체 완료/정식 출시 상태가 아니다. 최신 요청은 중첩 스크롤·시인성·탭 전환 위치 보존이며 preview.13에 반영했다.
+
+## 최신 UI 수정 — preview.13
+
+- [스크롤·시인성 구현 및 자체 검증 기록](reviews/2026-09-27-scroll-visibility.md). 중첩 목록 휠 전달, 탭별 위치 복원(현재 앱 수명), 새 대상 확인/결과만 상단 이동, 남색 제목 표시줄·메뉴와 강화한 카드/텍스트/스크롤바 대비.
+- Release 경고0/오류0, 기본 **1700/1700**. 실제 테마 100/150/200% 오프스크린 렌더·휠 이벤트·빠른 탭 전환 재현 통과. 실제 마우스/터치패드·DPI·Snap 확인은 남는다. Smoke/Online/ToolSmoke는 재실행하지 않았다.
+- 아래 이전 단계 검증 수치는 당시 실행 기록이다. 독립 리뷰/서브에이전트·실제 PC 변경 시험·master 병합·원격 게시 없음.
 
 ## 1. 재개 위치와 작업 원칙
 
 - 실제 저장소: `C:\Users\Administrator\Desktop\pc_optimizer`. 과거 대화의 `Desktop\windows` 경로를 그대로 사용하지 말 것.
 - 브랜치: `codex/sp1-actions`.
-- 최신 제품 구현: **`5acc71e`**(도구 카드 보조 링크·Rufus 홍차의 꿈 버튼) ← `41114ab`(유틸리티 탭·DISM 설치 미디어 원본 복구·링크 열기 수정) ← `75f7d65`(UI 내비게이션·스크롤) ← `ee05ec4`(좌측 내비게이션 7페이지) ← `081ecbd`(SP3 드라이버 안내) ← `5da2700`(SP5 문제 해결 도구함) ← `9bc264a`(T10 그래픽 캐시·Resolve) ← `e25aa43`(T6 StartupApproved) ← `9ab6822`(Codex 통합). 상세: [SP5·SP3 구현 기록](reviews/2026-09-27-sp5-sp3-implementation.md), [T6·T10 구현 기록](reviews/2026-09-27-startup-approval-and-graphics-cache.md).
+- 최신 제품 구현: **preview.13 UI 수정(본 문서와 같은 커밋)** ← **`5acc71e`**(도구 카드 보조 링크·Rufus 홍차의 꿈 버튼) ← `41114ab`(유틸리티 탭·DISM 설치 미디어 원본 복구·링크 열기 수정) ← `75f7d65`(UI 내비게이션·스크롤) ← `ee05ec4`(좌측 내비게이션 7페이지) ← `081ecbd`(SP3 드라이버 안내) ← `5da2700`(SP5 문제 해결 도구함) ← `9bc264a`(T10 그래픽 캐시·Resolve) ← `e25aa43`(T6 StartupApproved) ← `9ab6822`(Codex 통합). 상세: [SP5·SP3 구현 기록](reviews/2026-09-27-sp5-sp3-implementation.md), [T6·T10 구현 기록](reviews/2026-09-27-startup-approval-and-graphics-cache.md).
 - **UI 다듬기 1차 완료**(`ee05ec4`·`75f7d65`): 확정 배치안대로 좌측 내비게이션 7페이지(추천 조치·전체 결과·문제 해결·내 PC 사양·고급·조치 실행/되돌리기·설정)로 메인 창을 재구성했고, 조치·문제 해결·드라이버 화면을 페이지에 내장했다(창 래퍼는 유지). 상세: [UI 배치 기록](reviews/2026-09-27-ui-navigation.md). 남은 UI: 실기 DPI·키보드·최소 폭 확인, 고급 페이지는 SP2 내용이 들어오면 채움.
 - 작성 착수 시 작업 트리 깨끗함. 이 세션이 실행한 백그라운드 작업·서브에이전트 없음. 실행 중인 사용자 앱을 종료/교체하지 않았다.
 - `feature/p0-skeleton`은 앞서 로컬 master `32ab51f`로 병합됐다. **이번 SP1 브랜치는 master에 병합하지 않았고 원격 게시도 하지 않았다.**
@@ -25,14 +31,14 @@
 
 ## 3. 현재 구현과 배포본
 
-**버전 `0.3.0-preview.12`**(유틸리티 탭·DISM /Source 복구·UAC 꺼진 PC의 링크 열기 수정·Rufus 한국어 안내 링크 포함), 단일 파일/self-contained Windows x64 평가 빌드.
+**버전 `0.3.0-preview.13`**(유틸리티 탭·DISM /Source 복구·UAC 꺼진 PC의 링크 열기 수정·Rufus 한국어 안내 링크·스크롤/탭 위치/시인성 개선 포함), 단일 파일/self-contained Windows x64 평가 빌드.
 
-- ZIP: `dist/sp1-integrated/PcOptimizer-v0.3.0-preview.12-win-x64.zip`(57.0 MB).
-- 실행 파일: `dist/sp1-integrated/PcOptimizer-v0.3.0-preview.12-win-x64/PcOptimizer.exe`.
+- ZIP: `dist/sp1-integrated/PcOptimizer-v0.3.0-preview.13-win-x64.zip`(60,023,941 bytes).
+- 실행 파일: `dist/sp1-integrated/PcOptimizer-v0.3.0-preview.13-win-x64/PcOptimizer.exe`.
 - 해시: 같은 ZIP 이름의 `.sha256`.
-- SHA-256: `AFE896F64125D0C334F516EFC611ED2B849188FBA567EDD9B11D122CFB25C5AA`.
-- ZIP 13파일/최상위4개, `tools/verify-package.ps1`로 PE·필수 고지·규칙 원문·원본 해시 확인(PowerShell 7과 5.1 모두 통과; 5.1용 UTF-8 BOM 추가). 변조 거절 시험은 preview.7 때 결과.
-- preview.11은 비교용으로 보존(그 이전은 정리해도 됨). 그 이전 산출물 정리는 이미 완료했으므로 다시 광범위하게 삭제하지 않는다. `dist/`와 `artifacts/`는 로컬 산출물로 Git 커밋에 포함되지 않는다.
+- SHA-256: `3CA80153DDB0745C549525709BDEAD3578C0ABBCAC66B4CD015245638478AFD6`.
+- ZIP 13파일/최상위4개, `tools/verify-package.ps1`로 PE·필수 고지·규칙 원문·원본 해시 확인(이번 실행은 PowerShell 7; 5.1 호환 수정은 이전 단계 기록). 변조 거절 시험은 preview.7 때 결과.
+- preview.12는 비교용으로 보존(그 이전은 정리해도 됨). 그 이전 산출물 정리는 이미 완료했으므로 다시 광범위하게 삭제하지 않는다. `dist/`와 `artifacts/`는 로컬 산출물로 Git 커밋에 포함되지 않는다.
 
 | 기능 | 현재 제공 범위 |
 |---|---|

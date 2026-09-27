@@ -45,14 +45,45 @@ public partial class MainWindow : FluentWindow
         DisplayEvaluationButton.Visibility = displayTrials is null ? Visibility.Collapsed : Visibility.Visible;
         ActionCenterView.Visibility = viewModel.HasActionCenter ? Visibility.Visible : Visibility.Collapsed;
         DataContext = viewModel;
-        // 페이지를 바꾸거나 조치 확인·결과가 생기면 본문 스크롤을 맨 위로 올려 새 내용이 묻히지 않게 한다.
-        viewModel.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(MainViewModel.CurrentPage)) { Dispatcher.InvokeAsync(MainScroll.ScrollToTop, System.Windows.Threading.DispatcherPriority.Loaded); } };
+        // 페이지가 접히기 전에 위치를 보관하고, 새 페이지 배치가 끝난 뒤 복원한다.
+        var positions = new Dictionary<MainPage, double>();
+        var restorePending = false;
+        var navigationRevision = 0;
+        void RestorePosition(MainPage page, double offset)
+        {
+            var revision = ++navigationRevision;
+            restorePending = true;
+            Dispatcher.InvokeAsync(() =>
+            {
+                if (revision != navigationRevision || viewModel.CurrentPage != page) { return; }
+                MainScroll.UpdateLayout();
+                MainScroll.ScrollToVerticalOffset(offset);
+                MainScroll.UpdateLayout();
+                restorePending = false;
+            }, System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+        viewModel.PropertyChanging += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MainViewModel.CurrentPage) && !restorePending)
+            { positions[viewModel.CurrentPage] = MainScroll.VerticalOffset; }
+        };
+        viewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MainViewModel.CurrentPage))
+            { RestorePosition(viewModel.CurrentPage, positions.GetValueOrDefault(viewModel.CurrentPage)); }
+        };
         if (viewModel.Actions is { } actionCenter)
         {
             actionCenter.PropertyChanged += (_, e) =>
             {
-                if (e.PropertyName is nameof(ActionCenterViewModel.Preview) or nameof(ActionCenterViewModel.Result) && viewModel.CurrentPage == MainPage.Actions)
-                { Dispatcher.InvokeAsync(MainScroll.ScrollToTop, System.Windows.Threading.DispatcherPriority.Loaded); }
+                // 확인/결과가 새로 생긴 경우만 이동한다. 필터 변경으로 상태가 지워질 때는 유지한다.
+                if (viewModel.CurrentPage == MainPage.Actions &&
+                    (e.PropertyName == nameof(ActionCenterViewModel.Preview) && actionCenter.Preview is not null ||
+                     e.PropertyName == nameof(ActionCenterViewModel.Result) && actionCenter.Result is not null))
+                {
+                    positions[MainPage.Actions] = 0;
+                    RestorePosition(MainPage.Actions, 0);
+                }
             };
         }
         Loaded += async (_, _) =>

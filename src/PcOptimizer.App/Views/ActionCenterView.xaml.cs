@@ -29,7 +29,8 @@ public partial class ActionCenterView : UserControl
     }
     private void OnStateChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(ActionCenterViewModel.Preview) or nameof(ActionCenterViewModel.Result))
+        if (e.PropertyName == nameof(ActionCenterViewModel.Preview) && _viewModel?.Preview is not null ||
+            e.PropertyName == nameof(ActionCenterViewModel.Result) && _viewModel?.Result is not null)
         { Dispatcher.InvokeAsync(ActionScroll.ScrollToTop, System.Windows.Threading.DispatcherPriority.Loaded); }
     }
 }
