@@ -124,7 +124,7 @@ public sealed class ActionCenterLayoutTests
         });
     }
 
-    private static void Render(Window window, string name, double scale)
+    internal static void Render(Window window, string name, double scale)
     {
         var root = (FrameworkElement)window.Content;
         var size = new Size(440, 720);
@@ -137,7 +137,7 @@ public sealed class ActionCenterLayoutTests
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var stream = File.Create(Path.Combine(output, name + ".png")); encoder.Save(stream);
     }
-    private static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject
+    internal static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject
     {
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
         {
@@ -146,7 +146,7 @@ public sealed class ActionCenterLayoutTests
             foreach (var descendant in Descendants<T>(child)) { yield return descendant; }
         }
     }
-    private static void RunOnSta(Func<Task> action)
+    internal static void RunOnSta(Func<Task> action)
     {
         Exception? failure = null;
         var thread = new Thread(() =>
