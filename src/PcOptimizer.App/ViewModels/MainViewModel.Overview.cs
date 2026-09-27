@@ -105,6 +105,14 @@ public sealed partial class MainViewModel
         SelectedCategory = Categories.FirstOrDefault();
     }
 
+    /// <summary>검사에서 발견한 앱 캐시 위치·크기를 바로 표시합니다. 삭제나 재검사를 실행하지 않습니다.</summary>
+    [RelayCommand]
+    private void ShowAppCaches()
+    {
+        ShowAllResults = true;
+        SelectedCategory = Categories.FirstOrDefault(c => c.Category == FindingCategory.AppCache);
+    }
+
     partial void OnStateChanged(ScanState value) => NotifyOverview();
 
     private void NotifyOverview()

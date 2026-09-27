@@ -241,7 +241,12 @@ public sealed class AppCacheProbeTests
 
         var findings = new AppCacheRule().Evaluate(snapshot);
 
-        foreach (var app in new[] { "Adobe 미디어 캐시", "npm", "pip", "NuGet", "Steam 셰이더 캐시", "NVIDIA·Direct3D 셰이더 캐시" })
+        // Steam/그래픽 보충 카드는 별도 위치별 관측 카드로 대체되며 중복 표시하지 않는다.
+        var shaderCards = new ShaderCacheRule().Evaluate(snapshot);
+        Assert.Equal(2, shaderCards.Count);
+        Assert.All(shaderCards, f => Assert.Equal(Verdict.Info, f.Verdict));
+        Assert.DoesNotContain(findings, f => f.Id is "appCache.app:Steam 셰이더 캐시" or "appCache.app:NVIDIA·Direct3D 셰이더 캐시");
+        foreach (var app in new[] { "Adobe 미디어 캐시", "npm", "pip", "NuGet" })
         {
             var finding = Assert.Single(findings, f => f.Id == AppCacheRule.FINDING_ID_PREFIX + app);
             Assert.Equal(Verdict.Info, finding.Verdict);
@@ -366,7 +371,7 @@ public sealed class AppCacheProbeTests
         var logger = new RecordingLogger();
         var coordinator = new ScanCoordinator(
             [environment.Probe()],
-            [new RuleCatalogSummaryRule(), new AppCacheRule(), new SquirrelVersionFoldersRule()],
+            [new RuleCatalogSummaryRule(), new AppCacheRule(), new SquirrelVersionFoldersRule(), new ShaderCacheRule()],
             new ScanOptions(),
             new ScanReportVersions("1.0.0", "test"),
             new FakeClock(),

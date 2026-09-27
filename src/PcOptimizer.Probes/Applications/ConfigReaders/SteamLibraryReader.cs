@@ -49,6 +49,7 @@ public sealed class SteamLibraryReader : IAppConfigReader
     private readonly IPathEnvironment _environment;
     private readonly IRegistryReader _registry;
     private readonly IDirectoryEntrySource _source;
+    private readonly Func<string, bool>? _allowConfigRead;
 
     /// <summary>
     /// 리더를 만듭니다.
@@ -56,7 +57,8 @@ public sealed class SteamLibraryReader : IAppConfigReader
     /// <param name="environment">경로 환경(작은 설정 파일 읽기).</param>
     /// <param name="registry">레지스트리 읽기.</param>
     /// <param name="source">설정 파일 존재 확인용 열거 공급자.</param>
-    public SteamLibraryReader(IPathEnvironment environment, IRegistryReader registry, IDirectoryEntrySource source)
+    /// <param name="allowConfigRead">본문 읽기 전에 적용할 선택적 경로 보호 검사입니다.</param>
+    public SteamLibraryReader(IPathEnvironment environment, IRegistryReader registry, IDirectoryEntrySource source, Func<string, bool>? allowConfigRead = null)
     {
         ArgumentNullException.ThrowIfNull(environment);
         ArgumentNullException.ThrowIfNull(registry);
@@ -64,6 +66,7 @@ public sealed class SteamLibraryReader : IAppConfigReader
         _environment = environment;
         _registry = registry;
         _source = source;
+        _allowConfigRead = allowConfigRead;
     }
 
     /// <inheritdoc />
@@ -72,8 +75,9 @@ public sealed class SteamLibraryReader : IAppConfigReader
     /// <inheritdoc />
     public AppConfigReading Read()
     {
-        var raw = ReadInstallPath(RegistryRoot.CurrentUser, RegistryView.Default, USER_KEY, USER_VALUE)
-            ?? ReadInstallPath(RegistryRoot.LocalMachine, RegistryView.Registry32, MACHINE_KEY, MACHINE_VALUE);
+        var raw = ReadInstallPath(RegistryRoot.CurrentUser, RegistryView.Default, USER_KEY, USER_VALUE, out var failed);
+        if (!failed && raw is null) { raw = ReadInstallPath(RegistryRoot.LocalMachine, RegistryView.Registry32, MACHINE_KEY, MACHINE_VALUE, out failed); }
+        if (failed) { return new AppConfigReading(APP, AppConfigReadState.Unreadable, AppConfigValueOrigin.Registry, []); }
         if (raw is null)
         {
             return AppConfigReading.NotConfigured(APP);
@@ -85,6 +89,8 @@ public sealed class SteamLibraryReader : IAppConfigReader
         }
 
         var libraries = new List<string> { root };
+        if (_allowConfigRead is not null && !_allowConfigRead(Path.Join(root, LIBRARY_FILE_RELATIVE)))
+        { return new AppConfigReading(APP, AppConfigReadState.Unreadable, AppConfigValueOrigin.Registry, []); }
         var content = ConfigFileText.Read(_environment, _source, Path.Join(root, LIBRARY_FILE_RELATIVE), MAX_LIBRARY_FILE_BYTES);
         if (content.Unreadable)
         {
@@ -98,8 +104,10 @@ public sealed class SteamLibraryReader : IAppConfigReader
                 return new AppConfigReading(APP, AppConfigReadState.Invalid, AppConfigValueOrigin.Registry, []);
             }
 
-            foreach (var library in parsed.Select(ConfigPathValue.Parse).OfType<string>())
+            foreach (var value in parsed)
             {
+                if (ConfigPathValue.Parse(value) is not { } library)
+                { return new AppConfigReading(APP, AppConfigReadState.Invalid, AppConfigValueOrigin.Registry, []); }
                 if (!libraries.Contains(library, StringComparer.OrdinalIgnoreCase))
                 {
                     libraries.Add(library);
@@ -118,9 +126,11 @@ public sealed class SteamLibraryReader : IAppConfigReader
     /// <summary>
     /// 설치 경로 값 하나만 읽는다(키의 다른 값은 요청하지 않음).
     /// </summary>
-    private string? ReadInstallPath(RegistryRoot root, RegistryView view, string subKey, string valueName)
+    private string? ReadInstallPath(RegistryRoot root, RegistryView view, string subKey, string valueName, out bool failed)
     {
         var reading = _registry.ReadStringValue(root, view, subKey, valueName);
+        failed = reading.Status is RegistryReadStatus.AccessDenied or RegistryReadStatus.Error
+            || (reading.Status == RegistryReadStatus.Found && string.IsNullOrWhiteSpace(reading.Text));
         return reading.Status == RegistryReadStatus.Found && !string.IsNullOrWhiteSpace(reading.Text) ? reading.Text : null;
     }
 }

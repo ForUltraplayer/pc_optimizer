@@ -59,3 +59,7 @@
 | 일반 권한 Explorer/브라우저, 셸 없음 | T12 | 성공·거절 양쪽 실기기 증거 |
 | DPI/키보드/.NET 없는 PC/SmartScreen | T12 | 배포 EXE 실제 평가, 게시자 미서명 상태 명시 |
 | 코드 서명·설치형 배포 | 별도 범위 | 포터블 ZIP 검증과 구분, SP1에서 완료 주장 없음 |
+
+## Steam·NVIDIA/Direct3D 전용 관측 / preview.6
+
+[전용 읽기 계약·검증](2026-09-27-shader-cache-inspection.md). 승격 중 SteamPath 단일 값과 최대 1 MiB libraryfolders.vdf 읽기를 허용하고, 전용 shadercache 관측에만 Program Files 경로/출처 일치 예외를 둔다. 다른 보호 출처·SID·링크·UNC는 차단한다. 기존 보충/공통 scanner/실행기 보호는 그대로다. NVIDIA/Direct3D 기본 3위치를 따로 센다. idle과 재생성 실기 평가가 없어 자동 삭제 실행기는 등록하지 않는다.

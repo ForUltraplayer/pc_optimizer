@@ -47,6 +47,13 @@ internal sealed class FakeRegistryReader : IRegistryReader
             : new RegistryStringReading(RegistryReadStatus.KeyMissing, null, null);
     }
 
+    /// <summary>문자열 값의 부재·실패도 fixture로 지정합니다.</summary>
+    public FakeRegistryReader WithStringResult(RegistryRoot root, RegistryView view, string subKey, string valueName, RegistryStringReading reading)
+    {
+        _strings[KeyOf(root, view, subKey) + "|" + valueName] = reading;
+        return this;
+    }
+
     /// <summary>
     /// DWORD 값을 등록한다.
     /// </summary>

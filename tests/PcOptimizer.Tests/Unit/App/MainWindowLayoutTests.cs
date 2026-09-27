@@ -710,6 +710,45 @@ public sealed class MainWindowLayoutTests
             finally { window.Close(); }
         });
     }
+    /// <summary>추천 화면에서 캐시 버튼을 누르면 앱 캐시 분류로 이동하고 상세 안내를 펼칠 수 있습니다.</summary>
+    [Fact]
+    public void AppCacheShortcutShowsShaderCardsWithoutExecutingChanges()
+    {
+        RunOnSta(() =>
+        {
+            var vm = CreateScannedViewModel(overview: true, rule: new ShaderCacheFixtureRule());
+            var window = new MainWindow(vm);
+            try
+            {
+                var root = (FrameworkElement)window.Content; root.Measure(new Size(1100, 900)); root.Arrange(new Rect(0, 0, 1100, 900)); root.UpdateLayout();
+                var shortcut = Assert.Single(Descendants<Button>(root), b => AutomationProperties.GetAutomationId(b) == "ShowAppCaches");
+                Assert.True(vm.IsOverview); shortcut.Command.Execute(shortcut.CommandParameter); root.UpdateLayout();
+                Assert.True(vm.ShowAllResults); Assert.Equal(FindingCategory.AppCache, vm.SelectedCategory?.Category);
+                Assert.Equal(2, vm.VisibleCards.Count()); Assert.Equal(0, vm.DoNowCount);
+                var buttons = Descendants<Button>(root).Where(b => b.Content as string == "캐시별 용량·주의사항 보기").ToArray();
+                Assert.Equal(2, buttons.Length); Assert.All(buttons, b => Assert.Equal(Visibility.Visible, b.Visibility));
+                foreach (var button in buttons) { button.Command.Execute(button.CommandParameter); }
+                Assert.All(vm.VisibleCards, c => Assert.True(c.IsDetailsVisible));
+            }
+            finally { window.Close(); }
+        });
+    }
+    private sealed class ShaderCacheFixtureRule : IRule
+    {
+        public string Id => "fixture.shader-caches";
+        public IReadOnlyList<Finding> Evaluate(ScanSnapshot snapshot)
+        {
+            var now = DateTimeOffset.UtcNow;
+            var measurements = new[] { "steam", "graphics" }.SelectMany(group => new Measurement[]
+            {
+                new(PcOptimizer.Core.Rules.ShaderCacheRule.CountField(group), new IntegerValue(1), null, "fixture", now, MeasurementQuality.Observed),
+                new(PcOptimizer.Core.Rules.ShaderCacheRule.Field(group, 0, "state"), new TextValue("Observed"), null, "fixture", now, MeasurementQuality.Observed),
+                new(PcOptimizer.Core.Rules.ShaderCacheRule.Field(group, 0, "bytes"), new IntegerValue(123), "bytes", "fixture", now, MeasurementQuality.Observed),
+            }).ToArray();
+            return new PcOptimizer.Core.Rules.ShaderCacheRule().Evaluate(new ScanSnapshot(Guid.NewGuid(),
+                [new(PcOptimizer.Core.Rules.AppCacheProbeContract.PROBE_ID, ProbeStatus.Success, measurements, [], now, TimeSpan.Zero, new UserContext("fixture", false))]));
+        }
+    }
     private sealed class VideoCacheFixtureRule : IRule
     {
         public string Id => "fixture.video-caches";
