@@ -50,7 +50,7 @@ public sealed class ActionCoordinator
         try
         {
             ct.ThrowIfCancellationRequested();
-            if (!_adapters.TryGetValue(id, out var adapter) || !Matches(id, target) || (restore && !adapter.Definition.SupportsRestore)) { return new(null, "Unsupported"); }
+            if (!_adapters.TryGetValue(id, out var adapter) || !Matches(id, target) || (target is ActionTarget.Restore && !restore) || (restore && !adapter.Definition.SupportsRestore)) { return new(null, "Unsupported"); }
             var session = _session();
             if (!Allowed(session, adapter.Definition)) { return new(null, "ScopeExcluded"); }
             foreach (var entry in _plans.Where(p => Expired(p.Value.Created))) { _plans.TryRemove(entry.Key, out _); }
@@ -165,6 +165,7 @@ public sealed class ActionCoordinator
         && (definition.Scope == ActionScope.System || session.Scope == ActionUserScope.Full);
     private static bool Matches(ActionId id, ActionTarget target) => (id, target) switch
     {
+        (_, ActionTarget.Restore t) => t.RecordId != Guid.Empty,
         (ActionId.UserFiles or ActionId.SystemFiles or ActionId.AppFiles, ActionTarget.Files) => true,
         (ActionId.Startup, ActionTarget.Startup) => true,
         (ActionId.Power, ActionTarget.Power) => true,

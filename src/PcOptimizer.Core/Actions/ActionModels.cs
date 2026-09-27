@@ -35,6 +35,8 @@ public abstract record ActionTarget
     public sealed record OfficialTool(OfficialCacheTool Tool) : ActionTarget;
     /// <summary>공식 배달 최적화 어댑터 대상입니다.</summary>
     public sealed record DeliveryCache : ActionTarget;
+    /// <summary>검증된 저장소 기록 ID입니다. 본문/명령/설정 경로를 UI에서 받지 않습니다.</summary>
+    public sealed record Restore(Guid RecordId) : ActionTarget;
 }
 /// <summary>신뢰된 코드에서 등록하는 조치 정의입니다.</summary>
 public sealed record ActionDefinition(ActionId Id, ActionScope Scope, bool SupportsRestore = false);
