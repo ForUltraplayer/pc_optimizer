@@ -39,6 +39,7 @@ public sealed class ActionPreviewViewModel(ActionPlan plan)
     public string Restart => plan.Preview.Details?.RequiresRestart switch { true => "재부팅 필요", false => "재부팅 불필요", _ => "재부팅 필요 여부: 확인되지 않음" };
     /// <summary>지원되는 복구와 파일 삭제의 차이를 설명합니다.</summary>
     public string Restore => IsRestore ? "현재 값이 앱의 적용 값과 같을 때만 되돌립니다."
+        : ActionId == PcOptimizer.Core.Actions.ActionId.WindowsUpdateCache ? "삭제한 파일은 되돌릴 수 없습니다. 서비스는 작업 후 원래 상태로 복구하며, 실패하면 조치 기록에서 서비스만 복구할 수 있습니다."
         : ActionId is PcOptimizer.Core.Actions.ActionId.Startup or PcOptimizer.Core.Actions.ActionId.MachineStartup ? "해제한 등록 원문은 복원 전까지 이 앱의 기록에 보관합니다. 복구 기록을 직접 지우면 되돌릴 수 없습니다."
         : plan.Definition.SupportsRestore ? "변경 전 원래 값을 저장합니다. 이 앱에서 되돌릴 수 있습니다." : "이 조치는 이 앱에서 되돌릴 수 없습니다.";
     /// <summary>확인 화면을 오래 열어 두었을 때의 만료 안내입니다.</summary>
@@ -78,7 +79,9 @@ public sealed class ActionResultViewModel(ActionResult result, ActionId actionId
         var bytes => $"실제 여유 공간 변화: {ActionText.Bytes(bytes.Value)} 증가",
     };
     /// <summary>오류 원문 대신 알려진 사유와 필요한 다음 행동만 보여 줍니다.</summary>
-    public string Detail => IsDraining ? "중단 요청 뒤에도 실제 작업이 남아 있을 수 있습니다. 종료가 확인될 때까지 다른 조치는 시작하지 않습니다."
+    public string Detail => OutcomeDetail + (!IsDraining && result.ServiceRecoveryCompleted == true
+        ? " 이번 조치에 기록한 업데이트 서비스는 원래 상태로 돌아온 것을 확인했습니다." : "");
+    private string OutcomeDetail => IsDraining ? "중단 요청 뒤에도 실제 작업이 남아 있을 수 있습니다. 종료가 확인될 때까지 다른 조치는 시작하지 않습니다."
         : result.Succeeded ? HasSpaceEffect ? "완료 후 상태를 다시 검사합니다. 여유 공간 변화에는 다른 프로그램의 작업도 영향을 줍니다." : "선택한 설정의 변경을 확인했습니다. 재검사 결과는 메인 화면에서 확인해 주세요."
         : result.Code switch
         {
@@ -120,7 +123,16 @@ public sealed class ActionResultViewModel(ActionResult result, ActionId actionId
             "UpdateServiceChangeFailed" => "Windows가 서비스 변경 요청을 거절했습니다. 종속 서비스나 시작 유형은 추가로 변경하지 않았습니다. 복구 기록을 확인하세요.",
             "UpdateInstallBusy" => "업데이트 설치 또는 제거가 진행 중입니다. 작업 완료 후 다시 확인하세요.",
             "UpdateRebootRequired" => "업데이트를 마치려면 재시작이 필요합니다. 작업을 저장하고 Windows에서 재시작한 뒤 확인하세요.",
-            "UpdateStateUnavailable" => "업데이트 활동 상태를 모두 확인하지 못했습니다. 이 결과만으로 캐시 정리를 시작하지 않습니다.",
+            "UpdateStateUnavailable" => "업데이트 활동 상태를 모두 확인하지 못해 추가 파일 처리를 하지 않습니다. 실행 결과와 복구 기록을 확인하세요.",
+            "UpdateServicesNotReady" => "Windows Update·BITS가 모두 실행 중이고 중지 가능한 상태에서만 이 정리를 준비합니다. 정지된 서비스를 정리 목적으로 켜지 않습니다. Windows 저장소 정리를 이용하거나 업데이트 작업 완료 후 다시 확인하세요.",
+            "UpdateBitsJobsPresent" => "BITS에 다운로드 작업이 남아 있습니다. 일시 중지·오류 상태의 작업도 자동 취소하지 않습니다. 해당 앱이나 Windows의 다운로드를 마친 뒤 다시 확인하세요.",
+            "UpdateBitsUnavailable" => "모든 사용자의 BITS 전송 작업을 확인하지 못해 정리를 시작하지 않았습니다.",
+            "UpdateWorkerBusy" => "업데이트 또는 Windows 구성 요소 작업이 실행 중입니다. 작업을 강제 종료하지 않으며 완료 후 다시 확인해야 합니다.",
+            "UpdateDownloadBusy" => "Windows·Store 다운로드가 진행 중이거나 일시 중지돼 있습니다. 다운로드를 마친 뒤 다시 확인하세요.",
+            "UpdateServiceRestarted" => "파일 처리 중 업데이트 서비스가 다시 시작되어 추가 삭제를 멈췄습니다. 처리 개수와 재검사 결과를 확인하세요.",
+            "UpdateDownloadMissing" => "고정 Windows 업데이트 Download 폴더를 찾거나 읽을 수 없습니다. 다른 위치를 대신 지우지 않습니다.",
+            "UpdateNoFilesChanged" => "파일은 삭제하지 않았습니다. 잠시 중지했던 업데이트 서비스는 원래 상태로 복구했습니다.",
+            "UpdateMaintenanceFailed" => "업데이트 캐시 정리 중 오류가 발생했습니다. 이미 처리한 파일과 서비스 복구 기록을 확인하세요.",
             "PlanExpired" => "확인 시간이 만료되었거나 이미 사용한 계획입니다. 미리보기를 다시 열어 주세요.",
             "SessionChanged" or "ScopeExcluded" => "사용자 또는 실행 범위가 달라졌습니다. 현재 사용자로 다시 확인해 주세요.",
             "Unsupported" or "TargetRejected" or "Blocked" => "이 대상은 현재 앱에서 처리할 수 없습니다. 지원 도구나 Windows 설정에서 확인해 주세요.",
@@ -140,12 +152,12 @@ public sealed record RollbackItemViewModel(Guid Id, ActionId ActionId, string Ti
 
 internal static class ActionText
 {
-    internal static bool IsSpaceAction(ActionId id) => id is ActionId.UserFiles or ActionId.SystemFiles or ActionId.AppFiles or ActionId.OfficialCache or ActionId.DeliveryOptimization;
+    internal static bool IsSpaceAction(ActionId id) => id is ActionId.UserFiles or ActionId.SystemFiles or ActionId.AppFiles or ActionId.OfficialCache or ActionId.DeliveryOptimization or ActionId.WindowsUpdateCache;
     internal static string Name(ActionId id) => id switch
     {
         ActionId.UserFiles => "사용자 임시 파일 정리", ActionId.SystemFiles => "Windows 캐시 정리", ActionId.AppFiles => "앱 캐시 정리",
         ActionId.Startup => "자동 실행 등록 해제", ActionId.MachineStartup => "모든 사용자 자동 실행 등록 해제", ActionId.Power => "전원 계획 변경", ActionId.Display => "화면 주사율 변경",
-        ActionId.OfficialCache => "공식 도구 캐시 정리", ActionId.DeliveryOptimization => "배달 최적화 캐시 정리", ActionId.UpdateServices => "업데이트 서비스 원상복구", _ => "지원하지 않는 조치",
+        ActionId.OfficialCache => "공식 도구 캐시 정리", ActionId.DeliveryOptimization => "배달 최적화 캐시 정리", ActionId.UpdateServices => "업데이트 서비스 원상복구", ActionId.WindowsUpdateCache => "Windows 업데이트 다운로드 캐시 정리", _ => "지원하지 않는 조치",
     };
     internal static string Bytes(decimal bytes)
     {

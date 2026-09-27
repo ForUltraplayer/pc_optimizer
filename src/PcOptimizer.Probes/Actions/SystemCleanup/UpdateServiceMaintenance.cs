@@ -7,8 +7,8 @@ using PcOptimizer.Core.Actions;
 
 namespace PcOptimizer.Probes.Actions.SystemCleanup;
 
-// T9-B 정리 실행기가 공통 ActionCoordinator 워커 안에서 사용할 기반이다.
-// 아직 제품에서 이 중지 진입점을 호출하지 않으며, 상태 조회만으로 호출 허용을 추정하지 않는다.
+// T9-B 정리 실행기가 공통 ActionCoordinator 워커 안에서 호출한다.
+// 중지 이후 활동 검사는 서비스를 깨우는 COM 조회를 포함하지 않아야 한다.
 internal sealed class UpdateServiceMaintenance(IRollbackStore store, IUpdateServicePlatform platform, Func<ActionSession> session, TimeProvider? time = null)
 {
     private readonly TimeProvider _time = time ?? TimeProvider.System;
@@ -85,7 +85,8 @@ internal sealed class UpdateServiceMaintenance(IRollbackStore store, IUpdateServ
             }
         }
         return result with { Started = result.Started || started.Started, Succeeded = result.Succeeded && !recoveryFailed,
-            Code = recoveryFailed ? "UpdateRecoveryFailed" : result.Code };
+            Code = recoveryFailed ? "UpdateRecoveryFailed" : result.Code,
+            ServiceRecoveryCompleted = records.Count > 0 ? !recoveryFailed : null };
     }
     private RollbackRecord Advance(RollbackRecord record, RollbackState state)
     {

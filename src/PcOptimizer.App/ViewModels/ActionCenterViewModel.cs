@@ -104,7 +104,7 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     public IReadOnlyList<ManualActionChoice> ManualChoices { get; } = [
         new("그 밖의 시작 앱 관리", "현재 사용자·모든 사용자 Run 등록은 검사 후 위 목록에서 해제·복원할 수 있습니다. 시작 폴더 항목과 사용/사용 안 함 전환은 Windows 설정에서 관리하세요.", SettingsUriPolicy.STARTUP_APPS_SETTINGS_URI),
         new("Windows에서 주사율 설정", "앱의 주사율 시험이 지원되지 않는 화면은 Windows 디스플레이 설정에서 직접 확인하세요.", SettingsUriPolicy.DISPLAY_SETTINGS_URI),
-        new("그 밖의 Windows 업데이트 파일 정리", "배달 최적화 캐시는 위 목록에서 선택할 수 있습니다. 그 밖의 업데이트·설치 파일은 Windows 저장소에서 확인하세요. 앱이 업데이트 서비스를 중지하지는 않습니다.", SettingsUriPolicy.STORAGE_SENSE_SETTINGS_URI),
+        new("그 밖의 Windows 업데이트 파일 정리", "배달 최적화·업데이트 다운로드 캐시는 위 목록에서 조건을 확인할 수 있습니다. 이전 Windows 설치와 구성 요소 저장소는 Windows 저장소에서 확인하세요.", SettingsUriPolicy.STORAGE_SENSE_SETTINGS_URI),
         new("게임·그래픽 캐시", "Steam·NVIDIA 캐시 용량은 검사 결과에서 확인할 수 있습니다. 직접 정리는 해당 앱의 관리 기능을 사용해 주세요.", null)];
     /// <summary>사용자 범위 실행기를 쓸 수 있을 때만 폴더 선택을 제공합니다.</summary>
     public bool CanSelectAdobeLocation => _pickAdobeFolder is not null && _registerAdobeFolder is not null && _workflow.Supports(ActionId.AppFiles, false);
