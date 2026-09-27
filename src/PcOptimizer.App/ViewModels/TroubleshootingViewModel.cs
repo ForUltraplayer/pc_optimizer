@@ -112,21 +112,22 @@ public sealed partial class TroubleshootingViewModel : ObservableObject, IDispos
     public IReadOnlyList<SymptomItem> Symptoms { get; }
     /// <summary>선택한 증상입니다.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Cards), nameof(SymptomSummary), nameof(SymptomTitle))]
+    [NotifyPropertyChangedFor(nameof(SymptomSummary), nameof(SymptomTitle))]
     private SymptomItem? _selectedSymptom;
+    partial void OnSelectedSymptomChanged(SymptomItem? value) => Cards = Build(value?.Id);
     /// <summary>선택한 증상의 제목입니다.</summary>
     public string SymptomTitle => SelectedSymptom?.Title ?? "";
     /// <summary>선택한 증상의 요약입니다.</summary>
     public string SymptomSummary => SelectedSymptom?.Summary ?? "";
-    /// <summary>선택한 증상의 권장 순서 카드입니다.</summary>
-    public IReadOnlyList<ToolCardViewModel> Cards => Build(SelectedSymptom?.Id);
-    private List<ToolCardViewModel> _cards = [];
+    /// <summary>선택한 증상의 권장 순서 카드입니다. 선택이 바뀔 때만 다시 만들어 화면과 같은 인스턴스를 유지합니다.</summary>
+    [ObservableProperty]
+    private IReadOnlyList<ToolCardViewModel> _cards = [];
     private List<ToolCardViewModel> Build(string? id)
     {
-        if (id is null) { return _cards = []; }
-        if (id == ALL_TOOLS_ID) { return _cards = _catalog.Tools.Select(t => new ToolCardViewModel(this, t, null, 0)).ToList(); }
+        if (id is null) { return []; }
+        if (id == ALL_TOOLS_ID) { return _catalog.Tools.Select(t => new ToolCardViewModel(this, t, null, 0)).ToList(); }
         var symptom = _catalog.Symptoms.FirstOrDefault(s => s.Id == id);
-        return _cards = symptom is null ? [] : symptom.Steps.Select((step, i) => (Tool: _catalog.FindTool(step.ToolId), step.Note, Order: i + 1))
+        return symptom is null ? [] : symptom.Steps.Select((step, i) => (Tool: _catalog.FindTool(step.ToolId), step.Note, Order: i + 1))
             .Where(x => x.Tool is not null).Select(x => new ToolCardViewModel(this, x.Tool!, x.Note, x.Order)).ToList();
     }
     /// <summary>증상 선택 명령입니다.</summary>
@@ -188,7 +189,7 @@ public sealed partial class TroubleshootingViewModel : ObservableObject, IDispos
         {
             Output.Clear(); ResultText = null; ShowRebootNote = false; RunningTitle = tool.Name; IsRunning = true;
             Status = $"{tool.Name} 실행 중… 끝날 때까지 이 창을 두세요. 취소하면 명령을 강제로 멈춥니다.";
-            foreach (var c in _cards) { c.RefreshCanAct(); }
+            foreach (var c in Cards) { c.RefreshCanAct(); }
         });
         var progress = new Progress<string>(line => _ = _dispatcher.InvokeAsync(() =>
         {
@@ -211,7 +212,7 @@ public sealed partial class TroubleshootingViewModel : ObservableObject, IDispos
             ShowRebootNote = result.Succeeded && result.RebootRequired;
             Status = result.Succeeded ? "완료했어요. 아래 결과와 절차의 다음 단계를 확인하세요." : "끝나지 않았어요. 아래 결과를 확인하세요.";
             OnPropertyChanged(nameof(HasOutput));
-            foreach (var c in _cards) { c.RefreshCanAct(); }
+            foreach (var c in Cards) { c.RefreshCanAct(); }
         });
     }
 
