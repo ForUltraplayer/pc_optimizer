@@ -718,3 +718,10 @@
 - T10: `GraphicsShaderCache`(DXCache·GLCache·NV_Cache·D3DSCache, 30일 미사용 파일만, 기존 파일 엔진). REV-008 경로/링크 보호·REV-013 실행 결과 분리·REV-016 SystemOnly 거절은 기존 `FileCleanupAdapter` 경계를 그대로 사용. 공식 전체 초기화와 구분해 문구 정정.
 - Resolve: 20.1 실제 `config.dat`에 `RenderCaching.CacheDir` 없음 → 첫 저장소 `CacheClip` 기본값으로 해석(이전에는 Invalid). Adobe·CapCut은 미설치로 fixture 없음.
 - 검증: Release 0/0, 기본 1661/1661, Smoke 57/57. Online·ToolSmoke·앱 GUI·실기 로그인/게임 시험은 하지 않았다. 새 ZIP/버전 변경·master 병합·원격 게시 없음.
+
+## 2026-09-27 SP5 문제 해결 도구함 · SP3 드라이버 안내 (Claude)
+
+- 구현 커밋 **`5da2700`**(SP5), `00e6089`·`904992c`(Smoke·레이아웃), **`081ecbd`**(SP3). [구현 기록·한계](reviews/2026-09-27-sp5-sp3-implementation.md). 사용자 지시로 독립 리뷰·서브에이전트 없음. 구현자 자체 검증이며 독립 승인이 아니다.
+- SP5: 카탈로그 임베드·링크 표 대조(부분 적용 없음), 직접 실행은 `RepairCommandCatalog` 닫힌 목록(System32 절대 경로·고정 인자·셸 없음·환경 정리·출력 상한·취소 시 트리 종료), 복원 지점은 WMI, 내장 도구는 고정 인자, 외부 도구는 링크만. 실행은 Apply 관문으로 검사·조치와 상호 배제(REV-017/018 수명 관문 계약 유지). 외부 링크 15개는 vendor-links.json `kind=tool`로 추가해 REV-004 링크 정책(허용 목록만)을 그대로 따른다.
+- SP3: `hardware.deviceDrivers` 프로브(이름·버전·날짜·제공자만, 장치 ID 미기록 — 기본 내보내기 익명화 범위 불변), `DriverGuideBuilder`(노트북/데스크톱 식별·OEM 링크·받을 항목·설치 순서), 안내 창. 최신 여부 판단 없음.
+- 검증: Release 0/0, 기본 1686/1686, Smoke 58/58(실제 명령은 ipconfig /flushdns만), preview.9 ZIP 검증 통과. DISM/SFC/chkntfs/netsh/복원 지점 실제 실행·평가 PC·노트북 확인은 남는다. master 병합·원격 게시 없음.
