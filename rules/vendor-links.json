@@ -287,6 +287,14 @@
       "label": "3DMark 공식 사이트(UL Benchmarks)",
       "url": "https://benchmarks.ul.com/3dmark",
       "officialDomains": ["benchmarks.ul.com", "ul.com"]
+    },
+    {
+      "id": "rufus-guide-tea",
+      "kind": "tool",
+      "key": "community",
+      "label": "홍차의 꿈 블로그 · Rufus 글 모음(한국어 안내)",
+      "url": "https://jsb000.tistory.com/search/rufus",
+      "officialDomains": ["jsb000.tistory.com"]
     }
   ]
 }

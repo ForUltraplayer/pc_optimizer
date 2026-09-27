@@ -181,6 +181,20 @@ public sealed class TroubleshootingTests
         Assert.True(sourceCard.NeedsSourceFolder); Assert.Contains("설치 미디어", sourceCard.ActionText);
     }
 
+    /// <summary>Rufus 카드는 공식 사이트 버튼과 별도로 홍차의 꿈 블로그 보조 버튼을 두며, 둘 다 허용 목록 URL만 엽니다.</summary>
+    [Fact]
+    public void RufusCardHasKoreanGuideExtraLink()
+    {
+        var opened = new List<string>();
+        var service = new TroubleshootingService(new OperationCoordinator(), null, new RepairCommandRunner(null, @"C:\Windows\System32", "C:"), () => 0, _ => true, Environment.GetFolderPath(Environment.SpecialFolder.System));
+        using var vm = new TroubleshootingViewModel(Catalog, service, new ImmediateUiDispatcher(), url => { opened.Add(url); return true; }, _ => true, Links);
+        var rufus = vm.UtilityGroups.SelectMany(g => g.Cards).Single(c => c.Tool.Id == "rufus");
+        Assert.True(rufus.HasExtraLinks); var extra = Assert.Single(rufus.ExtraLinks); Assert.Contains("홍차의 꿈", extra.Label);
+        extra.OpenCommand.Execute(null);
+        Assert.Equal("https://jsb000.tistory.com/search/rufus", Assert.Single(opened)); Assert.True(Links.IsAllowedLink(opened[0])); Assert.Contains("홍차의 꿈", vm.Status);
+        Assert.All(Catalog.Tools.SelectMany(t => t.ExtraLinks), l => Assert.Contains(Links.Entries, e => e.Id == l.LinkId));
+    }
+
     private sealed class SynchronousProgress(List<string> lines) : IProgress<string>
     {
         public void Report(string value) => lines.Add(value);
