@@ -12,6 +12,8 @@
 
 ## SP4 진행 상태 (Claude 세션, 2026-09-27 — 세션 한도 대비 갱신)
 
+- **독립 재검증 후속(Codex, 기준 `0fa2bf5`)**: [최종 재검증 보고서](reviews/2026-09-27-sp4-final-revalidation.md). 기본 1279/1279·Smoke 22/22·ToolSmoke 1/1·이전 독립 재현 원문 4/4, Release 0/0. 원장 REV-010·014~018을 보고서에 명시한 범위에서 검증 완료로 갱신했다. 아래 ‘재검증 대기’는 구현 세션 당시 기록이다. 병합·게시하지 않았고 수동 검증·기존 이월은 남아 있다. SP1 브리프 작성 전에 보고서의 남은 확인·인계 목록을 읽을 것.
+
 - 2차 개선 스펙: `docs/superpowers/specs/2026-09-27-improvement-phase2-design.md`(사용자 승인). 계획: `docs/superpowers/plans/2026-09-27-sp4-format-and-admin.md`(Task 1~12).
 - SDD 원장(룰링·라운드 기록): `.superpowers/sdd/2026-09-27-sp4-format-and-admin/progress.md`(git-ignored). 브리프는 같은 폴더 `task-N-brief.md`, 보고서 `task-N-report.md`.
 - 진행: **SP4 전체 완료(Task 1~13, 최종 전체 브랜치 리뷰 후속 수정 포함)**. 마지막 코드 커밋 `ec3547e`(링크 비승격 실행·사양 프로브 백그라운드 실행·검사 전 타일 숨김·범위 판정 불가 배너·자식 프로세스 환경 정리), 원장 `d3d4641`. 실행 순서는 1~9 → 10 → 13 → 11 → 12 → 최종 리뷰 → 후속 1라운드였다.
