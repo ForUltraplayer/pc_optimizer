@@ -32,12 +32,25 @@ public partial class MainWindow : FluentWindow
         ArgumentNullException.ThrowIfNull(viewModel);
         InitializeComponent();
         DataContext = viewModel;
-        Loaded += (_, _) => StartScanButton.Focus();
+        Loaded += async (_, _) =>
+        {
+            StartScanButton.Focus();
+            if (viewModel.Actions is { } actions && actions.RefreshCommand.CanExecute(null)) { await actions.RefreshCommand.ExecuteAsync(null); }
+        };
         Closed += (_, _) => viewModel.Dispose();
     }
 
     /// <summary>내 PC 사양 화면의 이미지 저장 대상(하단 익명화 표기 포함).</summary>
     public FrameworkElement SpecCaptureRoot => SpecView.CaptureRoot;
+    private ActionCenterWindow? _actionWindow;
+    private void OpenActionCenter(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel { Actions: { } actions }) { return; }
+        if (_actionWindow is not null) { _actionWindow.Activate(); return; }
+        _actionWindow = new ActionCenterWindow(actions) { Owner = this };
+        _actionWindow.Closed += (_, _) => _actionWindow = null;
+        _actionWindow.Show();
+    }
 
     private async void OpenCacheTools(object sender, System.Windows.RoutedEventArgs e)
     {

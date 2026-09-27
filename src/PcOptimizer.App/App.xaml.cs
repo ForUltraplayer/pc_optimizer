@@ -13,6 +13,7 @@ using PcOptimizer.App.Services;
 using PcOptimizer.App.ViewModels;
 using PcOptimizer.App.Views;
 using PcOptimizer.Core.Abstractions;
+using PcOptimizer.Core.Actions;
 using PcOptimizer.Probes.Actions;
 using PcOptimizer.Probes.Applications;
 using PcOptimizer.Probes.Drivers;
@@ -82,7 +83,16 @@ public partial class App : Application
             Environment.MachineName,
             Environment.UserName);
 
-        var viewModel = new MainViewModel(
+        MainViewModel? viewModel = null;
+        var actionScope = userScopeUnresolved ? ActionUserScope.Unknown : userScope == UserScopeMode.SystemOnly ? ActionUserScope.SystemOnly : ActionUserScope.Full;
+        // T4는 공통 UI만 연결한다. 후속 Task에서 검증한 실제 어댑터만 등록한다.
+        var actions = new ActionCenterViewModel(new ActionWorkflow(scanService.Operations, new RollbackStore(),
+            () => SystemActionSession.Read(actionScope), [], []), dispatcher, async () =>
+            {
+                if (viewModel?.StartScanCommand.CanExecute(null) != true) { throw new InvalidOperationException("RescanUnavailable"); }
+                await viewModel.StartScanCommand.ExecuteAsync(null);
+            });
+        viewModel = new MainViewModel(
             scanService,
             new ReportExporter(PersonalDataScrubber.FromEnvironment()),
             exportPathPicker,
@@ -96,7 +106,7 @@ public partial class App : Application
             new CacheToolActionAvailability(SystemCacheToolBackend.IsToolInProtectedLocation, CacheToolActionAvailability.DEFAULT_REVIEWED_APP_IDS, userScope == UserScopeMode.SystemOnly),
             spec,
             // SID를 알아내지 못해 시스템만으로 정한 경우는 "다른 관리자 계정" 배너가 아니라 "확인하지 못함" 배너를 보인다.
-            userScopeUnresolved);
+            userScopeUnresolved, actions);
 
         window = new MainWindow(viewModel, logger);
         MainWindow = window;

@@ -156,7 +156,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         UserScopeMode userScope,
         IActionAvailability actionAvailability,
         PcSpecViewModel spec,
-        bool userScopeUnresolved = false)
+        bool userScopeUnresolved = false,
+        ActionCenterViewModel? actions = null)
     {
         ArgumentNullException.ThrowIfNull(scanService);
         ArgumentNullException.ThrowIfNull(exporter);
@@ -183,6 +184,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsUserScopeUnresolved = userScopeUnresolved;
         _actionAvailability = actionAvailability;
         Spec = spec;
+        Actions = actions;
         Spec.PropertyChanged += OnSpecPropertyChanged;
 
         RebuildCategories([]);
@@ -196,6 +198,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>내 PC 사양 화면 모델.</summary>
     public PcSpecViewModel Spec { get; }
+    /// <summary>창을 닫아도 유지하는 조치 확인·기록 화면입니다.</summary>
+    public ActionCenterViewModel? Actions { get; }
+    /// <summary>조치 화면이 조립된 앱에서만 진입 버튼을 보여 줍니다.</summary>
+    public bool HasActionCenter => Actions is not null;
 
     /// <summary>현재 프로세스가 관리자 권한인지 여부(매니페스트가 requireAdministrator라 정상 실행이면 true).</summary>
     public bool IsElevated => _elevationState.IsElevated;
@@ -564,6 +570,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _scanService.Operations.Changed -= OnOperationsChanged;
         Spec.PropertyChanged -= OnSpecPropertyChanged;
         Spec.Dispose();
+        Actions?.Dispose();
         _scanCancellation?.Cancel();
     }
 

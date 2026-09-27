@@ -41,13 +41,17 @@ public abstract record ActionTarget
 /// <summary>신뢰된 코드에서 등록하는 조치 정의입니다.</summary>
 public sealed record ActionDefinition(ActionId Id, ActionScope Scope, bool SupportsRestore = false);
 /// <summary>어댑터가 검증한 대상과 미리보기 설명입니다.</summary>
-public sealed record ActionPreview(ActionTarget Target, string Summary, string Impact);
+public sealed record ActionPreview(ActionTarget Target, string Summary, string Impact, ActionPreviewDetails? Details = null);
+/// <summary>미리보기의 표시 근거입니다. 논리 크기를 실제 확보 공간으로 표현하지 않습니다.</summary>
+public sealed record ActionPreviewDetails(string TargetLabel, string SafetyNote, long? EstimatedLogicalBytes = null, bool? RequiresRestart = null);
 /// <summary>실행기는 ID로만 이 서비스의 원본 계획을 조회합니다. 외부에서 만든 계획 객체를 받지 않습니다.</summary>
 public sealed record ActionPlan(Guid Id, ActionDefinition Definition, ActionPreview Preview, ActionSession Session, DateTimeOffset ExpiresAt, bool IsRestore);
 /// <summary>계획 준비 성공 또는 실행 전 거절 사유입니다.</summary>
 public sealed record ActionPreparation(ActionPlan? Plan, string? Code);
 /// <summary>관측 결과와 실제 변경 시작 여부입니다. 성공·실패·거절을 코드로 구분합니다.</summary>
-public sealed record ActionResult(Guid PlanId, bool Started, bool Succeeded, string Code);
+public sealed record ActionResult(Guid PlanId, bool Started, bool Succeeded, string Code, ActionEffect? Effect = null);
+/// <summary>관측한 여유 공간 변화입니다. null은 확인 불가, 음수는 여유 공간 감소입니다.</summary>
+public sealed record ActionEffect(long? FreeSpaceDeltaBytes);
 
 /// <summary>어댑터의 변경 직전 재검증·시작 기록과 실제 자식 작업 추적 계약입니다.</summary>
 public interface IActionExecution
