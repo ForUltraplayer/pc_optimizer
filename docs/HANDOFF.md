@@ -2,7 +2,17 @@
 
 현재 브랜치 `codex/sp1-actions`. 사용자 인계 지시에 따라 `feature/p0-skeleton`을 로컬 `master`에 fast-forward 병합했다(`77efa2e` → `32ab51f`). 기존 브랜치는 보존했고 원격 게시는 하지 않았다. 아래 날짜별 기록은 당시 상태를 보존한 이력이다.
 
-## 현재 작업 — SP1 Task 2 구현 완료 (Codex, 2026-09-27)
+## 현재 작업 — SP1 Task 3 구현 완료 (Codex, 2026-09-27)
+
+- 최신 사용자 지시: **독립 리뷰 없이 진행**. 기존 대기/승인 이력은 보존하지만 독립 리뷰를 진행 게이트로 요구하지 않는다. 아래 검증은 구현자 자체 검증이다.
+- 코드 `7c6d64f`, [Task 3 자체 검증 보고서](reviews/2026-09-27-sp1-task3-implementation.md). 최종 Release 0경고·0오류, 기본 **1340/1340**, 신규 실제 저장소 Smoke **13/13**. 기존 전체 Smoke/Online/ToolSmoke와 GUI/배포는 이번에 재실행하지 않았다.
+- 관리자 소유·전용 ACL·조상/파일 링크 거절·SID/프로필 검증·원자 Pending/Restoring 저장·현재 값 비교 복구·30일 보존·중단 기록 관측·저장소 프로세스 간 잠금을 구현했다. 실제 Windows 설정/사용자 캐시는 변경하지 않았다.
+- 다음 작업: **Task 4 — 공통 미리보기·결과·되돌리기 UI**. `RestoreCoordinator`는 코드 어댑터를 받아 T2 조율기에 연결하고 `InspectAsync`로 미완료/손상 기록을 제공한다. 앱 시작/목록 연결은 아직 없으며 새 실제 OS 변경 어댑터와 자동 복구 정책도 등록하지 않았다. T4는 소유 대역으로 UI 흐름을 먼저 검증한다.
+- 주의: JSON 원문/실제 SID/원래 설정 bytes는 익명 내보내기에 넣지 않는다. 원래 값과 일치하는 복구는 `AlreadyOriginal`(Started=false), 다른 값은 `CurrentValueChanged`, 완료 전 끊긴 실행은 Pending/Restoring으로 표시해야 한다. 늦은 네이티브 종료 전에는 공통 관문·저장소 잠금을 풀지 않는다.
+- `RollbackStore`는 현재 HKLM 등록 프로필과 기본 LocalAppData가 일치해야 한다. 다른 위치로 이동된 프로필 캐시/느슨한 기존 ACL은 지원 미확인으로 거절한다. 관리자 공격자/오프라인 변조 방어 또는 실제 전원 차단 실험 통과를 주장하지 않는다.
+- T6/T9 플랫폼·T12 UAC/다른 계정/.NET 없는 PC/DPI 조건 유지. 배포 ZIP은 Task 1 평가본 그대로다. 다음 작업 전 [공유 원장](reviews/REVIEW_LEDGER.md)과 [진행 기록](superpowers/sp1-progress.md)을 읽는다.
+
+## 이전 기록 — SP1 Task 2 구현 완료 (Codex, 2026-09-27)
 
 - 코드 `cbadd67`, [Task 2 자체 검증 보고서](reviews/2026-09-27-sp1-task2-implementation.md). Release 0경고·0오류, 기본 **1314/1314**, 조회 Smoke **23/23**, 소유 임시 캐시 pip ToolSmoke **1/1**. Task 1·2 모두 독립 리뷰 대기다.
 - 검사·사양·기존 공식 캐시 정리를 같은 실행 관문에 연결했다. 화면 밖에서 직접 호출해도 겹치지 않으며 실제 작업/프로세스 종료 전에는 Draining으로 남는다. 창 해제는 실제 작업의 소유권을 해제하지 않는다.
