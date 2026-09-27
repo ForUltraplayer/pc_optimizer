@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PcOptimizer.App.Services;
 using PcOptimizer.Core.Actions;
+using PcOptimizer.Core.Models;
 using PcOptimizer.Probes.Actions.Display;
 
 namespace PcOptimizer.App.ViewModels;
@@ -75,6 +76,18 @@ public sealed partial class DisplayTrialViewModel : ObservableObject, IDisposabl
     {
         IsWorking = true; _plan = null; _restore = null; Preview = ""; Selected = null;
         try { await LoadCatalog(); } finally { IsWorking = false; }
+    }
+    /// <summary>카드의 정확한 모니터/주사율을 다시 조회해 선택하고 사전 검사만 수행합니다. 이 호출은 화면을 변경하지 않습니다.</summary>
+    public async Task PrepareFindingAsync(Finding finding)
+    {
+        if (!CanBegin()) { Status = "진행 중인 작업이 끝난 뒤 다시 시도하세요."; return; }
+        var target = DisplayFindingTarget.Read(finding);
+        _plan = null; _restore = null; Preview = ""; Selected = null;
+        if (target is null) { Status = "이 검사 결과에서 시험 대상을 식별하지 못했습니다. 다시 검사하세요."; NotifyGates(); return; }
+        await Refresh();
+        Selected = Choices.SingleOrDefault(c => string.Equals(c.DeviceKey, target.DeviceKey, StringComparison.OrdinalIgnoreCase) && c.DesiredHz == target.Hz);
+        if (Selected is null) { Status = "해당 모니터의 주사율 후보가 달라졌거나 지금은 지원되지 않습니다. 다시 검사하세요."; return; }
+        if (CanPrepare()) { await Prepare(); }
     }
     private async Task LoadCatalog()
     {

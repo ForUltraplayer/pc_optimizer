@@ -40,6 +40,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly IAppLogger _logger;
     private readonly IActionAvailability _actionAvailability;
     private readonly IElevationState _elevationState;
+    private readonly bool _displayTrialsAvailable;
 
     private List<FindingCardViewModel> _allCards = [];
     private CancellationTokenSource? _scanCancellation;
@@ -157,7 +158,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IActionAvailability actionAvailability,
         PcSpecViewModel spec,
         bool userScopeUnresolved = false,
-        ActionCenterViewModel? actions = null)
+        ActionCenterViewModel? actions = null,
+        bool displayTrialsAvailable = false)
     {
         ArgumentNullException.ThrowIfNull(scanService);
         ArgumentNullException.ThrowIfNull(exporter);
@@ -185,6 +187,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _actionAvailability = actionAvailability;
         Spec = spec;
         Actions = actions;
+        _displayTrialsAvailable = displayTrialsAvailable && userScope == UserScopeMode.Full && !userScopeUnresolved;
         Spec.PropertyChanged += OnSpecPropertyChanged;
 
         RebuildCategories([]);
@@ -498,7 +501,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void ApplyResult(ScanResult result)
     {
         var report = result.Report;
-        _allCards = [.. report.Findings.Select(finding => new FindingCardViewModel(finding, _settingsPolicy, _linkPolicy))];
+        _allCards = [.. report.Findings.Select(finding => new FindingCardViewModel(finding, _settingsPolicy, _linkPolicy, _displayTrialsAvailable))];
         OnPropertyChanged(nameof(CommunitySummary));
         if (OnlineComparisonComplete(report))
         {

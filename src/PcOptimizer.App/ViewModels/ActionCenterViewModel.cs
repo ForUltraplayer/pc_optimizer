@@ -80,7 +80,7 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     /// <summary>자동 지원 미확인 기능은 성공 버튼 대신 이유와 공식 경로를 제공합니다.</summary>
     public IReadOnlyList<ManualActionChoice> ManualChoices { get; } = [
         new("시작 앱 줄이기", "로그인할 때 필요 없는 앱을 직접 끌 수 있습니다. 이 버전은 자동 비활성화·복원을 제공하지 않습니다.", SettingsUriPolicy.STARTUP_APPS_SETTINGS_URI),
-        new("화면 주사율 확인", "현재 해상도에서 사용할 주사율을 Windows에서 선택합니다. 자동 시험·15초 복원은 지원 준비 중입니다.", SettingsUriPolicy.DISPLAY_SETTINGS_URI),
+        new("Windows에서 주사율 설정", "앱의 주사율 시험이 지원되지 않는 화면은 Windows 디스플레이 설정에서 직접 확인하세요.", SettingsUriPolicy.DISPLAY_SETTINGS_URI),
         new("업데이트·배달 최적화 캐시 정리", "Windows 저장소에서 임시 파일 종류를 확인하고 정리하세요. 앱이 업데이트 서비스를 중지하거나 내부 캐시를 직접 삭제하지는 않습니다.", SettingsUriPolicy.STORAGE_SENSE_SETTINGS_URI),
         new("영상·게임 앱의 캐시", "Adobe·Steam·NVIDIA 폴더의 자동 정리는 사용 중 상태와 경로 검증이 더 필요합니다. 해당 앱의 캐시 관리 기능을 사용해 주세요.", null)];
     /// <summary>실행 확인 영역 표시 여부입니다.</summary>

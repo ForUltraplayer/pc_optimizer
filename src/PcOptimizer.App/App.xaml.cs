@@ -114,15 +114,15 @@ public partial class App : Application
             logger,
             elevation,
             userScope,
-            // 앱 안에서 바로 실행하는 조치는 보호 위치(Program Files) 도구의 npm·pip·NuGet 캐시 정리뿐이다. 도구 위치는 존재 확인만 하며 프로세스를 실행하지 않는다.
+            // 공식 캐시 후보의 도구 가용성이다. 주사율 카드 실행기는 아래 Full 사용자 조건으로 따로 연결한다.
             new CacheToolActionAvailability(SystemCacheToolBackend.IsToolInProtectedLocation, CacheToolActionAvailability.DEFAULT_REVIEWED_APP_IDS, userScope == UserScopeMode.SystemOnly),
             spec,
             // SID를 알아내지 못해 시스템만으로 정한 경우는 "다른 관리자 계정" 배너가 아니라 "확인하지 못함" 배너를 보인다.
-            userScopeUnresolved, actions);
+            userScopeUnresolved, actions, displayTrialsAvailable: actionScope == ActionUserScope.Full);
 
-        // 실제 화면 전환 평가가 끝나기 전에는 명시적인 실행 인자에서만 시험 기능을 제공한다.
+        // 일반 실행에서도 진단 카드의 시험 버튼으로 연결한다. 실제 변경은 별도 확인 뒤에만 시작한다.
         DisplayTrialViewModel? displayTrials = null;
-        if (actionScope == ActionUserScope.Full && e.Args.Contains("--display-evaluation", StringComparer.Ordinal))
+        if (actionScope == ActionUserScope.Full)
         {
             displayTrials = new(new DisplayTrialCoordinator(scanService.Operations, new RollbackStore(), ReadActionSession), scanService.Operations, dispatcher, async () =>
             {

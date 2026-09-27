@@ -49,8 +49,8 @@ public sealed class DisplayRefreshRule : IRule
     private const string HZ_FORMAT = "0.##";
     private const int DISPLAY_INDEX_OFFSET = 1;
 
-    /// <summary>Candidate 안전 수준(설정 변경만, 15초 뒤 자동 되돌림).</summary>
-    private static readonly SafetyLevel CANDIDATE_SAFETY = SafetyLevel.Safe;
+    /// <summary>표시가 끊기거나 원복을 확인하지 못할 수 있는 설정 변경입니다.</summary>
+    private static readonly SafetyLevel CANDIDATE_SAFETY = SafetyLevel.Caution;
 
     /// <inheritdoc />
     public string Id => RULE_ID;

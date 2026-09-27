@@ -52,7 +52,7 @@ public sealed partial class MainViewModel
     /// <summary>전체 결과 건수를 포함한 탭 문구.</summary>
     public string AllResultsTab => DisplayText.Format(Strings.Overview_AllCount, _allCards.Count);
     /// <summary>앱 안에서 바로 실행할 수 있는 후보 수.</summary>
-    public int DoNowCount => RecommendedCards.Count(card => _actionAvailability.CanExecuteInApp(card.Finding));
+    public int DoNowCount => RecommendedCards.Count(card => card.CanTrialDisplay || _actionAvailability.CanExecuteInApp(card.Finding));
 
     /// <summary>사용자가 다른 곳에서 직접 해야 하는 후보 수.</summary>
     public int DoManuallyCount => RecommendedCards.Count - DoNowCount;
