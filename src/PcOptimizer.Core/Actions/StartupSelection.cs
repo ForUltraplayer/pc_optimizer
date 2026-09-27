@@ -1,7 +1,7 @@
 /**
  * @file    : StartupSelection.cs
  * @author  : rudals252
- * @brief   : 시작 항목 스냅샷에서 지원하는 현재 사용자 Run 이름만 선택
+ * @brief   : 시작 항목 스냅샷에서 지원하는 Run·시작 폴더 이름과 그 작업 관리자 상태 대상을 선택
  */
 using PcOptimizer.Core.Models;
 using PcOptimizer.Core.Rules;
@@ -11,6 +11,15 @@ namespace PcOptimizer.Core.Actions;
 /// <summary>추천/자동 선택 없이 사용자가 판단할 등록 이름만 반환합니다.</summary>
 public static class StartupSelection
 {
+    /// <summary>StartupApproved 조회가 "찾음"(이진 형식) 또는 "없음"(활성 취급)인 항목만 작업 관리자 상태 대상으로 추가합니다. 읽기 실패·미추적은 제외합니다.</summary>
+    private static void AddApproval(Dictionary<string, ActionTarget.Startup> targets, string source, string name, Func<string, string?> text)
+    {
+        if (StartupApproval.SourceFor(source) is not { } approval) { return; }
+        var lookup = text(StartupItemsProbeContract.FIELD_APPROVED_LOOKUP);
+        var supported = lookup == StartupItemsProbeContract.LOOKUP_MISSING
+            || (lookup == StartupItemsProbeContract.LOOKUP_FOUND && text(StartupItemsProbeContract.FIELD_APPROVED_KIND) == StartupItemsProbeContract.KIND_BINARY);
+        if (supported) { targets.TryAdd(approval + ":" + name, new(approval, name)); }
+    }
     /// <summary>HKLM·RunOnce·폴더·잘못된 관측은 제외합니다. 실행 직전에는 네이티브 원문을 다시 확인합니다.</summary>
     public static IReadOnlyList<string> Names(ScanSnapshot snapshot)
         => Targets(snapshot).Where(t => t.SourceKey == StartupRegistration.Source).Select(t => t.ValueName).ToArray();
@@ -30,13 +39,14 @@ public static class StartupSelection
             {
                 if (name is not null && StartupRegistration.ValidName(name) && name.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase)
                     && name.IndexOfAny(['\\', '/', ':', '*', '?', '"', '<', '>', '|', '~']) < 0)
-                { targets.TryAdd(source + ":" + name, new(source, name)); }
+                { targets.TryAdd(source + ":" + name, new(source, name)); AddApproval(targets, source, name, Text); }
                 continue;
             }
             var view = source switch { StartupRegistration.Source or StartupRegistration.Machine64 => "Registry64", StartupRegistration.Machine32 => "Registry32", _ => null };
             if (name is null || !StartupRegistration.ValidName(name) || view is null
                 || Text(StartupItemsProbeContract.FIELD_REGISTRY_VIEW) != view || Text(StartupItemsProbeContract.FIELD_VALUE_KIND) is not ("String" or "ExpandString")) { continue; }
             targets.TryAdd(source + ":" + name, new(source!, name));
+            AddApproval(targets, source!, name, Text);
         }
         return targets.Values.OrderBy(t => t.SourceKey, StringComparer.Ordinal).ThenBy(t => t.ValueName, StringComparer.OrdinalIgnoreCase).ToArray();
     }

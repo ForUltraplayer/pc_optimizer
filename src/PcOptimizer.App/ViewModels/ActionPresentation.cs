@@ -18,7 +18,8 @@ public sealed class ActionPreviewViewModel(ActionPlan plan)
     /// <summary>되돌리기 계획인지 여부입니다.</summary>
     public bool IsRestore => plan.IsRestore;
     /// <summary>변경하려는 내용을 한 문장으로 보여 줍니다.</summary>
-    public string Title => IsRestore ? ActionId is PcOptimizer.Core.Actions.ActionId.Startup or PcOptimizer.Core.Actions.ActionId.MachineStartup or PcOptimizer.Core.Actions.ActionId.StartupFolder or PcOptimizer.Core.Actions.ActionId.CommonStartupFolder ? "자동 실행 등록 복원"
+    public string Title => IsRestore ? ActionId is PcOptimizer.Core.Actions.ActionId.StartupApproval or PcOptimizer.Core.Actions.ActionId.MachineStartupApproval ? "작업 관리자 시작 상태 되돌리기"
+        : ActionId is PcOptimizer.Core.Actions.ActionId.Startup or PcOptimizer.Core.Actions.ActionId.MachineStartup or PcOptimizer.Core.Actions.ActionId.StartupFolder or PcOptimizer.Core.Actions.ActionId.CommonStartupFolder ? "자동 실행 등록 복원"
         : ActionId == PcOptimizer.Core.Actions.ActionId.UpdateServices ? "업데이트 서비스 원상복구" : $"{ActionText.Name(ActionId)} 되돌리기" : ActionText.Name(ActionId);
     /// <summary>조치 설명입니다.</summary>
     public string Summary => plan.Preview.Summary;
@@ -41,6 +42,7 @@ public sealed class ActionPreviewViewModel(ActionPlan plan)
     public string Restore => IsRestore ? "현재 값이 앱의 적용 값과 같을 때만 되돌립니다."
         : ActionId is PcOptimizer.Core.Actions.ActionId.StartupFolder or PcOptimizer.Core.Actions.ActionId.CommonStartupFolder ? "원본 바로가기를 Programs 폴더에 보관합니다. 보관 파일과 복구 기록을 지우거나 바꾸지 마세요. 다른 앱이 같은 이름으로 만든 새 항목은 덮어쓰지 않습니다."
         : ActionId == PcOptimizer.Core.Actions.ActionId.WindowsUpdateCache ? "삭제한 파일은 되돌릴 수 없습니다. 서비스는 작업 후 원래 상태로 복구하며, 실패하면 조치 기록에서 서비스만 복구할 수 있습니다."
+        : ActionId is PcOptimizer.Core.Actions.ActionId.StartupApproval or PcOptimizer.Core.Actions.ActionId.MachineStartupApproval ? "바꾸기 전 StartupApproved 값을 저장합니다. 이 앱에서 되돌릴 수 있고, 작업 관리자에서도 직접 바꿀 수 있습니다."
         : ActionId is PcOptimizer.Core.Actions.ActionId.Startup or PcOptimizer.Core.Actions.ActionId.MachineStartup or PcOptimizer.Core.Actions.ActionId.StartupFolder or PcOptimizer.Core.Actions.ActionId.CommonStartupFolder ? "해제한 등록 원문은 복원 전까지 이 앱의 기록에 보관합니다. 복구 기록을 직접 지우면 되돌릴 수 없습니다."
         : plan.Definition.SupportsRestore ? "변경 전 원래 값을 저장합니다. 이 앱에서 되돌릴 수 있습니다." : "이 조치는 이 앱에서 되돌릴 수 없습니다.";
     /// <summary>확인 화면을 오래 열어 두었을 때의 만료 안내입니다.</summary>
@@ -168,7 +170,8 @@ internal static class ActionText
     {
         ActionId.UserFiles => "사용자 임시 파일 정리", ActionId.SystemFiles => "Windows 캐시 정리", ActionId.AppFiles => "앱 캐시 정리",
         ActionId.StartupFolder => "시작 바로가기 보관", ActionId.CommonStartupFolder => "공용 시작 바로가기 보관", ActionId.Startup => "자동 실행 등록 해제", ActionId.MachineStartup => "모든 사용자 자동 실행 등록 해제", ActionId.Power => "전원 계획 변경", ActionId.Display => "화면 주사율 변경",
-        ActionId.OfficialCache => "공식 도구 캐시 정리", ActionId.DeliveryOptimization => "배달 최적화 캐시 정리", ActionId.UpdateServices => "업데이트 서비스 원상복구", ActionId.WindowsUpdateCache => "Windows 업데이트 다운로드 캐시 정리", ActionId.SteamShaderCache => "Steam 셰이더 캐시 정리", _ => "지원하지 않는 조치",
+        ActionId.OfficialCache => "공식 도구 캐시 정리", ActionId.DeliveryOptimization => "배달 최적화 캐시 정리", ActionId.UpdateServices => "업데이트 서비스 원상복구", ActionId.WindowsUpdateCache => "Windows 업데이트 다운로드 캐시 정리", ActionId.SteamShaderCache => "Steam 셰이더 캐시 정리",
+        ActionId.StartupApproval => "작업 관리자 시작 상태 전환", ActionId.MachineStartupApproval => "모든 사용자 작업 관리자 시작 상태 전환", _ => "지원하지 않는 조치",
     };
     internal static string Bytes(decimal bytes)
     {

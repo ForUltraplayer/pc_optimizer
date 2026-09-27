@@ -1,22 +1,24 @@
 /**
  * @file    : StartupRunActionAdapter.cs
  * @author  : rudals252
- * @brief   : 현재 사용자 Run 항목 한 개의 원문 보존·등록 해제·외부 변경 보호 복원
+ * @brief   : Run·시작 폴더 항목 한 개의 원문 보존·등록 해제·복원과 작업 관리자 시작 상태(StartupApproved) 토글
  */
 using System.Runtime.CompilerServices;
 using PcOptimizer.Core.Actions;
 
 namespace PcOptimizer.Probes.Actions.Startup;
 
-/// <summary>StartupApproved 내부 형식을 쓰지 않고 Run 등록 자체를 해제합니다.</summary>
+/// <summary>등록 해제 모드는 Run 등록 자체를 제거하고, 작업 관리자 상태 모드는 StartupApproved 12바이트 값만 토글합니다.</summary>
 public sealed class StartupRunActionAdapter : IReversibleActionAdapter
 {
     private readonly Func<string, IStartupRunPlatform> _platform;
     private readonly bool _machine;
     private readonly bool _folder;
+    private readonly bool _approval;
+    private readonly TimeProvider _time;
     private readonly Func<ActionSession> _session;
     private readonly ConditionalWeakTable<ActionPreview, Snapshot> _snapshots = new();
-    private sealed record Snapshot(string Source, string Name, RollbackValue Before, ActionSession Session);
+    private sealed record Snapshot(string Source, string Name, RollbackValue Before, ActionSession Session, RollbackValue? Applied = null);
     /// <summary>공통 사용자 범위 판정과 실제 Windows 레지스트리를 사용합니다.</summary>
     public StartupRunActionAdapter(Func<ActionSession> session) : this(source => new StartupRunPlatform(source), session, false) { }
     /// <summary>모든 사용자 Run의 32/64비트 보기를 각각 식별하는 시스템 범위 실행기를 만듭니다.</summary>
@@ -24,15 +26,22 @@ public sealed class StartupRunActionAdapter : IReversibleActionAdapter
     /// <summary>시작 폴더 바로가기를 원본 그대로 보관·복원하는 실행기입니다.</summary>
     public static StartupRunActionAdapter ForFolder(Func<ActionSession> session, bool common = false)
         => new(_ => new StartupFolderPlatform(common), session, common, true);
+    /// <summary>작업 관리자 "사용/사용 안 함" 상태만 바꾸는 실행기입니다. Run 등록과 바로가기 파일은 건드리지 않습니다.</summary>
+    public static StartupRunActionAdapter ForApproval(Func<ActionSession> session, bool machine = false, TimeProvider? time = null)
+        => new(source => new StartupRunPlatform(source), session, machine, false, true, time);
     internal StartupRunActionAdapter(IStartupRunPlatform platform, Func<ActionSession> session) : this(_ => platform, session, false) { }
-    internal StartupRunActionAdapter(Func<string, IStartupRunPlatform> platform, Func<ActionSession> session, bool machine, bool folder = false)
-    { _platform = platform; _session = session; _machine = machine; _folder = folder; }
-    private bool Supports(string? source) => _folder ? source == (_machine ? StartupRegistration.CommonFolder : StartupRegistration.UserFolder)
+    internal StartupRunActionAdapter(Func<string, IStartupRunPlatform> platform, Func<ActionSession> session, bool machine, bool folder = false, bool approval = false, TimeProvider? time = null)
+    { _platform = platform; _session = session; _machine = machine; _folder = folder; _approval = approval; _time = time ?? TimeProvider.System; }
+    private bool Supports(string? source) => _approval ? _machine
+            ? source is StartupRegistration.ApprovalMachine64 or StartupRegistration.ApprovalMachine32 or StartupRegistration.ApprovalCommonFolder
+            : source is StartupRegistration.ApprovalUser or StartupRegistration.ApprovalUserFolder
+        : _folder ? source == (_machine ? StartupRegistration.CommonFolder : StartupRegistration.UserFolder)
         : _machine ? source is StartupRegistration.Machine32 or StartupRegistration.Machine64 : source == StartupRegistration.Source;
-    private bool ValidValue(RollbackValue value) => _folder ? StartupFolderPlatform.ValidValue(value) : StartupRegistration.ValidValue(value);
+    private bool ValidValue(RollbackValue value) => _approval ? StartupApproval.ValidValue(value) : _folder ? StartupFolderPlatform.ValidValue(value) : StartupRegistration.ValidValue(value);
     private bool ValidName(string name) => _folder ? StartupFolderPlatform.ValidName(name) : StartupRegistration.ValidName(name);
     /// <inheritdoc />
-    public ActionDefinition Definition => new(_folder ? _machine ? ActionId.CommonStartupFolder : ActionId.StartupFolder : _machine ? ActionId.MachineStartup : ActionId.Startup, _machine ? ActionScope.System : ActionScope.CurrentUser, true);
+    public ActionDefinition Definition => new(_approval ? _machine ? ActionId.MachineStartupApproval : ActionId.StartupApproval
+        : _folder ? _machine ? ActionId.CommonStartupFolder : ActionId.StartupFolder : _machine ? ActionId.MachineStartup : ActionId.Startup, _machine ? ActionScope.System : ActionScope.CurrentUser, true);
     private ActionSession Session()
     {
         var session = _session();
@@ -45,6 +54,7 @@ public sealed class StartupRunActionAdapter : IReversibleActionAdapter
         ct.ThrowIfCancellationRequested(); var session = Session();
         if (target is not ActionTarget.Startup selected || !Supports(selected.SourceKey) || !ValidName(selected.ValueName)) { return Task.FromResult<ActionPreview?>(null); }
         var before = _platform(selected.SourceKey).Read(selected.ValueName, session);
+        if (_approval) { return Task.FromResult(PrepareApproval(target, selected, before, session)); }
         if (!ValidValue(before)) { throw new ActionUnavailableException("StartupUnsupported"); }
         var preview = new ActionPreview(target, $"'{selected.ValueName}'의 {StartupRegistration.Label(selected.SourceKey)} 자동 실행 등록을 해제합니다.",
             (_machine ? "이 PC의 모든 사용자에게 영향을 줍니다. " : "") + "다음 로그인부터 이 등록으로 앱을 시작하지 않습니다. 실행 중인 앱은 종료하지 않으며 프로그램을 삭제하지 않습니다. 알림·동기화 등 필요한 기능인지 확인하세요.",
@@ -54,6 +64,23 @@ public sealed class StartupRunActionAdapter : IReversibleActionAdapter
         _snapshots.Add(preview, new(selected.SourceKey, selected.ValueName, before with { Data = before.Data.ToArray() }, session));
         return Task.FromResult<ActionPreview?>(preview);
     }
+    /// <summary>값 없음은 활성으로 취급해 "사용 안 함"으로, 0x03이면 "사용"으로 토글합니다. 알 수 없는 형식은 거절합니다.</summary>
+    private ActionPreview? PrepareApproval(ActionTarget target, ActionTarget.Startup selected, RollbackValue before, ActionSession session)
+    {
+        var desired = StartupApproval.Toggled(before, _time.GetUtcNow()) ?? throw new ActionUnavailableException("StartupUnsupported");
+        var disabling = StartupApproval.StateOf(desired) == PcOptimizer.Core.Rules.StartupApprovedState.Disabled;
+        var label = StartupRegistration.Label(selected.SourceKey);
+        var preview = new ActionPreview(target,
+            disabling ? $"'{selected.ValueName}'을(를) 작업 관리자 시작 앱에서 '사용 안 함'으로 바꿉니다 · {label}" : $"'{selected.ValueName}'을(를) 작업 관리자 시작 앱에서 '사용'으로 바꿉니다 · {label}",
+            (_machine ? "이 PC의 모든 사용자에게 영향을 줍니다. " : "") + (disabling
+                ? "작업 관리자의 시작 앱 '사용 안 함'과 같은 값을 씁니다. 등록과 파일은 그대로 두고 다음 로그인부터 실행하지 않습니다. 실행 중인 앱은 종료하지 않습니다."
+                : "작업 관리자의 시작 앱 '사용'과 같은 값을 씁니다. 다음 로그인부터 이 항목이 다시 실행됩니다."),
+            new(selected.ValueName + " · " + label,
+                "StartupApproved 값은 공식 문서가 없어 Windows 11에서 관측한 12바이트 형식(0x02 사용 / 0x03 사용 안 함 + 시각)만 씁니다. 다른 형식이면 바꾸지 않으며, 원래 바이트를 저장해 되돌릴 수 있습니다. 실제 다음 로그인 효과는 이 앱이 확인하지 않습니다.",
+                RequiresRestart: false));
+        _snapshots.Add(preview, new(selected.SourceKey, selected.ValueName, before with { Data = before.Data.ToArray() }, session, desired));
+        return preview;
+    }
     /// <inheritdoc />
     public Task<RollbackChange> CaptureAsync(ActionPlan plan, CancellationToken ct)
     {
@@ -62,7 +89,7 @@ public sealed class StartupRunActionAdapter : IReversibleActionAdapter
         _snapshots.Remove(plan.Preview);
         if (Session() != snapshot.Session || plan.Session != snapshot.Session) { throw new ActionUnavailableException("SessionChanged"); }
         if (!_platform(snapshot.Source).Read(snapshot.Name, snapshot.Session).SameAs(snapshot.Before)) { throw new ActionUnavailableException("CurrentValueChanged"); }
-        return Task.FromResult(new RollbackChange(StartupRegistration.Key(snapshot.Source, snapshot.Name), RollbackPurpose.UserUndo, snapshot.Before, StartupRegistration.Absent));
+        return Task.FromResult(new RollbackChange(StartupRegistration.Key(snapshot.Source, snapshot.Name), RollbackPurpose.UserUndo, snapshot.Before, snapshot.Applied ?? StartupRegistration.Absent));
     }
     /// <inheritdoc />
     public Task<bool> ValidateAsync(RollbackRecord record, CancellationToken ct)
@@ -71,7 +98,8 @@ public sealed class StartupRunActionAdapter : IReversibleActionAdapter
         return Task.FromResult(record.ActionId == Definition.Id && record.Scope == Definition.Scope && record.Sid == session.Sid
             && Supports(StartupRegistration.SourceOfKey(record.TargetKey))
             && record.Purpose == RollbackPurpose.UserUndo && StartupRegistration.Name(record.TargetKey) is not null
-            && ValidName(StartupRegistration.Name(record.TargetKey)!) && ValidValue(record.Before) && record.Applied.SameAs(StartupRegistration.Absent));
+            && ValidName(StartupRegistration.Name(record.TargetKey)!)
+            && (_approval ? (!record.Before.Exists || ValidValue(record.Before)) && ValidValue(record.Applied) : ValidValue(record.Before) && record.Applied.SameAs(StartupRegistration.Absent)));
     }
     /// <inheritdoc />
     public async Task<RollbackValue> ReadCurrentAsync(RollbackRecord record, CancellationToken ct)

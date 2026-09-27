@@ -1,7 +1,7 @@
 /**
  * @file    : StartupRunPlatform.cs
  * @author  : rudals252
- * @brief   : 링크를 따라가지 않는 HKCU Run 고정 핸들에서 원문 재비교 후 값 한 개 변경
+ * @brief   : 링크를 따라가지 않는 Run·StartupApproved 고정 핸들에서 원문 재비교 후 값 한 개 변경
  */
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
@@ -19,23 +19,33 @@ internal interface IStartupRunPlatform
 internal sealed class StartupRunPlatform : IStartupRunPlatform
 {
     private const string RunPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
+    private const string ApprovedRunPath = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
+    private const string ApprovedRun32Path = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run32";
+    private const string ApprovedFolderPath = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\StartupFolder";
     private readonly string _path;
+    private readonly bool _approval;
     private readonly RegistryHive _hive = RegistryHive.CurrentUser;
     private readonly RegistryView _view = RegistryView.Registry64;
     internal StartupRunPlatform() { _path = RunPath; }
     internal StartupRunPlatform(string source)
     {
-        _path = RunPath;
-        (_hive, _view) = source switch
+        // StartupApproved 키는 작업 관리자가 64비트 보기에만 쓰므로 Run32 항목도 64비트 보기의 Run32 키를 사용한다.
+        (_hive, _view, _path, _approval) = source switch
         {
-            StartupRegistration.Source => (RegistryHive.CurrentUser, RegistryView.Registry64),
-            StartupRegistration.Machine64 => (RegistryHive.LocalMachine, RegistryView.Registry64),
-            StartupRegistration.Machine32 => (RegistryHive.LocalMachine, RegistryView.Registry32),
+            StartupRegistration.Source => (RegistryHive.CurrentUser, RegistryView.Registry64, RunPath, false),
+            StartupRegistration.Machine64 => (RegistryHive.LocalMachine, RegistryView.Registry64, RunPath, false),
+            StartupRegistration.Machine32 => (RegistryHive.LocalMachine, RegistryView.Registry32, RunPath, false),
+            StartupRegistration.ApprovalUser => (RegistryHive.CurrentUser, RegistryView.Registry64, ApprovedRunPath, true),
+            StartupRegistration.ApprovalMachine64 => (RegistryHive.LocalMachine, RegistryView.Registry64, ApprovedRunPath, true),
+            StartupRegistration.ApprovalMachine32 => (RegistryHive.LocalMachine, RegistryView.Registry64, ApprovedRun32Path, true),
+            StartupRegistration.ApprovalUserFolder => (RegistryHive.CurrentUser, RegistryView.Registry64, ApprovedFolderPath, true),
+            StartupRegistration.ApprovalCommonFolder => (RegistryHive.LocalMachine, RegistryView.Registry64, ApprovedFolderPath, true),
             _ => throw new ActionUnavailableException("TargetRejected"),
         };
     }
     // 테스트는 실제 Run과 분리된 GUID 소유 키에만 접근한다.
-    internal StartupRunPlatform(Guid fixture) { _path = @"Software\PcOptimizer.Tests\" + fixture.ToString("N") + @"\Run"; }
+    internal StartupRunPlatform(Guid fixture, bool approval = false) { _path = @"Software\PcOptimizer.Tests\" + fixture.ToString("N") + @"\Run"; _approval = approval; }
+    private bool ValidDesired(RollbackValue desired) => desired.SameAs(StartupRegistration.Absent) || (_approval ? StartupApproval.ValidValue(desired) : StartupRegistration.ValidValue(desired));
     private void CheckSession(ActionSession expected)
     {
         if ((_hive == RegistryHive.CurrentUser && expected.Scope != ActionUserScope.Full) || !expected.IsKnown
@@ -84,7 +94,7 @@ internal sealed class StartupRunPlatform : IStartupRunPlatform
     }
     public bool CompareExchange(string name, RollbackValue expected, RollbackValue desired, ActionSession session, Action beforeCommit)
     {
-        if (!StartupRegistration.ValidName(name) || !(desired.SameAs(StartupRegistration.Absent) || StartupRegistration.ValidValue(desired))) { return false; }
+        if (!StartupRegistration.ValidName(name) || !ValidDesired(desired)) { return false; }
         using var pinned = Open(session, true);
         if (!ReadValue(pinned, name).SameAs(expected)) { return false; }
         CheckSession(session); beforeCommit();
