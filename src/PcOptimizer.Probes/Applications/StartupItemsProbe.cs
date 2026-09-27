@@ -75,6 +75,7 @@ public sealed class StartupItemsProbe : IProbe
     private readonly IClock _clock;
     private readonly IReadOnlyList<StartupFolderLocation> _folders;
     private readonly Func<string, IEnumerable<string>> _enumerateFiles;
+    private readonly bool _systemOnly;
 
     /// <summary>
     /// 실제 레지스트리·시작프로그램 폴더와 시스템 시계를 쓰는 프로브를 만듭니다.
@@ -83,6 +84,11 @@ public sealed class StartupItemsProbe : IProbe
         : this(Win32RegistryReader.Instance, SystemClock.Instance, DefaultFolders())
     {
     }
+    /// <summary>다른 계정으로 승격한 경우 HKCU·사용자 폴더를 읽지 않고 시스템 출처만 수집합니다.</summary>
+    public StartupItemsProbe(bool systemOnly)
+        : this(Win32RegistryReader.Instance, SystemClock.Instance,
+            systemOnly ? DefaultFolders().Where(f => f.SourceCode == StartupItemsProbeContract.SOURCE_COMMON_FOLDER).ToArray() : DefaultFolders())
+    { _systemOnly = systemOnly; }
 
     /// <summary>
     /// 레지스트리·시계·폴더 목록을 지정해 프로브를 만듭니다(폴더는 실제 파일 시스템으로 열거).
@@ -131,7 +137,7 @@ public sealed class StartupItemsProbe : IProbe
     public bool RequiresNetwork => false;
 
     /// <inheritdoc />
-    public ProbeScope Scope => ProbeScope.User;
+    public ProbeScope Scope => _systemOnly ? ProbeScope.System : ProbeScope.User;
 
     /// <inheritdoc />
     public TimeSpan DefaultTimeout => ScanOptions.DEFAULT_LOCAL_TIMEOUT;
@@ -176,7 +182,8 @@ public sealed class StartupItemsProbe : IProbe
         var issues = new List<Issue>();
         var unreadable = new List<string>();
 
-        foreach (var source in REGISTRY_SOURCES)
+        var sources = REGISTRY_SOURCES.Where(s => !_systemOnly || s.Root == RegistryRoot.LocalMachine).ToArray();
+        foreach (var source in sources)
         {
             ct.ThrowIfCancellationRequested();
             ReadRegistrySource(source, items, issues, unreadable);
@@ -201,7 +208,11 @@ public sealed class StartupItemsProbe : IProbe
             AddItemMeasurements(index, items[index], approved, measurements, observedAt);
         }
 
-        var status = unreadable.Count == REGISTRY_SOURCES.Length + _folders.Count
+        if (_systemOnly)
+        {
+            measurements.Add(new("systemOnly", new BooleanValue(true), null, SOURCE_COUNT, observedAt, MeasurementQuality.Observed));
+        }
+        var status = unreadable.Count == sources.Length + _folders.Count
             ? ProbeStatus.Failed
             : issues.Count == 0 ? ProbeStatus.Success : ProbeStatus.Partial;
         return new ProbeResult(Id, status, measurements, issues, observedAt, TimeSpan.Zero, context.UserContext);

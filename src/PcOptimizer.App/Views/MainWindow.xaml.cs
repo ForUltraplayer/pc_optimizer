@@ -53,9 +53,9 @@ public partial class MainWindow : FluentWindow
     {
         if (DataContext is not MainViewModel { Actions: { } actions }
             || sender is not FrameworkElement { DataContext: FindingCardViewModel { StartupTarget: { } target } }
-            || !actions.Choices.Any(c => c.Id == PcOptimizer.Core.Actions.ActionId.Startup && c.Target == target)) { return; }
+            || actions.Choices.FirstOrDefault(c => c.Id is PcOptimizer.Core.Actions.ActionId.Startup or PcOptimizer.Core.Actions.ActionId.MachineStartup && c.Target == target) is not { } choice) { return; }
         OpenActionCenter(sender, e);
-        await actions.PrepareAsync(PcOptimizer.Core.Actions.ActionId.Startup, target);
+        await actions.PrepareAsync(choice.Id, target);
     }
     private async void PrepareAdobeFromCard(object sender, RoutedEventArgs e)
     {

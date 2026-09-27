@@ -20,17 +20,31 @@ internal sealed class StartupRunPlatform : IStartupRunPlatform
 {
     private const string RunPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private readonly string _path;
+    private readonly RegistryHive _hive = RegistryHive.CurrentUser;
+    private readonly RegistryView _view = RegistryView.Registry64;
     internal StartupRunPlatform() { _path = RunPath; }
+    internal StartupRunPlatform(string source)
+    {
+        _path = RunPath;
+        (_hive, _view) = source switch
+        {
+            StartupRegistration.Source => (RegistryHive.CurrentUser, RegistryView.Registry64),
+            StartupRegistration.Machine64 => (RegistryHive.LocalMachine, RegistryView.Registry64),
+            StartupRegistration.Machine32 => (RegistryHive.LocalMachine, RegistryView.Registry32),
+            _ => throw new ActionUnavailableException("TargetRejected"),
+        };
+    }
     // 테스트는 실제 Run과 분리된 GUID 소유 키에만 접근한다.
     internal StartupRunPlatform(Guid fixture) { _path = @"Software\PcOptimizer.Tests\" + fixture.ToString("N") + @"\Run"; }
-    private static void CheckSession(ActionSession expected)
+    private void CheckSession(ActionSession expected)
     {
-        if (expected.Scope != ActionUserScope.Full || !expected.IsKnown || SystemActionSession.Read() != expected) { throw new ActionUnavailableException("SessionChanged"); }
+        if ((_hive == RegistryHive.CurrentUser && expected.Scope != ActionUserScope.Full) || !expected.IsKnown
+            || SystemActionSession.Read(expected.Scope) != expected) { throw new ActionUnavailableException("SessionChanged"); }
     }
     private SafeRegistryHandle Open(ActionSession session, bool write)
     {
         CheckSession(session);
-        using var root = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Registry64);
+        using var root = RegistryKey.OpenBaseKey(_hive, _view);
         var parent = root.Handle;
         SafeRegistryHandle? owned = null;
         try
@@ -38,7 +52,7 @@ internal sealed class StartupRunPlatform : IStartupRunPlatform
             var parts = _path.Split('\\');
             for (var i = 0; i < parts.Length; i++)
             {
-                var access = 0x20019 | 0x100 | (write && i == parts.Length - 1 ? 2 : 0); // READ, WOW64_64, SET_VALUE
+                var access = 0x20019 | (_view == RegistryView.Registry32 ? 0x200 : 0x100) | (write && i == parts.Length - 1 ? 2 : 0);
                 var code = RegOpenKeyExW(parent, parts[i], 8, access, out var child); // OPEN_LINK, never resolve a link
                 if (code != 0) { child.Dispose(); throw new ActionUnavailableException("StartupReadFailed"); }
                 uint size = 0;

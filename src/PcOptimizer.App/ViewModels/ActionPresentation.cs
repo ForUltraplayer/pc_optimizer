@@ -18,7 +18,7 @@ public sealed class ActionPreviewViewModel(ActionPlan plan)
     /// <summary>되돌리기 계획인지 여부입니다.</summary>
     public bool IsRestore => plan.IsRestore;
     /// <summary>변경하려는 내용을 한 문장으로 보여 줍니다.</summary>
-    public string Title => IsRestore ? ActionId == PcOptimizer.Core.Actions.ActionId.Startup ? "자동 실행 등록 복원" : $"{ActionText.Name(ActionId)} 되돌리기" : ActionText.Name(ActionId);
+    public string Title => IsRestore ? ActionId is PcOptimizer.Core.Actions.ActionId.Startup or PcOptimizer.Core.Actions.ActionId.MachineStartup ? "자동 실행 등록 복원" : $"{ActionText.Name(ActionId)} 되돌리기" : ActionText.Name(ActionId);
     /// <summary>조치 설명입니다.</summary>
     public string Summary => plan.Preview.Summary;
     /// <summary>실행기의 관측 대상 표시입니다.</summary>
@@ -38,7 +38,7 @@ public sealed class ActionPreviewViewModel(ActionPlan plan)
     public string Restart => plan.Preview.Details?.RequiresRestart switch { true => "재부팅 필요", false => "재부팅 불필요", _ => "재부팅 필요 여부: 확인되지 않음" };
     /// <summary>지원되는 복구와 파일 삭제의 차이를 설명합니다.</summary>
     public string Restore => IsRestore ? "현재 값이 앱의 적용 값과 같을 때만 되돌립니다."
-        : ActionId == PcOptimizer.Core.Actions.ActionId.Startup ? "해제한 등록 원문은 복원 전까지 이 앱의 기록에 보관합니다. 복구 기록을 직접 지우면 되돌릴 수 없습니다."
+        : ActionId is PcOptimizer.Core.Actions.ActionId.Startup or PcOptimizer.Core.Actions.ActionId.MachineStartup ? "해제한 등록 원문은 복원 전까지 이 앱의 기록에 보관합니다. 복구 기록을 직접 지우면 되돌릴 수 없습니다."
         : plan.Definition.SupportsRestore ? "변경 전 원래 값을 저장합니다. 이 앱에서 되돌릴 수 있습니다." : "이 조치는 이 앱에서 되돌릴 수 없습니다.";
     /// <summary>확인 화면을 오래 열어 두었을 때의 만료 안내입니다.</summary>
     public string Expiry => $"확인 유효 시간: {plan.ExpiresAt.ToLocalTime():HH:mm:ss}까지. 만료되면 다시 확인해 주세요.";
@@ -94,8 +94,10 @@ public sealed class ActionResultViewModel(ActionResult result, ActionId actionId
             "FilesUnavailable" => "사용 중이거나 접근할 수 없는 파일은 그대로 두었습니다. 관련 앱을 닫은 뒤 다시 확인할 수 있습니다.",
             "AdobeAppRunning" => (result.Started ? "일부 파일을 정리한 뒤 Adobe 관련 앱 실행을 확인해 나머지는 남겼습니다. " : "Adobe 관련 앱이 실행 중이어서 정리를 시작하지 않았습니다. ") + "Premiere·After Effects·Media Encoder·Audition과 백그라운드 렌더 작업을 종료한 뒤 다시 확인하세요.",
             "AdobeStateUnavailable" => (result.Started ? "일부 파일을 정리한 뒤 앱 실행 상태를 확인하지 못해 중단했습니다. " : "앱 실행 상태를 확인하지 못해 정리를 시작하지 않았습니다. ") + "삭제·건너뜀 개수를 확인하고 잠시 후 다시 시도하세요.",
-            "AdobeCacheMissing" => "Adobe 기본 캐시 폴더를 찾거나 읽을 수 없습니다. 다른 위치를 대신 지우지 않습니다. 옮긴 캐시는 Adobe 환경설정에서 관리하세요.",
-            "AdobeLocationUnsupported" => "기본 사용자 프로필과 캐시 위치가 일치하지 않습니다. Adobe 환경설정에서 캐시를 관리하세요.",
+            "AdobeCacheMissing" => "선택한 Adobe 캐시 폴더를 찾거나 읽을 수 없습니다. Adobe 환경설정에서 위치를 확인해 다시 선택하세요. 다른 위치를 대신 지우지 않습니다.",
+            "AdobeLocationUnsupported" => "지원하는 로컬 캐시 위치가 아닙니다. 네트워크·이동식 드라이브·별칭 경로 대신 고정 드라이브의 실제 캐시 폴더를 선택하세요.",
+            "AdobeCacheFolderRequired" => "캐시 상위 경로나 프로젝트 폴더 대신 Media Cache Files 또는 Peak Files 폴더 자체를 선택하세요.",
+            "AdobeLocationsFull" => "이번 실행에서 선택할 수 있는 캐시 폴더 8곳을 모두 등록했습니다. 다른 폴더가 필요하면 진행 중인 작업을 마친 뒤 앱을 다시 실행하세요.",
             "TargetChanged" => result.Started ? "일부 처리 후 나머지 대상의 상태가 달라져 중단했습니다. 처리 개수를 확인하고 다시 검사해 주세요." : "미리보기 이후 파일 또는 위치가 달라져 실행하지 않았습니다. 대상을 다시 확인해 주세요.",
             "CurrentValueChanged" => "확인 이후 설정이 달라졌습니다. 사용자가 바꾼 값을 덮어쓰지 않습니다. 다시 검사해 주세요.",
             "PowerSchemeMissing" => "선택한 계획이나 되돌릴 계획이 이 PC에 없습니다. 새 전원 계획을 만들지는 않습니다.",
@@ -106,7 +108,7 @@ public sealed class ActionResultViewModel(ActionResult result, ActionId actionId
             "DeliveryStateUnavailable" => (result.Started ? "정리 후 상태를 모두 확인하지 못했습니다. 처리 개수와 재검사 결과를 확인하세요." : "Windows 배달 최적화 캐시 상태를 확인하지 못해 정리를 시작하지 않았습니다."),
             "DeliveryContractUnsupported" => result.Started ? "일부 처리 후 Windows 제공자 형식을 확인하지 못해 추가 삭제 요청을 멈췄습니다. 처리 개수를 확인하세요." : "이 Windows 제공자의 정리 기능 형식을 확인하지 못해 삭제를 요청하지 않았습니다.",
             "DeliveryDeleteFailed" or "DeliveryVerificationFailed" => result.Started ? "Windows가 캐시 정리를 완료했는지 확인하지 못했습니다. 이미 처리한 항목은 되돌릴 수 없습니다. 재검사 후 남은 항목을 확인하세요." : "Windows 정리 요청을 준비하지 못해 삭제를 시작하지 않았습니다. 권한과 Windows 상태를 확인해 주세요.",
-            "StartupUnsupported" => "현재 사용자 Run의 문자열 등록만 해제할 수 있습니다. 없거나 지원하지 않는 형식이면 Windows 시작 앱 설정을 사용하세요.",
+            "StartupUnsupported" => "선택한 Run 출처의 문자열 등록만 해제할 수 있습니다. 없거나 지원하지 않는 형식이면 Windows 시작 앱 설정을 사용하세요.",
             "StartupReadFailed" => "자동 실행 등록을 읽지 못했습니다. 항목이 이동·삭제됐거나 접근 권한이 달라졌을 수 있습니다. 다시 검사해 주세요.",
             "StartupWriteFailed" => "Windows가 등록 변경을 완료하지 못했습니다. 다른 앱의 변경·정책을 확인해 주세요. 원래 등록의 복구 기록은 보존했습니다.",
             "PowerWriteFailed" => "Windows가 전원 계획 변경을 완료하지 못했습니다. 정책과 현재 계획을 확인해 주세요. 복구 기록은 보존했습니다.",
@@ -133,7 +135,7 @@ internal static class ActionText
     internal static string Name(ActionId id) => id switch
     {
         ActionId.UserFiles => "사용자 임시 파일 정리", ActionId.SystemFiles => "Windows 캐시 정리", ActionId.AppFiles => "앱 캐시 정리",
-        ActionId.Startup => "자동 실행 등록 해제", ActionId.Power => "전원 계획 변경", ActionId.Display => "화면 주사율 변경",
+        ActionId.Startup => "자동 실행 등록 해제", ActionId.MachineStartup => "모든 사용자 자동 실행 등록 해제", ActionId.Power => "전원 계획 변경", ActionId.Display => "화면 주사율 변경",
         ActionId.OfficialCache => "공식 도구 캐시 정리", ActionId.DeliveryOptimization => "배달 최적화 캐시 정리", _ => "지원하지 않는 조치",
     };
     internal static string Bytes(decimal bytes)

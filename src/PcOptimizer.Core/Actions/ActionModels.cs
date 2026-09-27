@@ -6,7 +6,7 @@
 namespace PcOptimizer.Core.Actions;
 
 /// <summary>자동 조치의 코드 허용 목록입니다. 문자열 명령을 받지 않습니다.</summary>
-public enum ActionId { UserFiles, SystemFiles, AppFiles, Startup, Power, Display, OfficialCache, DeliveryOptimization }
+public enum ActionId { UserFiles, SystemFiles, AppFiles, Startup, Power, Display, OfficialCache, DeliveryOptimization, MachineStartup }
 /// <summary>현재 사용자 확인이 필요한지 구분합니다.</summary>
 public enum ActionScope { CurrentUser, System }
 /// <summary>실행 인스턴스의 사용자 범위입니다.</summary>

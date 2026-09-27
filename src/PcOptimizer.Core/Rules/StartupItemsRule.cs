@@ -92,7 +92,9 @@ public sealed class StartupItemsRule : IRule
             category: FindingCategory.Startup,
             title: SnapshotValues.Format(CoreStrings.Startup_Title_Summary, count.ToString(CultureInfo.CurrentCulture)),
             measured: measured,
-            evidence: CoreStrings.Startup_Evidence_Coverage,
+            evidence: snapshot.GetMeasurement(StartupItemsProbeContract.PROBE_ID, "systemOnly")?.Value is BooleanValue { Value: true }
+                ? "모든 사용자용 레지스트리와 공용 시작프로그램 폴더만 확인했습니다. 현재 사용자 등록·개인 폴더는 포함하지 않습니다."
+                : CoreStrings.Startup_Evidence_Coverage,
             verdict: Verdict.Info,
             cannotVerifyReason: null,
             detail: detail,

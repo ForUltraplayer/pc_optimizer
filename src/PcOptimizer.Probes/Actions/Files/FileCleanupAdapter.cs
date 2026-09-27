@@ -29,6 +29,9 @@ public sealed class FileCleanupAdapter : IActionAdapter
     public static FileCleanupAdapter ForSystemTemp(Func<ActionSession> session) => new(SystemTempTargets.Resolve, session, new NativeFileCleanupPlatform(), definition: new(ActionId.SystemFiles, ActionScope.System));
     /// <summary>Adobe 기본 경로의 오래된 cfa/pek만 확인합니다. 다른 앱·사용자 지정 위치는 포함하지 않습니다.</summary>
     public static FileCleanupAdapter ForAdobeCache(Func<ActionSession> session) => new(AdobeCacheTargets.Resolve, session, new NativeFileCleanupPlatform(), definition: new(ActionId.AppFiles, ActionScope.CurrentUser));
+    /// <summary>기본 위치와 사용자가 명시한 세션 한정 Adobe 캐시를 같은 보호 엔진으로 처리합니다.</summary>
+    public static FileCleanupAdapter ForAdobeCache(Func<ActionSession> session, AdobeCacheLocationCatalog locations)
+        => new(locations.Resolve, session, new NativeFileCleanupPlatform(), definition: new(ActionId.AppFiles, ActionScope.CurrentUser));
     /// <inheritdoc />
     public ActionDefinition Definition => _definition;
     /// <inheritdoc />
