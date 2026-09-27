@@ -88,3 +88,8 @@
 - 사용자 요청으로 Resolve 전역/기본 CacheClip 및 CapCut 기본 Cache 관측을 추가했다. 전체 결과의 앱 카드에서 위치·정리 방법을 펼친다. 새 자동 삭제 실행기를 추가하지 않았다. [계약·검증·배포 기록](../reviews/2026-09-27-video-editor-cache-inspection.md).
 - Release 0/0, 기본 1534/1534(신규 44), Smoke 44/44. Resolve 실제 경로의 읽기 검사와 CapCut 가짜 트리 검증을 구분한다. 사용자 데이터 변경과 독립 리뷰 없음.
 - T10 전체/프로젝트별 경로/CapCut 버전별 설정 및 T6/T9/T12 잔여는 유지한다. UI/UX 전면 개편은 후속이다.
+
+## 2026-09-27 Steam·그래픽 위치별 관측 / preview.6
+
+- [계약·검증·배포 보고서](../reviews/2026-09-27-shader-cache-inspection.md). 전용 Steam 설정 읽기와 라이브러리별 shadercache, NVIDIA/Direct3D 기본 위치별 크기를 구현했다. 앱 캐시 진입 버튼·상세 토글 및 이전 보충 카드 중복 제거를 연결했다.
+- Release 0/0, 기본 1564/1564(신규 30). Smoke/실제 호스트 결과는 보고서 참조. 실제 사용자 데이터 변경과 독립 리뷰 없음. T10 자동 정리/T6/T9/실기 평가 잔여는 유지한다.

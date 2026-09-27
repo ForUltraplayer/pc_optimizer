@@ -70,6 +70,11 @@ public sealed class AppCacheRule : IRule
             }
         }
 
+        // 새 위치별 관측이 있으면 같은 보충 카드/승격 설정 안내만 대체한다. 다른 커뮤니티 앱 정보는 보존한다.
+        if (ShaderCacheRule.HasGroup(snapshot, "steam"))
+        { findings.RemoveAll(f => f.Id is FINDING_ID_PREFIX + "Steam 셰이더 캐시" or CONFIG_FINDING_ID_PREFIX + "steam"); }
+        if (ShaderCacheRule.HasGroup(snapshot, "graphics"))
+        { findings.RemoveAll(f => f.Id == FINDING_ID_PREFIX + "NVIDIA·Direct3D 셰이더 캐시"); }
         return findings;
     }
 

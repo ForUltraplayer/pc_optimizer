@@ -2,7 +2,14 @@
 
 현재 브랜치 `codex/sp1-actions`. 사용자 인계 지시에 따라 `feature/p0-skeleton`을 로컬 `master`에 fast-forward 병합했다(`77efa2e` → `32ab51f`). 기존 브랜치는 보존했고 원격 게시는 하지 않았다. 아래 날짜별 기록은 당시 상태를 보존한 이력이다.
 
-## 현재 작업 — DaVinci Resolve·CapCut 캐시 검사 / preview.5
+## 현재 작업 — Steam·그래픽 캐시 위치별 검사 / preview.6
+
+- 기준 `9bafe82`. [변경 파일·계약·검증·배포](reviews/2026-09-27-shader-cache-inspection.md). Steam은 승격 검사에서도 제한된 라이브러리 설정을 읽어 각 shadercache만 관측하고 NVIDIA DXCache/GLCache·Windows D3DSCache는 위치별로 나눠 보여 준다.
+- 첫 화면 **앱 캐시 위치·용량** → 앱 캐시 분류 → **캐시별 용량·주의사항 보기**. 기존 Resolve/CapCut/Adobe도 같은 분류에서 확인한다. 새 관측이 있을 때 같은 Steam/그래픽 보충 카드만 대체한다.
+- Release 0/0, 최종 기본 **1564/1564**(신규 30), 전체 Smoke **44/44**, ZIP 13파일/최상위4개 검증 완료. 실제 PC의 Steam 4라이브러리·합계 12.5 MB, 그래픽 합계 11.9 GB를 관측했다(확보 가능량 아님). 상세·해시는 보고서 완료 기록 참조. 기존 공통 보호·삭제 정책은 유지하고, 전용 Steam 읽기에만 Program Files 보호 출처의 제한적 예외를 적용했다. 중복된 다른 보호 출처는 차단한다.
+- 이번 기능은 검사이며 Steam/그래픽 자동 삭제는 아직 미등록이다. T6/T9/T10 실행 계약·T8/T12 실환경 평가가 남는다. 사용자 데이터 변경/독립 리뷰/원격 게시/master 병합 없음. 새 배포본은 `dist/sp1-evaluation/PcOptimizer-v0.3.0-preview.6-win-x64.zip`.
+
+## 이전 기록 — DaVinci Resolve·CapCut 캐시 검사 / preview.5
 
 - 구현·테스트·패키징 기록 커밋 `820b53d` (`806bff9..820b53d`, 19파일). 후속 문서 커밋은 이 참조만 보존한다.
 - 사용자 요청에 따라 두 앱의 읽기 전용 캐시 후보 검사와 전체 결과 카드의 **캐시 위치·정리 방법 보기**를 추가했다. [변경 파일·범위·예외·검증](reviews/2026-09-27-video-editor-cache-inspection.md). 기준 `806bff9`.

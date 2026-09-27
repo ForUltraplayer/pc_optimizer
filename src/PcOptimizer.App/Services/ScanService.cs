@@ -168,6 +168,7 @@ public sealed class ScanService
                 new RuleCatalogSummaryRule(),
                 new AppCacheRule(),
                 new VideoEditorCacheRule(),
+                new ShaderCacheRule(),
                 new SquirrelVersionFoldersRule(),
             ],
             new ScanOptions(),

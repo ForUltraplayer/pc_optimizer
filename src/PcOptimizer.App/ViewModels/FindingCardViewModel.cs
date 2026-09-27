@@ -188,7 +188,8 @@ public sealed partial class FindingCardViewModel : ObservableObject
 
     /// <summary>자세히 보기 버튼 문구.</summary>
     public string DetailsButtonText => IsDetailsVisible ? Strings.Button_HideDetails
-        : Finding.Id.StartsWith("video-editor-cache:", StringComparison.Ordinal) ? "캐시 위치·정리 방법 보기" : Strings.Button_ShowDetails;
+        : Finding.Id.StartsWith("video-editor-cache:", StringComparison.Ordinal) ? "캐시 위치·정리 방법 보기"
+        : Finding.Id.StartsWith("shader-cache:", StringComparison.Ordinal) ? "캐시별 용량·주의사항 보기" : Strings.Button_ShowDetails;
 
     /// <summary>허용 목록에 있는 설정 URI(없으면 null).</summary>
     public string? SettingsUri { get; }

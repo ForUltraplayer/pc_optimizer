@@ -244,6 +244,7 @@
                             <DataTrigger Binding="{Binding IsOverview}" Value="True"><Setter Property="Background" Value="#253652" /><Setter Property="Foreground" Value="White" /></DataTrigger>
                         </Style.Triggers></Style></Button.Style>
                     </Button>
+                    <Button Content="앱 캐시 위치·용량" Command="{Binding ShowAppCachesCommand}" Margin="0,0,8,0" AutomationProperties.AutomationId="ShowAppCaches" />
                     <Button Content="{Binding AllResultsTab}" Command="{Binding ShowAllCommand}">
                         <Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Style.Triggers>
                             <DataTrigger Binding="{Binding ShowAllResults}" Value="True"><Setter Property="Background" Value="#253652" /><Setter Property="Foreground" Value="White" /></DataTrigger>

@@ -181,6 +181,9 @@ public sealed class AppCacheProbe : IProbe
         var editorMeasurements = new VideoEditorCacheInspector(_environment, _source, _time).Inspect(protection,
             otherUsers.IsOtherUserLocation, otherUsers.ProfileListAvailable && !string.IsNullOrWhiteSpace(_currentUserSid), _clock.UtcNow,
             () => _time.GetElapsedTime(start) >= DefaultTimeout - FileScanProbe.FILE_SCAN_TIMEOUT_MARGIN, ct);
+        editorMeasurements.AddRange(new ShaderCacheInspector(_environment, _registry, _source, _time).Inspect(protection,
+            otherUsers.IsOtherUserLocation, otherUsers.ProfileListAvailable && !string.IsNullOrWhiteSpace(_currentUserSid), _clock.UtcNow,
+            () => _time.GetElapsedTime(start) >= DefaultTimeout - FileScanProbe.FILE_SCAN_TIMEOUT_MARGIN, ct));
         bool IsExcludedLocation(string path) => protection.IsProtected(path) || otherUsers.IsOtherUserLocation(path);
         var detection = _detector.Detect(context.ScanId, catalog.Rules, IsExcludedLocation, ct, reparse);
         var configs = ReadConfigs(context.IsElevated, catalog.Rules, catalog.Metadata, IsExcludedLocation);
@@ -218,7 +221,7 @@ public sealed class AppCacheProbe : IProbe
         var issues = CollectIssues(results, observations);
         measurements.AddRange(editorMeasurements);
         if (editorMeasurements.Any(m => m.Name.EndsWith(".state", StringComparison.Ordinal) && m.Value is TextValue { Value: "Partial" or "TimedOut" or "AccessDenied" or "Unreadable" or "Error" }))
-        { issues.Add(new Issue(CannotVerifyReason.PartialData, "영상 편집 캐시 중 일부 위치를 완전히 읽지 못했습니다.")); }
+        { issues.Add(new Issue(CannotVerifyReason.PartialData, "앱별 캐시 중 일부 위치를 완전히 읽지 못했습니다.")); }
         return new ProbeResult(Id, issues.Count > 0 ? ProbeStatus.Partial : ProbeStatus.Success, measurements, issues, observedAt, TimeSpan.Zero, context.UserContext);
     }
 
