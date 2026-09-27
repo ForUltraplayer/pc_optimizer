@@ -773,3 +773,12 @@
 - REV-008: 고정 레지스트리 키를 구성 요소별 OPEN_LINK로 열고 링크 거절. HAGS CurrentControlSet 대신 검증한 ControlSetNNN을 기록·대조. System32 shutdown 고정 경로/인자·셸 없음. REV-013: 실제 프로세스 시작만 Started, 실패/취소는 성공으로 표시하지 않음. REV-016: GameMode Full 범위·실제 세션 재대조, 시스템 옵션도 동일 SID 기록 복원. REV-017/018: 기존 공통 관문·워커·Pending 내구 기록·실제 프로세스 종료까지 수명 유지.
 - Release 경고0/오류0, 기본 **1725/1725**, 신규 네이티브 **1/1**, 고급 UI 100/150/200% 렌더·좁은 설명 Wrap 확인. 최초 테스트 컴파일 오류 수정, 임시 키 샌드박스 권한 실패→정상 권한 요청 후 성공, 최초 UI 줄바꿈 결함 수정 과정을 보고서에 남겼다. 기본 1725에는 신규 단위/UI 25개 포함. 네이티브 시험은 GUID 소유 임시 HKCU 키만 사용·제거했고 실제 제품 설정이나 재부팅을 실행하지 않았다.
 - 기존 원장 상태·독립 검증 이력은 변경하지 않는다. 독립 리뷰/서브에이전트·전체 기존 Smoke/Online/ToolSmoke·장치 평가·새 ZIP/버전/원격 배포 없음. 남은 작업은 HANDOFF와 12개 Task 계획의 부분 완료 표시를 따른다.
+
+## 2026-09-28 GPU 직접 제어·0.0.2 Beta 1 — 자체 검증
+
+- 기준 `626ac4a`. 사용자 명시 요청: ReBAR/업스케일링 직접 제어를 진행하고 완료 후0.0.2베타 push. [변경 파일·지원 계약·고정 출처·실패 이력](2026-09-28-gpu-beta.md), [릴리즈 노트](../releases/v0.0.2-beta.1.md). NVIDIA DRS 게임별 ReBAR, NVIDIA 영상 On/Off·품질, AMD ADLX 영상 On/Off, 고급 대상 선택/상태/확인과 원본 복구를 연결했다.
+- REV-004/015: 공식 도구/API와 기존 실행·복구 엔진 통합. 직접 GPU 제어와 공식 설정 안내를 구분. BIOS 활성·영상 실제 처리 성공을 설정값으로 주장하지 않는다. T8 나머지 옵션/안전 모드 직행/T10 추가 후보는 별도 설계이며 이번 베타에 전부 들어간 것으로 표시하지 않는다.
+- REV-008: System32 절대 DLL·종속 로드 검색 경로 고정, SDK/DLL 미동봉. REV-013: Pending 선행·실제 읽기 재검증, 실패/미지원/권한 거절 구분, 외부 변경·드라이버/GPU 교체 시 원복 충돌. REV-016: Full·같은 SID/실행 세션만, SystemOnly 제외. REV-017/018: GPU 읽기 워커/45초 UI 제한·늦은 결과 폐기·실제 작업 종료까지 공통 관문 유지. 기존 독립 검증 상태는 변경하지 않는다.
+- 최종 `dotnet test tests/PcOptimizer.Tests -c Release --no-restore --filter "Category!=Smoke&Category!=Online&Category!=ToolSmoke|FullyQualifiedName~GpuReadSmokeTests" --logger "trx;LogFileName=beta-final.trx"` → **1764/1764(기본1761+GPU 조회3)**. Release0/0, GPU 대역36개·440px UI100/150/200% 렌더. NVIDIA616.56 프로필73/영상출력3 조회, AMD 미설치 안내 확인. 자체 검증이며 독립 리뷰 없음.
+- 실패 기록: AMD 테스트 var 선언 컴파일 오류 수정. 저장하지 않는 DRS 메모리 사본의 SetSetting은 -137(관리자 권한 필요)로 실패. 자동 승인 검토가 실제 드라이버 API 쓰기 위험으로 권한 상승 재시도를 거절하여 우회하지 않고 해당 자동 Smoke를 제거했다. SaveSettings/영상/AMD 실제 setter는 호출하지 않았다. 제품의 GPU 적용·복원은 대역으로만 검증했다는 제한을 README·ZIP·베타 노트에 반영.
+- 원격 태그 `v0.0.2-beta.1`, Pre-release·ZIP·sha256 게시 예정. 패키지·게시 결과와 커밋은 후속 기록한다. 기존0.0.1 유지, master 병합 없음. 실제 GPU 변경/재부팅·AMD 장치·다른 사용자·.NET 없는 PC·기존 전체 Smoke/Online/ToolSmoke는 미실시.

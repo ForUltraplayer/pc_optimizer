@@ -1,8 +1,18 @@
-﻿# HANDOFF — PC Optimizer (2026-09-27)
+# HANDOFF — PC Optimizer (2026-09-27)
 
-이 문서의 **재개 안내와 현재 상태가 아래 과거 기록보다 우선**한다. SP1 전체 완료 상태가 아니다. 공개 배포는 0.0.1이며 최신 요청은 0.0.2 이후 고급 탭 기능 조사·추가 구현이다.
+이 문서의 **재개 안내와 현재 상태가 아래 과거 기록보다 우선**한다. SP1 전체 완료 상태가 아니다. 최신 요청은 GPU 직접 제어를 이어서 구현한 뒤 **0.0.2 베타를 push/배포**하는 것이다. 아래 최신 베타 안내가 과거 0.0.1·첫 묶음 기록보다 우선한다.
 
-## 최신 구현과 다음 작업 — 고급 탭 (2026-09-28)
+## 최신 상태 — 0.0.2 Beta 1 (2026-09-28)
+
+- 사용자 승인 범위: GPU 기능 직접 제어를 계속 구현한 후 **베타 push 및 ZIP 게시**. 브랜치는 `codex/sp1-actions`; 다른 브랜치 병합은 하지 않는다. [베타 릴리즈 노트](releases/v0.0.2-beta.1.md), [구현·출처·검증·실패 이력](reviews/2026-09-28-gpu-beta.md).
+- 구현: 기존 MPO/HAGS/게임 모드·재부팅에 **NVIDIA 게임별 ReBAR, NVIDIA RTX 영상 On/Off·품질, AMD ADLX 영상 On/Off**와 고급 카드·공통 확인·원본 복구를 추가했다. UI 선택만으로 쓰지 않는다. ReBAR 기본/상속 원복, GPU·드라이버 재대조, SystemOnly 제한, 실제 조회 종료까지 관문 유지.
+- 최종 자체 테스트 **1764/1764 = 기본1761 + 실제 GPU 조회3**, Release 경고0/오류0. UI100/150/200% 및 AMD native vtable 대역 검증. NVIDIA 조회: 프로필73/영상 출력3, AMD 미설치 안내 확인. 독립 검증이 아니다.
+- **실제 GPU 쓰기·복원은 미검증**. 저장하지 않는 DRS 사본 시험도 -137 관리자 권한 필요로 실패했고 권한 상승 재시도는 자동 승인 검토가 거절했다. 해당 시험은 자동 Smoke에서 제거하고 대역 검증을 유지했다. 실제 GPU 설정은 변경하지 않았다. AMD 장치·UEFI/WinRE 실부팅·다른 사용자·.NET 미설치 장치는 평가 대기.
+- 버전 `0.0.2-beta.1`, 배포 대상 `dist/releases/PcOptimizer-v0.0.2-beta.1-win-x64.zip` 및 `.sha256`, [GitHub Pre-release](https://github.com/ForUltraplayer/pc_optimizer/releases/tag/v0.0.2-beta.1). 최종 게시/해시 확인은 원장의 게시 후속 기록 참조. 기존0.0.1 유지.
+- 다음 작업: 실제 NVIDIA/AMD 장치에서 사용자가 승인한 적용→원복 평가, WinRE 읽기/부팅 평가, T8 추가 옵션·안전 모드 직행의 별도 설계. 추가 후보 T10은 조사 표이며 모두 구현 승인된 목록이 아니다. GPU 원본 복구 기록은 드라이버/외부 설정 변화 시 덮어쓰지 않는다.
+- AGENTS/공유 리뷰 원장을 먼저 읽는다. 구현→UI→검증, 독립 리뷰·서브에이전트 생략 유지. [기존 후속12개 Task](superpowers/plans/2026-09-28-advanced-options.md)의 표에서 베타 구현과 추가 설계/장치 평가를 구분한다.
+
+## 이전 구현 기록 — 고급 탭 첫 묶음 (2026-09-28)
 
 - [조사·공식 근거·추가 후보](research/2026-09-28-advanced-options.md), [후속 Task 1~12](superpowers/plans/2026-09-28-advanced-options.md), [첫 구현 묶음·자체 검증·제한](reviews/2026-09-28-advanced-foundation.md). **MPO·HAGS·게임 모드 적용/원복, UEFI/고급 시작 요청, 해당 고급 UI**를 소스·Release 빌드에 구현했다. 공개 ZIP은 여전히 0.0.1 이전 기능 그대로이며 새 ZIP/버전은 만들지 않았다.
 - 사용자 목록: NVIDIA ReBAR, 여러 GPU 옵션을 묶은 MPO fix, NVIDIA/AMD 동영상 업스케일링, UEFI/안전 모드 재부팅. MPO-GPU-FIX를 조사 기준으로 사용했으나 정확한 저장소 URL 지정이나 묶음 전체 채택 승인은 아니다.
@@ -11,7 +21,7 @@
 - 재개 시 원장을 읽고 **T4 NVIDIA ReBAR 프로필 지원 계약 → T5 직접 제어 → T6 AMD 영상 → T7 NVIDIA 영상**으로 이어간다. T1 GPU 대상/JSON 표시 분리, T3 WinRE 조회/실제 진입 평가, T8 묶음 나머지·안전 모드 직행, T10 추가 후보, T11 장치 평가도 남음. HAGS는 명시 DWORD 값이 없는 PC에서 직접 변경을 막고 Windows 설정 확인을 안내한다.
 - 사용자 순서인 구현 → UI/UX → 검증, 독립 리뷰·서브에이전트 생략, 기능별 중간 ZIP 생략을 유지한다. 과거 SP1 잔여 평가 항목은 이 계획으로 닫지 않는다.
 
-## 공개 배포 버전 — 0.0.1
+## 이전 공개 배포 버전 — 0.0.1
 
 - 사용자 요청으로 preview.13 기능의 버전 번호를 **0.0.1**로 변경했다. [릴리즈 노트](releases/v0.0.1.md). GitHub 저장소 공개 전환 및 `v0.0.1` 태그의 ZIP·SHA-256 게시를 완료했다. 릴리즈 커밋 `757bc2f`, 인증 없는 API 조회로 공개 상태 확인.
 - 저장소: https://github.com/ForUltraplayer/pc_optimizer — 기본 브랜치 `codex/sp1-actions`. 릴리즈: https://github.com/ForUltraplayer/pc_optimizer/releases/tag/v0.0.1

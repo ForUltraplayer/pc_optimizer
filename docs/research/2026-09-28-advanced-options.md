@@ -104,6 +104,8 @@ MPO restore는 “Windows가 지원 조건에 따라 사용하는 기본 동작�
 
 ## 출처 (2026-09-28 직접 확인, 공식/프로젝트 원본)
 
+후속 구현에서 NVIDIA ReBAR/영상의 실제 조회 ABI와 AMD 공식 인터페이스 연결을 확인했다. 고정 커밋·실제73프로필/3출력 결과·Enabled/품질 필드 정정·실기 쓰기 미검증 및 배포 고지는 [GPU 베타 기록](../reviews/2026-09-28-gpu-beta.md)을 따른다. 이전 문단의 ‘검증 남음’은 조사 당시 기록이다.
+
 - [S1 NVIDIA App 최신 릴리즈 안내 — 11.0.9 게임별 ReBAR](https://www.nvidia.com/en-us/software/nvidia-app/release-highlights/)
 - [S2 NVIDIA ReBAR 하드웨어·BIOS·게임별 적용 안내](https://www.nvidia.com/en-us/geforce/news/geforce-rtx-30-series-resizable-bar-support/)
 - [S3 NVIDIA Profile Inspector 설정 원본](https://raw.githubusercontent.com/Orbmu2k/nvidiaProfileInspector/master/nvidiaProfileInspector/CustomSettingNames.xml), [프로젝트·프로필 백업 안내](https://github.com/Orbmu2k/nvidiaProfileInspector)

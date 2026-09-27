@@ -6,7 +6,7 @@
 namespace PcOptimizer.Core.Actions;
 
 /// <summary>자동 조치의 코드 허용 목록입니다. 문자열 명령을 받지 않습니다.</summary>
-public enum ActionId { UserFiles, SystemFiles, AppFiles, Startup, Power, Display, OfficialCache, DeliveryOptimization, MachineStartup, UpdateServices, WindowsUpdateCache, SteamShaderCache, StartupFolder, CommonStartupFolder, StartupApproval, MachineStartupApproval, GraphicsShaderCache, Mpo, Hags, GameMode, Restart }
+public enum ActionId { UserFiles, SystemFiles, AppFiles, Startup, Power, Display, OfficialCache, DeliveryOptimization, MachineStartup, UpdateServices, WindowsUpdateCache, SteamShaderCache, StartupFolder, CommonStartupFolder, StartupApproval, MachineStartupApproval, GraphicsShaderCache, Mpo, Hags, GameMode, Restart, NvidiaRebar, NvidiaVideo, AmdVideo }
 /// <summary>현재 사용자 확인이 필요한지 구분합니다.</summary>
 public enum ActionScope { CurrentUser, System }
 /// <summary>실행 인스턴스의 사용자 범위입니다.</summary>
@@ -39,6 +39,8 @@ public abstract record ActionTarget
     public sealed record Advanced(AdvancedOption Option, AdvancedSetting Setting) : ActionTarget;
     /// <summary>등록된 재부팅 목적입니다.</summary>
     public sealed record Restart(RestartDestination Destination) : ActionTarget;
+    /// <summary>관측된 GPU/프로필의 키와 지원된 선택값입니다. 명령을 포함하지 않습니다.</summary>
+    public sealed record Gpu(GpuFeature Feature, string Key, int Value) : ActionTarget;
     /// <summary>검증된 저장소 기록 ID입니다. 본문/명령/설정 경로를 UI에서 받지 않습니다.</summary>
     public sealed record Restore(Guid RecordId) : ActionTarget;
 }

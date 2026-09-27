@@ -64,13 +64,18 @@ public sealed partial class AdvancedViewModel : ObservableObject, IDisposable
     private bool _disposed;
     /// <summary>읽기·변경 경계를 분리해 연결합니다.</summary>
     public AdvancedViewModel(IOperationCoordinator operations, Func<IReadOnlyList<AdvancedObservation>> observe,
-        Func<AdvancedChoice, Task> prepare, IUiDispatcher dispatcher, Func<string, bool> openSettings)
+        Func<AdvancedChoice, Task> prepare, IUiDispatcher dispatcher, Func<string, bool> openSettings,
+        Func<GpuFeature, CancellationToken, GpuOptionsResult>? discoverGpu = null, Func<GpuFeature, string, GpuSettingState>? observeGpu = null)
     {
         _operations = operations; _observe = observe; _prepare = prepare; _dispatcher = dispatcher; _openSettings = openSettings;
+        GpuCards = discoverGpu is null || observeGpu is null ? [] : Enum.GetValues<GpuFeature>().Select(feature =>
+            new GpuCardViewModel(feature, operations, ct => discoverGpu(feature, ct), key => observeGpu(feature, key), prepare, dispatcher)).ToArray();
         operations.Changed += OnOperationChanged;
     }
     /// <summary>지원 계약이 등록된 카드만 표시합니다.</summary>
     public IReadOnlyList<AdvancedCard> Cards { get; } = Enum.GetValues<AdvancedOption>().Select(o => new AdvancedCard(o)).ToArray();
+    /// <summary>제조사별 지원 조회와 직접 제어 카드입니다.</summary>
+    public IReadOnlyList<GpuCardViewModel> GpuCards { get; }
     /// <summary>재부팅 선택은 이후 별도 확인 화면에서 실행합니다.</summary>
     public IReadOnlyList<AdvancedChoice> Restarts { get; } = [
         new("BIOS/UEFI 진입 확인", ActionId.Restart, new ActionTarget.Restart(RestartDestination.Firmware)),
@@ -127,5 +132,5 @@ public sealed partial class AdvancedViewModel : ObservableObject, IDisposable
         { if (!_openSettings(uri)) { Status = "Windows 설정을 열지 못했습니다. 시작 메뉴에서 설정을 직접 열어 주세요."; } }
     }
     /// <inheritdoc />
-    public void Dispose() { _disposed = true; _operations.Changed -= OnOperationChanged; }
+    public void Dispose() { _disposed = true; _operations.Changed -= OnOperationChanged; foreach (var card in GpuCards) { card.Dispose(); } }
 }
