@@ -1,7 +1,7 @@
 /**
  * @file    : DesktopShellConnection.cs
  * @author  : rudals252
- * @brief   : 데스크톱 셸 COM 수명과 세션·비승격 토큰을 확인하는 Windows 어댑터
+ * @brief   : 데스크톱 셸 COM 수명과 세션·토큰 승격 여부를 확인하는 Windows 어댑터(UAC가 꺼진 PC의 승격된 셸도 세션 셸로 인정)
  */
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -37,7 +37,9 @@ internal sealed class DesktopShellConnection : IDesktopShell
         var connection = new DesktopShellConnection(window, Process.GetProcessById(checked((int)pid)));
         try
         {
-            if (!connection.IsUnelevated) { connection.Dispose(); return null; }
+            // UAC를 끈 PC(EnableLUA=0)는 셸 자체가 관리자 토큰이라 IsUnelevated가 false다. 그래도 사용자의 평소 권한이 그 셸이므로 연결은 유지하고,
+            // 승격 여부는 호출자에게 알려 기록만 한다. 앱이 새 Explorer/브라우저를 관리자 토큰으로 직접 시작하는 경로는 여전히 없다.
+            if (!connection.IsSessionShell) { connection.Dispose(); return null; }
             connection.Initialize();
             return connection;
         }
@@ -45,14 +47,23 @@ internal sealed class DesktopShellConnection : IDesktopShell
     }
 
     /// <inheritdoc />
-    public bool IsUnelevated
+    public bool IsSessionShell
     {
         get
         {
             if (_disposed || _process.HasExited || GetShellWindow() != _window
                 || GetWindowThreadProcessId(_window, out var pid) == 0 || pid != _process.Id) { return false; }
             using var current = Process.GetCurrentProcess();
-            if (_process.SessionId != current.SessionId || !OpenProcessToken(_process.Handle, TOKEN_QUERY, out var token)) { return false; }
+            return _process.SessionId == current.SessionId;
+        }
+    }
+
+    /// <inheritdoc />
+    public bool IsUnelevated
+    {
+        get
+        {
+            if (!IsSessionShell || !OpenProcessToken(_process.Handle, TOKEN_QUERY, out var token)) { return false; }
             using (token)
             {
                 return GetTokenInformation(token, TOKEN_ELEVATION, out var elevation, sizeof(int), out _) && elevation == 0;
@@ -89,7 +100,7 @@ internal sealed class DesktopShellConnection : IDesktopShell
     /// <inheritdoc />
     public void Open(string absoluteUri)
     {
-        if (!IsUnelevated || _application is null) { throw new InvalidOperationException("데스크톱 셸 연결이 유효하지 않습니다."); }
+        if (!IsSessionShell || _application is null) { throw new InvalidOperationException("데스크톱 셸 연결이 유효하지 않습니다."); }
         // COM 서버가 종료되면 실패한다. 관리자 토큰으로 Explorer/브라우저를 시작하지 않는다.
         ((dynamic)_application).ShellExecute(absoluteUri, string.Empty, string.Empty, "open", SHOW_NORMAL);
     }

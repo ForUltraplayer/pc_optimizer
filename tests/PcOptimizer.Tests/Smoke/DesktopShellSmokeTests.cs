@@ -15,7 +15,7 @@ namespace PcOptimizer.Tests.Smoke;
 [Trait("Category", "Smoke")]
 public sealed class DesktopShellSmokeTests(ITestOutputHelper output)
 {
-    /// <summary>비승격 데스크톱만 연결하며, 셸 없음·승격 셸은 실제 네이티브 경로에서도 거절합니다.</summary>
+    /// <summary>세션의 데스크톱 셸이 있으면 연결하고(UAC를 끈 PC의 승격 셸 포함, 승격 여부는 기록), 셸 창이 없으면 실제 네이티브 경로에서도 거절합니다.</summary>
     [Fact]
     public async Task DesktopConnectionDoesNotLaunchAnything()
     {
@@ -24,18 +24,19 @@ public sealed class DesktopShellSmokeTests(ITestOutputHelper output)
         {
             try
             {
-                var expected = HasNormalDesktop();
+                var (hasShell, shellUnelevated) = DescribeDesktop();
                 using var shell = DesktopShellConnection.Connect();
-                if (expected)
+                if (hasShell)
                 {
                     Assert.NotNull(shell);
-                    Assert.True(shell.IsUnelevated);
-                    output.WriteLine("NormalDesktop: COM connection verified; ShellExecute was not called.");
+                    Assert.True(shell.IsSessionShell);
+                    Assert.Equal(shellUnelevated, shell.IsUnelevated);
+                    output.WriteLine(shellUnelevated ? "NormalDesktop: COM connection verified; ShellExecute was not called." : "ElevatedDesktop(UAC off): COM connection verified with elevated shell; ShellExecute was not called.");
                 }
                 else
                 {
                     Assert.Null(shell);
-                    output.WriteLine("NoNormalDesktop: refusal verified; normal-desktop COM success remains untested on this host.");
+                    output.WriteLine("NoDesktopShell: refusal verified.");
                 }
                 completion.SetResult();
             }
@@ -46,10 +47,10 @@ public sealed class DesktopShellSmokeTests(ITestOutputHelper output)
         await completion.Task.WaitAsync(TimeSpan.FromSeconds(15));
     }
 
-    private static bool HasNormalDesktop()
+    private static (bool HasShell, bool Unelevated) DescribeDesktop()
     {
         var window = GetShellWindow();
-        if (window == 0) { return false; }
+        if (window == 0) { return (false, false); }
         Assert.NotEqual(0u, GetWindowThreadProcessId(window, out var pid));
         using var process = Process.GetProcessById(checked((int)pid));
         using var current = Process.GetCurrentProcess();
@@ -58,7 +59,7 @@ public sealed class DesktopShellSmokeTests(ITestOutputHelper output)
         using (token)
         {
             Assert.True(GetTokenInformation(token, 20, out var elevation, sizeof(int), out _));
-            return elevation == 0;
+            return (true, elevation == 0);
         }
     }
 
