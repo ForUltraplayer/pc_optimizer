@@ -66,6 +66,13 @@
                         </WrapPanel>
                     </StackPanel>
                 </Border>
+                <Border Style="{StaticResource Card}" Visibility="{Binding CanSelectSteamLocation, Converter={StaticResource Visible}}">
+                    <StackPanel>
+                        <TextBlock Text="Steam 라이브러리별 셰이더 캐시 정리" FontWeight="SemiBold" />
+                        <TextBlock Text="검사 결과에서 위치를 확인한 뒤 해당 라이브러리의 steamapps\shadercache 폴더를 선택하세요. 30일 이상 된 파일만 미리 확인합니다. Steam·게임을 닫아 주세요. Program Files 등 보호 위치는 직접 정리하지 않습니다." Margin="0,6,0,10" />
+                        <Button Content="Steam shadercache 폴더 선택" HorizontalAlignment="Left" Command="{Binding SelectSteamFolderCommand}" AutomationProperties.AutomationId="SelectSteamCacheFolder" />
+                    </StackPanel>
+                </Border>
                 <Border Style="{StaticResource Card}" Visibility="{Binding HasPreview, Converter={StaticResource Visible}}" Background="#EDF4FF">
                     <StackPanel>
                         <StackPanel DataContext="{Binding Preview}">
@@ -122,6 +129,8 @@
                             <TextBlock Text="{Binding Reason}" Margin="0,6,0,12" />
                             <Button Content="Windows 설정 열기" HorizontalAlignment="Left" Visibility="{Binding HasSettings, Converter={StaticResource Visible}}"
                                 Command="{Binding DataContext.OpenManualCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" />
+                            <Button Content="공식 안내 열기" HorizontalAlignment="Left" Visibility="{Binding HasSupport, Converter={StaticResource Visible}}"
+                                Command="{Binding DataContext.OpenSupportCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" />
                         </StackPanel></Border>
                     </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
                 </Expander>

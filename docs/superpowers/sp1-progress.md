@@ -2,7 +2,7 @@
 
 기준 `master`=`32ab51f`, 작업 브랜치 `codex/sp1-actions`. [계획](plans/2026-09-27-sp1-actions.md)과 [공유 원장](../reviews/REVIEW_LEDGER.md)이 작업 입력이다.
 
-2026-09-27 최신: [남은 구현 순서](plans/2026-09-27-sp1-remaining-implementation.md)에 따라 T9-B Download 정리와 T9-A 서비스 중지/복구를 연결했다. BITS/DO·재부팅·작업 프로세스·서비스 재진입 경계와 복구 결과 표시 포함. 빌드만 확인했고 검증은 후순위다. 구버전 산출물 25개 경로 정리 상태와 preview.6 보존 유지. [신규 실행 계약과 제한](../reviews/2026-09-27-update-download-implementation.md).
+2026-09-27 최신: [남은 구현 순서](plans/2026-09-27-sp1-remaining-implementation.md)에 따라 T9-B 이후 Steam 선택 정리·NVIDIA NV_Cache 관측·NVIDIA/Steam 공식 안내/Direct3D Windows 연결을 구현했다. [계약·제한·검증 이월](../reviews/2026-09-27-steam-cleanup-and-graphics-guides.md). 빌드만 확인, 그래픽 직접 삭제·T10 전체 완료를 주장하지 않는다. 구버전 정리와 preview.6 보존 유지.
 
 2026-09-27 최신 사용자 지시: **독립 리뷰 없이 계속 진행**. 아래 과거의 독립 검증 ‘대기’는 승인 게이트가 아니며 새 독립 리뷰를 요청하지 않는다. 자체 검증·실환경 미검증 조건과 기존 발견 이력은 계속 분리해 기록한다.
 
@@ -21,7 +21,7 @@
 | 7 | C 전원 계획·복원 | 4cf8cb2 구현·대역 및 조회 검증, 실제 쓰기 평가 대기 | 사용자 지시로 생략 |
 | 8 | D 주사율·15초 확인 | 실행기·일반 카드 연결/대역·CDS_TEST 완료, 실제 전환 평가 대기 | 사용자 지시로 생략 |
 | 9 | A2 시스템 캐시·서비스 복구 | Temp·DO·WU 상태·Download 파일 정리/서비스 기록·복구 연결 구현. WU는 양 서비스 Running 등 지원 조건 제한, 새 동작 검증은 T12 | 사용자 지시로 생략 |
-| 10 | F2 앱 캐시·F1 공식 도구 통합 | F1·Adobe 기본/선택 위치 정리 구현. Resolve/CapCut 기본/선택 위치와 Steam/그래픽 검사 구현. Steam/NVIDIA 자동 정리·설정 자동 탐지 확장 남음 | 사용자 지시로 생략 |
+| 10 | F2 앱 캐시·F1 공식 도구 통합 | F1·Adobe 기본/선택 위치·Steam 선택 라이브러리 정리 구현. Resolve/CapCut/Steam/그래픽 검사 및 NVIDIA NV_Cache 추가. 그래픽은 공식 안내 연결, 직접 삭제·설정 자동 탐지 확장 남음 | 사용자 지시로 생략 |
 | 11 | 전체 조치·효과 UI 통합 | 지원 조치 및 주사율 평가 연결 완료, 나머지 기능 따라 통합 | 사용자 지시로 생략 |
 | 12 | 최종 자체 점검·평가 PC·배포 검증 | 이전 preview.6 ZIP까지만 존재. 이후 구현의 종합 검증·실기 평가·통합 배포는 최후 순서 | 사용자 지시로 생략 |
 

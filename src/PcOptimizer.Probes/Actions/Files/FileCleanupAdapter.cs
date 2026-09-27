@@ -32,6 +32,9 @@ public sealed class FileCleanupAdapter : IActionAdapter
     /// <summary>기본 위치와 사용자가 명시한 세션 한정 Adobe 캐시를 같은 보호 엔진으로 처리합니다.</summary>
     public static FileCleanupAdapter ForAdobeCache(Func<ActionSession> session, AdobeCacheLocationCatalog locations)
         => new(locations.Resolve, session, new NativeFileCleanupPlatform(), definition: new(ActionId.AppFiles, ActionScope.CurrentUser));
+    /// <summary>선택한 Steam 라이브러리를 설정과 다시 대조하는 전용 카탈로그입니다.</summary>
+    public static FileCleanupAdapter ForSteamCache(Func<ActionSession> session, SteamCacheLocationCatalog locations)
+        => new(locations.Resolve, session, new NativeFileCleanupPlatform(), definition: new(ActionId.SteamShaderCache, ActionScope.CurrentUser));
     /// <inheritdoc />
     public ActionDefinition Definition => _definition;
     /// <inheritdoc />

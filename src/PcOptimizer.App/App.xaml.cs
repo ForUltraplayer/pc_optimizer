@@ -105,6 +105,20 @@ public partial class App : Application
             return picker.ShowDialog() == true ? videoLocations.TrySet(app, picker.FolderName) : null;
         }
         var adobeLocations = new AdobeCacheLocationCatalog();
+        var steamLocations = new SteamCacheLocationCatalog();
+        string? PickSteamFolder()
+        {
+            var picker = new Microsoft.Win32.OpenFolderDialog { Title = "Steam 라이브러리의 steamapps\\shadercache 폴더를 선택하세요", Multiselect = false };
+            return picker.ShowDialog() == true ? picker.FolderName : null;
+        }
+        (ActionChoice? Choice, string? Code) RegisterSteamFolder(string path)
+        {
+            var registration = steamLocations.TryRegister(path, ReadActionSession());
+            return registration.Key is { } key
+                ? (new(ActionId.SteamShaderCache, new ActionTarget.Files(key), "Steam 셰이더 캐시 · " + path,
+                    "선택한 라이브러리의 30일 이상 된 파일만 확인합니다. 게임 실행 때 재다운로드·컴파일이 필요할 수 있습니다."), null)
+                : (null, registration.Code);
+        }
         string? PickAdobeFolder()
         {
             var picker = new Microsoft.Win32.OpenFolderDialog
@@ -125,7 +139,7 @@ public partial class App : Application
         // 코드 카탈로그만 등록하며 준비/확인 전에는 사용자 파일을 변경하지 않는다.
         var rollbackStore = new RollbackStore();
         var actions = new ActionCenterViewModel(new ActionWorkflow(scanService.Operations, rollbackStore,
-            ReadActionSession, [new FileCleanupAdapter(ReadActionSession), FileCleanupAdapter.ForSystemTemp(ReadActionSession), FileCleanupAdapter.ForAdobeCache(ReadActionSession, adobeLocations), new DeliveryOptimizationAdapter(ReadActionSession), new WindowsUpdateCleanupAdapter(rollbackStore, ReadActionSession), new OfficialCacheActionAdapter(new SystemCacheToolBackend(logger, actionScope != ActionUserScope.Full), ReadActionSession)], [new PowerActionAdapter(ReadActionSession), new StartupRunActionAdapter(ReadActionSession), StartupRunActionAdapter.ForMachine(ReadActionSession), new UpdateServiceRecoveryAdapter(ReadActionSession)]), dispatcher, async () =>
+            ReadActionSession, [new FileCleanupAdapter(ReadActionSession), FileCleanupAdapter.ForSystemTemp(ReadActionSession), FileCleanupAdapter.ForAdobeCache(ReadActionSession, adobeLocations), FileCleanupAdapter.ForSteamCache(ReadActionSession, steamLocations), new DeliveryOptimizationAdapter(ReadActionSession), new WindowsUpdateCleanupAdapter(rollbackStore, ReadActionSession), new OfficialCacheActionAdapter(new SystemCacheToolBackend(logger, actionScope != ActionUserScope.Full), ReadActionSession)], [new PowerActionAdapter(ReadActionSession), new StartupRunActionAdapter(ReadActionSession), StartupRunActionAdapter.ForMachine(ReadActionSession), new UpdateServiceRecoveryAdapter(ReadActionSession)]), dispatcher, async () =>
             {
                 if (viewModel?.StartScanCommand.CanExecute(null) != true) { throw new InvalidOperationException("RescanUnavailable"); }
                 await viewModel.StartScanCommand.ExecuteAsync(null);
@@ -141,7 +155,8 @@ public partial class App : Application
                 new(ActionId.Power, new ActionTarget.Power(PowerActionAdapter.PowerSaver), "절전 전원 계획", "전력 소비를 줄이는 쪽으로 선택합니다. 작업 응답성이 낮아질 수 있으며 이전 계획으로 되돌릴 수 있습니다."),
                 .. (actionScope == ActionUserScope.Full ? Enum.GetValues<OfficialCacheTool>() : []).Where(t => SystemCacheToolBackend.IsToolInProtectedLocation((CacheTool)t))
                     .Select(t => new ActionChoice(ActionId.OfficialCache, new ActionTarget.OfficialTool(t), t + " 공식 캐시 정리", "공식 도구로 다운로드 캐시를 정리합니다. 재다운로드가 필요할 수 있으며 개별 파일 미리보기와 처리 범위가 다릅니다."))],
-                    new SettingsUriPolicy(logger).TryOpen, PickAdobeFolder, RegisterAdobeFolder, SelectVideoFolder, videoLocations.Clear);
+                    new SettingsUriPolicy(logger).TryOpen, PickAdobeFolder, RegisterAdobeFolder, SelectVideoFolder, videoLocations.Clear,
+                    PickSteamFolder, RegisterSteamFolder, url => new LinkPolicy(vendorLinks.Catalog, logger).TryOpen(url) == LinkOpenResult.Opened);
         viewModel = new MainViewModel(
             scanService,
             new ReportExporter(PersonalDataScrubber.FromEnvironment()),

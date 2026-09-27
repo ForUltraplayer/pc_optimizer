@@ -15,10 +15,12 @@ namespace PcOptimizer.App.ViewModels;
 public sealed record ActionChoice(ActionId Id, ActionTarget Target, string Title, string Benefit);
 
 /// <summary>자동 변경을 제공하지 않는 기능의 이유와 공식 설정 연결입니다.</summary>
-public sealed record ManualActionChoice(string Title, string Reason, string? SettingsUri)
+public sealed record ManualActionChoice(string Title, string Reason, string? SettingsUri, string? SupportUrl = null)
 {
     /// <summary>공식 설정 연결이 있는 항목만 버튼을 표시합니다.</summary>
     public bool HasSettings => SettingsUri is not null;
+    /// <summary>코드에서 허용한 공식 안내가 있으면 별도 버튼을 표시합니다.</summary>
+    public bool HasSupport => CacheSupportLinks.IsAllowed(SupportUrl);
 }
 
 /// <summary>창이 닫혀도 보존하는 공통 조치 화면 모델입니다. Dispose는 실제 작업을 취소하지 않습니다.</summary>
@@ -32,6 +34,9 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     private readonly Func<string, (ActionChoice? Choice, string? Code)>? _registerAdobeFolder;
     private readonly Func<string, bool?>? _selectVideoFolder;
     private readonly Action? _resetVideoFolders;
+    private readonly Func<string?>? _pickSteamFolder;
+    private readonly Func<string, (ActionChoice? Choice, string? Code)>? _registerSteamFolder;
+    private readonly Func<string, bool>? _openSupport;
     private readonly SemaphoreSlim _reconcile = new(1, 1);
     private readonly HashSet<Guid> _finished = [];
     private ActionPreviewViewModel? _executing;
@@ -44,7 +49,9 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     /// <summary>앱에서 한 번 만들고 같은 실행 관문/조율기를 연결합니다.</summary>
     public ActionCenterViewModel(IActionWorkflow workflow, IUiDispatcher dispatcher, Func<Task> rescan, IEnumerable<ActionChoice>? choices = null, Func<string, bool>? openSettings = null,
         Func<string?>? pickAdobeFolder = null, Func<string, (ActionChoice? Choice, string? Code)>? registerAdobeFolder = null,
-        Func<string, bool?>? selectVideoFolder = null, Action? resetVideoFolders = null)
+        Func<string, bool?>? selectVideoFolder = null, Action? resetVideoFolders = null,
+        Func<string?>? pickSteamFolder = null, Func<string, (ActionChoice? Choice, string? Code)>? registerSteamFolder = null,
+        Func<string, bool>? openSupport = null)
     {
         _workflow = workflow;
         _dispatcher = dispatcher;
@@ -54,6 +61,9 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
         _registerAdobeFolder = registerAdobeFolder;
         _selectVideoFolder = selectVideoFolder;
         _resetVideoFolders = resetVideoFolders;
+        _pickSteamFolder = pickSteamFolder;
+        _registerSteamFolder = registerSteamFolder;
+        _openSupport = openSupport;
         Choices = (choices ?? []).Where(c => workflow.Supports(c.Id, false)).ToArray();
         workflow.Operations.Changed += OnOperationsChanged;
     }
@@ -105,7 +115,11 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
         new("그 밖의 시작 앱 관리", "현재 사용자·모든 사용자 Run 등록은 검사 후 위 목록에서 해제·복원할 수 있습니다. 시작 폴더 항목과 사용/사용 안 함 전환은 Windows 설정에서 관리하세요.", SettingsUriPolicy.STARTUP_APPS_SETTINGS_URI),
         new("Windows에서 주사율 설정", "앱의 주사율 시험이 지원되지 않는 화면은 Windows 디스플레이 설정에서 직접 확인하세요.", SettingsUriPolicy.DISPLAY_SETTINGS_URI),
         new("그 밖의 Windows 업데이트 파일 정리", "배달 최적화·업데이트 다운로드 캐시는 위 목록에서 조건을 확인할 수 있습니다. 이전 Windows 설치와 구성 요소 저장소는 Windows 저장소에서 확인하세요.", SettingsUriPolicy.STORAGE_SENSE_SETTINGS_URI),
-        new("게임·그래픽 캐시", "Steam·NVIDIA 캐시 용량은 검사 결과에서 확인할 수 있습니다. 직접 정리는 해당 앱의 관리 기능을 사용해 주세요.", null)];
+        new("Steam 다운로드 캐시", "위의 라이브러리 셰이더 캐시와 다른 기능입니다. 다운로드 문제가 있을 때 Steam 자체 정리 절차를 확인하세요. 다시 로그인해야 할 수 있습니다.", null, CacheSupportLinks.SteamDownload),
+        new("NVIDIA 셰이더 캐시", "공식 절차는 캐시 설정 변경·재부팅·정리·설정 복원을 포함합니다. 앱에서 그래픽 작성자의 유휴 상태를 확인하지 못해 자동 삭제는 제공하지 않습니다.", null, CacheSupportLinks.NvidiaShader),
+        new("Direct3D 셰이더 캐시", "Windows 저장소의 임시 파일에서 DirectX 셰이더 캐시 항목을 확인하세요. 정리 후 캐시를 다시 만들 때 로딩·끊김이 늘 수 있습니다.", SettingsUriPolicy.STORAGE_SENSE_SETTINGS_URI)];
+    /// <summary>현재 사용자 범위에서 전용 Steam 실행기가 연결된 경우에만 선택을 제공합니다.</summary>
+    public bool CanSelectSteamLocation => _pickSteamFolder is not null && _registerSteamFolder is not null && _workflow.Supports(ActionId.SteamShaderCache, false);
     /// <summary>사용자 범위 실행기를 쓸 수 있을 때만 폴더 선택을 제공합니다.</summary>
     public bool CanSelectAdobeLocation => _pickAdobeFolder is not null && _registerAdobeFolder is not null && _workflow.Supports(ActionId.AppFiles, false);
     /// <summary>개인 폴더를 검사할 수 있는 실행 범위에서만 수동 위치 선택을 제공합니다.</summary>
@@ -131,6 +145,7 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
         PrepareChoiceCommand.NotifyCanExecuteChanged();
         OpenManualCommand.NotifyCanExecuteChanged();
         SelectAdobeFolderCommand.NotifyCanExecuteChanged();
+        SelectSteamFolderCommand.NotifyCanExecuteChanged(); OpenSupportCommand.NotifyCanExecuteChanged();
         SelectVideoFolderCommand.NotifyCanExecuteChanged(); ResetVideoFoldersCommand.NotifyCanExecuteChanged();
     }
     private bool CanPrepare() => !_disposed && !IsBlocked;
@@ -140,6 +155,40 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     private bool CanRestore(RollbackItemViewModel? item) => CanPrepare() && item?.CanRestore == true;
     private bool CanPrepareChoice(ActionChoice? choice) => CanPrepare() && choice is not null && Choices.Contains(choice);
     private bool CanSelectAdobeFolder() => CanPrepare() && CanSelectAdobeLocation;
+    private bool CanSelectSteamFolder() => CanPrepare() && CanSelectSteamLocation;
+    /// <summary>라이브러리 캐시 선택을 등록하고 공통 워커에서 실제 설정·보호·실행 상태를 확인합니다.</summary>
+    [RelayCommand(CanExecute = nameof(CanSelectSteamFolder))]
+    private async Task SelectSteamFolderAsync()
+    {
+        if (!CanSelectSteamFolder()) { return; }
+        Preview = null;
+        ActionChoice? choice = null;
+        IsWorking = true;
+        try
+        {
+            var path = _pickSteamFolder!();
+            if (path is null || _disposed) { return; }
+            var registration = _registerSteamFolder!(path);
+            choice = registration.Choice;
+            if (choice is null)
+            {
+                Status = new ActionResultViewModel(new(Guid.Empty, false, false, registration.Code ?? "TargetRejected"), ActionId.SteamShaderCache, false, "").Detail;
+                return;
+            }
+            if (!Choices.Any(c => c.Target == choice.Target)) { Choices = [.. Choices, choice]; OnPropertyChanged(nameof(Choices)); }
+        }
+        catch (Exception) { Status = "Steam 캐시 폴더를 선택하지 못했습니다. 파일을 변경하지 않았습니다."; }
+        finally { IsWorking = false; NotifyGates(); }
+        if (choice is not null) { await PrepareAsync(choice.Id, choice.Target); }
+    }
+    private bool CanOpenSupport(ManualActionChoice? choice) => CanPrepare() && _openSupport is not null && choice?.HasSupport == true && ManualChoices.Contains(choice);
+    /// <summary>공식 안내만 일반 권한 브라우저로 열며 캐시 정리 완료로 기록하지 않습니다.</summary>
+    [RelayCommand(CanExecute = nameof(CanOpenSupport))]
+    private void OpenSupport(ManualActionChoice? choice)
+    {
+        if (!CanOpenSupport(choice)) { return; }
+        Status = _openSupport!(choice!.SupportUrl!) ? "공식 안내를 열었습니다. 직접 조치한 뒤 다시 검사하세요." : "공식 안내를 열지 못했습니다. 기본 브라우저와 데스크톱 세션을 확인하세요.";
+    }
     private bool CanSelectVideoFolder(string? app) => CanPrepare() && CanSelectVideoLocations && app is "davinci" or "capcut";
     private bool CanResetVideoFolders() => CanPrepare() && CanSelectVideoLocations;
     /// <summary>앱에서 확인한 캐시 폴더를 지정하고 기존 검사 흐름에서 용량을 다시 관측합니다.</summary>

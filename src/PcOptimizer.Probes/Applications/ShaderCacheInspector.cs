@@ -39,7 +39,7 @@ internal sealed class ShaderCacheInspector(IPathEnvironment environment, IRegist
         }
         var local = Canonical(environment.GetEnvironmentVariable("LOCALAPPDATA") ?? Path.Combine(profile, "AppData", "Local"));
         if (local is null) { Add("graphics", 0, "사용자 캐시 위치", null, "Unsupported", null); Count("graphics", 1); return output; }
-        var graphics = new[] { ("NVIDIA DXCache", @"NVIDIA\DXCache"), ("NVIDIA GLCache", @"NVIDIA\GLCache"), ("Windows Direct3D", "D3DSCache") };
+        var graphics = new[] { ("NVIDIA DXCache", @"NVIDIA\DXCache"), ("NVIDIA GLCache", @"NVIDIA\GLCache"), ("Windows Direct3D", "D3DSCache"), ("NVIDIA NV_Cache", @"NVIDIA Corporation\NV_Cache") };
         var roots = graphics.Select(g => Path.Combine(local, g.Item2)).ToArray();
         if (roots.Any(p => AncestorFailure(p) is not null || source.ProbeRoot(p) != RootPresence.Missing))
         {

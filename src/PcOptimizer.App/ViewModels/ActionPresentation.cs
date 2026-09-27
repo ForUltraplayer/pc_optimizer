@@ -102,6 +102,14 @@ public sealed class ActionResultViewModel(ActionResult result, ActionId actionId
             "AdobeLocationUnsupported" => "지원하는 로컬 캐시 위치가 아닙니다. 네트워크·이동식 드라이브·별칭 경로 대신 고정 드라이브의 실제 캐시 폴더를 선택하세요.",
             "AdobeCacheFolderRequired" => "캐시 상위 경로나 프로젝트 폴더 대신 Media Cache Files 또는 Peak Files 폴더 자체를 선택하세요.",
             "AdobeLocationsFull" => "이번 실행에서 선택할 수 있는 캐시 폴더 8곳을 모두 등록했습니다. 다른 폴더가 필요하면 진행 중인 작업을 마친 뒤 앱을 다시 실행하세요.",
+            "SteamLocationUnsupported" => "로컬 고정 드라이브의 steamapps\\shadercache 폴더 자체를 선택하세요. 네트워크·별칭·라이브러리 상위 폴더는 지원하지 않습니다.",
+            "SteamProtectedLocation" => "Program Files·개인 문서·다른 사용자 등 보호 위치는 직접 정리하지 않습니다. 선택한 라이브러리의 보호 조건을 확인하세요.",
+            "SteamLibrariesUnavailable" => "현재 Steam 라이브러리 설정을 완전히 읽지 못했습니다. 선택 경로만으로 삭제를 허용하지 않습니다.",
+            "SteamLibraryChanged" => "선택한 캐시가 현재 Steam 라이브러리 목록에 없습니다. 검사 결과와 Steam 저장소 설정에서 위치를 다시 확인하세요.",
+            "SteamCacheMissing" => "선택한 셰이더 캐시 폴더가 없거나 접근할 수 없습니다. 다른 캐시를 대신 지우지 않습니다.",
+            "SteamLocationsFull" => "이번 실행에서 선택할 수 있는 라이브러리 16곳을 모두 등록했습니다. 작업을 마친 뒤 앱을 다시 실행하세요.",
+            "SteamAppRunning" or "SteamGameRunning" => (result.Started ? "일부 파일 처리 후 Steam 또는 게임 실행을 확인해 나머지는 남겼습니다. " : "Steam 또는 라이브러리의 게임이 실행 중이어서 정리를 시작하지 않았습니다. ") + "Steam·게임·관련 백그라운드 작업을 직접 종료한 뒤 다시 확인하세요.",
+            "SteamStateUnavailable" => (result.Started ? "일부 파일 처리 후 실행 상태를 확인하지 못해 중단했습니다. " : "실행 중인 프로세스 정보를 완전히 확인하지 못해 정리를 시작하지 않았습니다. ") + "확인 불가를 유휴 상태로 간주하지 않습니다.",
             "TargetChanged" => result.Started ? "일부 처리 후 나머지 대상의 상태가 달라져 중단했습니다. 처리 개수를 확인하고 다시 검사해 주세요." : "미리보기 이후 파일 또는 위치가 달라져 실행하지 않았습니다. 대상을 다시 확인해 주세요.",
             "CurrentValueChanged" => "확인 이후 설정이 달라졌습니다. 사용자가 바꾼 값을 덮어쓰지 않습니다. 다시 검사해 주세요.",
             "PowerSchemeMissing" => "선택한 계획이나 되돌릴 계획이 이 PC에 없습니다. 새 전원 계획을 만들지는 않습니다.",
@@ -152,12 +160,12 @@ public sealed record RollbackItemViewModel(Guid Id, ActionId ActionId, string Ti
 
 internal static class ActionText
 {
-    internal static bool IsSpaceAction(ActionId id) => id is ActionId.UserFiles or ActionId.SystemFiles or ActionId.AppFiles or ActionId.OfficialCache or ActionId.DeliveryOptimization or ActionId.WindowsUpdateCache;
+    internal static bool IsSpaceAction(ActionId id) => id is ActionId.UserFiles or ActionId.SystemFiles or ActionId.AppFiles or ActionId.OfficialCache or ActionId.DeliveryOptimization or ActionId.WindowsUpdateCache or ActionId.SteamShaderCache;
     internal static string Name(ActionId id) => id switch
     {
         ActionId.UserFiles => "사용자 임시 파일 정리", ActionId.SystemFiles => "Windows 캐시 정리", ActionId.AppFiles => "앱 캐시 정리",
         ActionId.Startup => "자동 실행 등록 해제", ActionId.MachineStartup => "모든 사용자 자동 실행 등록 해제", ActionId.Power => "전원 계획 변경", ActionId.Display => "화면 주사율 변경",
-        ActionId.OfficialCache => "공식 도구 캐시 정리", ActionId.DeliveryOptimization => "배달 최적화 캐시 정리", ActionId.UpdateServices => "업데이트 서비스 원상복구", ActionId.WindowsUpdateCache => "Windows 업데이트 다운로드 캐시 정리", _ => "지원하지 않는 조치",
+        ActionId.OfficialCache => "공식 도구 캐시 정리", ActionId.DeliveryOptimization => "배달 최적화 캐시 정리", ActionId.UpdateServices => "업데이트 서비스 원상복구", ActionId.WindowsUpdateCache => "Windows 업데이트 다운로드 캐시 정리", ActionId.SteamShaderCache => "Steam 셰이더 캐시 정리", _ => "지원하지 않는 조치",
     };
     internal static string Bytes(decimal bytes)
     {
