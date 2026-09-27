@@ -40,6 +40,17 @@ public sealed class ShaderCacheTests
     private static long? Bytes(ScanSnapshot snapshot, string group = "steam", int index = 0) => (snapshot.GetMeasurement(AppCacheProbeContract.PROBE_ID, ShaderCacheRule.Field(group, index, "bytes"))?.Value as IntegerValue)?.Value;
     private static string Library(string path) => "\"libraryfolders\" { \"0\" { \"path\" \"" + path.Replace("\\", "\\\\") + "\" } }";
 
+    /// <summary>기존 그래픽 위치와 별개로 NV_Cache를 관측하며 정리 가능한 양으로 승격하지 않습니다.</summary>
+    [Fact]
+    public void NvidiaLegacyCacheHasSeparateObservation()
+    {
+        var source = new FakeDirectoryEntrySource().Dir(Local + @"\NVIDIA Corporation\NV_Cache", FakeDirectoryEntrySource.File("owned", 1234));
+        var snapshot = Inspect(Env(), source);
+        Assert.Equal(1234, Bytes(snapshot, "graphics", 3)); Assert.Equal("Observed", State(snapshot, "graphics", 3));
+        var card = Assert.Single(new ShaderCacheRule().Evaluate(snapshot), f => f.Id.Contains("graphics"));
+        Assert.Equal(Verdict.Info, card.Verdict);
+    }
+
     /// <summary>기본 Program Files와 다른 드라이브 shadercache만 관측하고 게임 본체를 제외합니다.</summary>
     [Fact]
     public void 두_라이브러리의_캐시만_세고_게임_본체는_읽지_않는다()

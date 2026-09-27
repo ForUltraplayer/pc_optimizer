@@ -16,14 +16,21 @@ public static class StartupRegistration
     public const string Machine64 = "hklm64.run";
     /// <summary>모든 사용자에게 적용되는 32비트 Run 출처입니다.</summary>
     public const string Machine32 = "hklm32.run";
+    /// <summary>현재 사용자 시작 폴더의 바로가기입니다.</summary>
+    public const string UserFolder = "folder.user";
+    /// <summary>모든 사용자 시작 폴더의 바로가기입니다.</summary>
+    public const string CommonFolder = "folder.common";
     private const string Prefix = "hkcu-run-v1:";
     private static string? PrefixFor(string source) => source switch
-    { Source => Prefix, Machine64 => "hklm64-run-v1:", Machine32 => "hklm32-run-v1:", _ => null };
+    { Source => Prefix, Machine64 => "hklm64-run-v1:", Machine32 => "hklm32-run-v1:", UserFolder => "startup-user-file-v1:", CommonFolder => "startup-common-file-v1:", _ => null };
     /// <summary>기계 전체에 영향을 주는 허용 출처인지 판정합니다.</summary>
-    public static bool IsMachine(string source) => source is Machine64 or Machine32;
+    public static bool IsMachine(string source) => source is Machine64 or Machine32 or CommonFolder;
+    /// <summary>출처별 조치 ID를 구분합니다.</summary>
+    public static ActionId ActionFor(string source) => source switch
+    { UserFolder => ActionId.StartupFolder, CommonFolder => ActionId.CommonStartupFolder, Machine64 or Machine32 => ActionId.MachineStartup, _ => ActionId.Startup };
     /// <summary>동일 이름을 가진 출처를 구분하는 사용자 표시입니다.</summary>
     public static string Label(string source) => source switch
-    { Source => "현재 사용자", Machine64 => "모든 사용자 · 64비트", Machine32 => "모든 사용자 · 32비트", _ => "지원하지 않는 출처" };
+    { Source => "현재 사용자", Machine64 => "모든 사용자 · 64비트", Machine32 => "모든 사용자 · 32비트", UserFolder => "현재 사용자 시작 폴더", CommonFolder => "모든 사용자 시작 폴더", _ => "지원하지 않는 출처" };
     private static readonly Encoding StrictUtf8 = new UTF8Encoding(false, true);
     private static readonly Encoding StrictUnicode = new UnicodeEncoding(false, false, true);
     /// <summary>복구 키 길이와 화면 표시를 제한하며 기본값/제어 문자는 허용하지 않습니다.</summary>
@@ -35,7 +42,7 @@ public static class StartupRegistration
     public static string Key(string source, string name) => PrefixFor(source) is { } prefix && ValidName(name)
         ? prefix + Convert.ToBase64String(StrictUtf8.GetBytes(name)) : throw new ArgumentException("Unsupported target");
     /// <summary>허용된 버전의 키에서 출처를 얻습니다. 이름도 별도로 검증해야 합니다.</summary>
-    public static string? SourceOfKey(string key) => new[] { Source, Machine64, Machine32 }.FirstOrDefault(s => key.StartsWith(PrefixFor(s)!, StringComparison.Ordinal));
+    public static string? SourceOfKey(string key) => new[] { Source, Machine64, Machine32, UserFolder, CommonFolder }.FirstOrDefault(s => key.StartsWith(PrefixFor(s)!, StringComparison.Ordinal));
     /// <summary>정규 인코딩의 복구 키에서 이름을 얻습니다.</summary>
     public static string? Name(string key)
     {

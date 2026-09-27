@@ -14,6 +14,13 @@ namespace PcOptimizer.App.ViewModels;
 /// <summary>앱 코드에서 등록한 대상과 사용자에게 설명할 효과입니다.</summary>
 public sealed record ActionChoice(ActionId Id, ActionTarget Target, string Title, string Benefit);
 
+/// <summary>사용자가 얻고 싶은 효과별 실행 항목 묶음입니다.</summary>
+public sealed record ActionChoiceGroup(string Title, string Description, IReadOnlyList<ActionChoice> Items)
+{
+    /// <summary>실행 가능 확정 수가 아닌 확인할 항목 수입니다.</summary>
+    public string Header => $"{Title} · {Items.Count}개 항목 확인";
+}
+
 /// <summary>자동 변경을 제공하지 않는 기능의 이유와 공식 설정 연결입니다.</summary>
 public sealed record ManualActionChoice(string Title, string Reason, string? SettingsUri, string? SupportUrl = null)
 {
@@ -97,22 +104,41 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     public ObservableCollection<ActionResultViewModel> Results { get; } = [];
     /// <summary>현재 범위와 코드 등록이 허용하는 조치만 표시합니다. 실행 가능 여부는 미리보기에서 다시 검사합니다.</summary>
     public IReadOnlyList<ActionChoice> Choices { get; private set; }
+    /// <summary>효과 필터이며 준비된 계획·실행 결과는 필터와 관계없이 보존합니다.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ChoiceGroups), nameof(ChoiceNotice))]
+    private string _effectFilter = "all";
+    /// <summary>코드에 정의된 효과 범주로 이동합니다.</summary>
+    [RelayCommand]
+    private void SelectEffect(string? effect) => EffectFilter = effect is "space" or "startup" or "power" ? effect : "all";
+    /// <summary>진단 경고 개수와 별도로 사용자가 고를 수 있는 관리 기능을 효과별로 묶습니다.</summary>
+    public IReadOnlyList<ActionChoiceGroup> ChoiceGroups => new[]
+    {
+        new ActionChoiceGroup("디스크 공간 확보", "정리 가능한 실제 파일과 예상 크기를 먼저 확인합니다. 성능 향상을 보장하는 정리는 아닙니다.", Choices.Where(c => ActionText.IsSpaceAction(c.Id)).ToArray()),
+        new ActionChoiceGroup("로그인할 때 자동 실행 줄이기", "필요 없는 항목만 직접 고르세요. 프로그램은 삭제하지 않으며 원래 등록을 복원할 수 있습니다.", Choices.Where(c => c.Target is ActionTarget.Startup).ToArray()),
+        new ActionChoiceGroup("전력·발열·응답성 조정", "현재 사용 목적에 맞는 전원 계획을 선택합니다. 더 빠른 성능이나 절전 효과가 항상 보장되지는 않습니다.", Choices.Where(c => c.Id == ActionId.Power).ToArray()),
+    }.Where(g => g.Items.Count > 0 && (EffectFilter == "all" || g.Items.Any(c => EffectFilter switch
+        { "space" => ActionText.IsSpaceAction(c.Id), "startup" => c.Target is ActionTarget.Startup, "power" => c.Id == ActionId.Power, _ => true }))).ToArray();
+    /// <summary>빈 목록을 정상 판정으로 오해하지 않도록 현재 선택의 한계를 안내합니다.</summary>
+    public string ChoiceNotice => ChoiceGroups.Count > 0 ? "각 항목의 확인 버튼에서 실제 적용 조건과 영향을 확인하세요." : EffectFilter == "startup"
+        ? "아직 선택할 시작 항목이 없습니다. 메인 화면에서 검사한 뒤 다시 확인하세요. 지원하지 않는 항목은 아래 Windows 설정에서 관리할 수 있습니다."
+        : "현재 범위에서 선택할 항목이 없습니다. 아래 공식 설정·앱 자체 기능도 확인하세요.";
     /// <summary>검사 결과의 현재 사용자 등록만 갱신하고 오래된 선택 대상을 남기지 않습니다.</summary>
     public void UpdateStartupChoices(PcOptimizer.Core.Models.ScanSnapshot snapshot, bool fullScope)
     {
-        var fixedChoices = Choices.Where(c => c.Id is not (ActionId.Startup or ActionId.MachineStartup));
+        var fixedChoices = Choices.Where(c => c.Id is not (ActionId.Startup or ActionId.MachineStartup or ActionId.StartupFolder or ActionId.CommonStartupFolder));
         var targets = StartupSelection.Targets(snapshot).Where(t => StartupRegistration.IsMachine(t.SourceKey)
-            ? _workflow.Supports(ActionId.MachineStartup, false) : fullScope && _workflow.Supports(ActionId.Startup, false));
+            ? _workflow.Supports(StartupRegistration.ActionFor(t.SourceKey), false) : fullScope && _workflow.Supports(StartupRegistration.ActionFor(t.SourceKey), false));
         Choices = fixedChoices.Concat(targets.Select(t => new ActionChoice(
-            StartupRegistration.IsMachine(t.SourceKey) ? ActionId.MachineStartup : ActionId.Startup,
+            StartupRegistration.ActionFor(t.SourceKey),
             t, $"자동 실행 등록 해제 · {t.ValueName} · {StartupRegistration.Label(t.SourceKey)}",
             (StartupRegistration.IsMachine(t.SourceKey) ? "이 PC의 모든 사용자에게 영향을 줍니다. " : "") +
             "다음 로그인부터 이 등록으로 시작하지 않게 합니다. 필요한 앱인지 직접 선택하세요. 프로그램 삭제·앱 종료는 하지 않으며 원래 등록을 되돌릴 수 있습니다."))).ToArray();
-        OnPropertyChanged(nameof(Choices)); PrepareChoiceCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(Choices)); OnPropertyChanged(nameof(ChoiceGroups)); OnPropertyChanged(nameof(ChoiceNotice)); PrepareChoiceCommand.NotifyCanExecuteChanged();
     }
     /// <summary>자동 지원 미확인 기능은 성공 버튼 대신 이유와 공식 경로를 제공합니다.</summary>
     public IReadOnlyList<ManualActionChoice> ManualChoices { get; } = [
-        new("그 밖의 시작 앱 관리", "현재 사용자·모든 사용자 Run 등록은 검사 후 위 목록에서 해제·복원할 수 있습니다. 시작 폴더 항목과 사용/사용 안 함 전환은 Windows 설정에서 관리하세요.", SettingsUriPolicy.STARTUP_APPS_SETTINGS_URI),
+        new("그 밖의 시작 앱 관리", "현재 사용자·모든 사용자 Run 등록은 검사 후 위 목록에서 해제·복원할 수 있습니다. 기본 시작 폴더의 바로가기도 보관·복원할 수 있습니다. 작업 관리자 토글과 미지원 항목은 Windows 설정에서 관리하세요.", SettingsUriPolicy.STARTUP_APPS_SETTINGS_URI),
         new("Windows에서 주사율 설정", "앱의 주사율 시험이 지원되지 않는 화면은 Windows 디스플레이 설정에서 직접 확인하세요.", SettingsUriPolicy.DISPLAY_SETTINGS_URI),
         new("그 밖의 Windows 업데이트 파일 정리", "배달 최적화·업데이트 다운로드 캐시는 위 목록에서 조건을 확인할 수 있습니다. 이전 Windows 설치와 구성 요소 저장소는 Windows 저장소에서 확인하세요.", SettingsUriPolicy.STORAGE_SENSE_SETTINGS_URI),
         new("Steam 다운로드 캐시", "위의 라이브러리 셰이더 캐시와 다른 기능입니다. 다운로드 문제가 있을 때 Steam 자체 정리 절차를 확인하세요. 다시 로그인해야 할 수 있습니다.", null, CacheSupportLinks.SteamDownload),
@@ -175,7 +201,7 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
                 Status = new ActionResultViewModel(new(Guid.Empty, false, false, registration.Code ?? "TargetRejected"), ActionId.SteamShaderCache, false, "").Detail;
                 return;
             }
-            if (!Choices.Any(c => c.Target == choice.Target)) { Choices = [.. Choices, choice]; OnPropertyChanged(nameof(Choices)); }
+            if (!Choices.Any(c => c.Target == choice.Target)) { Choices = [.. Choices, choice]; OnPropertyChanged(nameof(Choices)); OnPropertyChanged(nameof(ChoiceGroups)); OnPropertyChanged(nameof(ChoiceNotice)); }
         }
         catch (Exception) { Status = "Steam 캐시 폴더를 선택하지 못했습니다. 파일을 변경하지 않았습니다."; }
         finally { IsWorking = false; NotifyGates(); }
@@ -249,6 +275,7 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
             {
                 Choices = [.. Choices, choice];
                 OnPropertyChanged(nameof(Choices));
+                OnPropertyChanged(nameof(ChoiceGroups)); OnPropertyChanged(nameof(ChoiceNotice));
             }
         }
         catch (Exception) { Status = "폴더를 선택하지 못했습니다. 변경하지 않았습니다."; }
@@ -361,7 +388,7 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
                 var completed = r.State is RollbackState.Restored or RollbackState.Unchanged;
                 var state = r.NeedsRecovery ? "중단된 작업 — 현재 상태 확인 필요" : completed ? "복구 완료" : "적용됨";
                 var responsibility = r.Purpose == RollbackPurpose.UserUndo ? "사용자 되돌리기" : "임시 변경 복구";
-                var label = r.ActionId is ActionId.Startup or ActionId.MachineStartup && StartupRegistration.Name(r.TargetKey) is { } name
+                var label = r.ActionId is ActionId.Startup or ActionId.MachineStartup or ActionId.StartupFolder or ActionId.CommonStartupFolder && StartupRegistration.Name(r.TargetKey) is { } name
                     ? $"자동 실행 등록 · {name} · {StartupRegistration.Label(StartupRegistration.SourceOfKey(r.TargetKey)!)}" : ActionText.Name(r.ActionId);
                 Records.Add(new(r.Id, r.ActionId, label, $"{state} · {responsibility} · {r.UpdatedAt.ToLocalTime():g}", r.NeedsRecovery,
                     !completed && _workflow.Supports(r.ActionId, true)));

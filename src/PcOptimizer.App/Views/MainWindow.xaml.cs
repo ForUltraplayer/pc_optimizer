@@ -53,7 +53,7 @@ public partial class MainWindow : FluentWindow
     {
         if (DataContext is not MainViewModel { Actions: { } actions }
             || sender is not FrameworkElement { DataContext: FindingCardViewModel { StartupTarget: { } target } }
-            || actions.Choices.FirstOrDefault(c => c.Id is PcOptimizer.Core.Actions.ActionId.Startup or PcOptimizer.Core.Actions.ActionId.MachineStartup && c.Target == target) is not { } choice) { return; }
+            || actions.Choices.FirstOrDefault(c => c.Id == PcOptimizer.Core.Actions.StartupRegistration.ActionFor(target.SourceKey) && c.Target == target) is not { } choice) { return; }
         OpenActionCenter(sender, e);
         await actions.PrepareAsync(choice.Id, target);
     }
@@ -82,6 +82,7 @@ public partial class MainWindow : FluentWindow
     private void OpenActionCenter(object sender, RoutedEventArgs e)
     {
         if (DataContext is not MainViewModel { Actions: { } actions }) { return; }
+        actions.SelectEffectCommand.Execute((sender as FrameworkElement)?.Tag as string);
         if (_actionWindow is not null) { _actionWindow.Activate(); return; }
         _actionWindow = new ActionCenterWindow(actions) { Owner = this };
         _actionWindow.Closed += (_, _) => _actionWindow = null;

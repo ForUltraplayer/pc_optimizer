@@ -691,3 +691,14 @@
 - 공식 NVIDIA 절차의 설정·재부팅 및 그래픽 작성자 유휴를 현재 코드로 확인하지 못하므로 DX/GL/NV_Cache 자동 삭제는 미등록. Steam 프로세스 관측도 외부 작성자의 배타적 잠금이 아니며 시스템 세션 경로 미제공·외부 라이브러리 작성자·새 실행 경합·큰 캐시/매 파일 WMI 비용의 제한을 보고서에 명시했다.
 - `dotnet build src/PcOptimizer.App/PcOptimizer.App.csproj -c Release --no-restore` 최종 경고 0/오류 0. 최초 null 가능성 CS8602 1건 수정 기록 보존. 테스트 작성/실행·Smoke·실기 프로세스 조회/삭제/게임 실행/브라우저 시험은 하지 않았다. 사용자 구현 우선/독립 리뷰 생략 지시 유지. 실제 사용자 데이터·Windows 설정 변경 없음.
 - 이번 구현을 T10 전체 완료나 출시 검증 완료로 표시하지 않는다. 새 ZIP/버전·master 병합·원격 게시 없음. 현재 preview.6와 소스 구현을 구분한다.
+
+
+## 2026-09-27 SP1 통합 구현·UI·자체 검증 / preview.7
+
+- 기준 `f403a97`. [변경 파일·실행 계약·실패 이력·검증 명령·배포·미완료 범위](2026-09-27-sp1-integrated-completion.md). 사용자 지시대로 구현 → UI/UX → 검증, 독립 리뷰·서브에이전트 생략, 중간 기능별 ZIP 없음. 이전 발견·독립 재검증 상태는 변경하지 않는다.
+- T6: `StartupFolderPlatform`, `StartupRunActionAdapter`, Core StartupRegistration/Selection·ActionId, RollbackCodec/Record·조율기, App 등록/카드/기록을 연결. 기본 사용자·공용 .lnk만 고정 핸들로 원본 보관/복원하며 SID/세션·범위·링크/ADS/hardlink·헤더·ID/본문/ACL 지문·이름 충돌/변조를 확인. Pending 선행 저장과 복원 전 원본 기록 보존. Task Manager 토글과 구분.
+- T11: MainWindow·ActionCenterWindow/ViewModel·ActionPresentation에 효과별 진입/그룹/필터, 필터 중 확인·결과 유지, 수동 위치 펼침, 빈 목록 사유와 좁은 화면 줄바꿈을 반영.
+- 관련 REV-008: 경로/별칭·새 링크/하드링크/ADS Smoke 거절. REV-013: 필터/선택/공식 연결이 실행 결과를 만들지 않음, 서비스 Started·부분 효과/복구 실패 보존 대역 검증. REV-016: 사용자/공용·HKLM32/64 SystemOnly 경계와 codec/복원 회귀. REV-017/018: 기존 실제 작업 수명·창 종료/재열기·취소/늦은 결과 회귀 포함. REV-004/015: 기존 도구 실행/공식 기능 연결을 효과별로 드러내며 지원 계약 없는 항목은 사유 표시. 영구 범위 축소 또는 사용자 승인으로 해석하지 않는다.
+- 검증 파일: `IntegratedActionTests`, `UpdateMaintenanceTests`, `StartupFolderSmokeTests`, 기존 ScanServiceTests/ShaderCacheTests/ActionCenterLayoutTests 보완. Release 경고0/오류0, 기본 **1639/1639**(신규19), 전체 Smoke **57/57**(신규9), npm/pip/NuGet 소유 임시 캐시 ToolSmoke **4/4**. WPF100/150/200% 회귀·메인/좁은 창 렌더 시각 확인. 초기 기대 목록/분석기/샌드박스 접근 실패와 재실행은 보고서에 기록. 테스트 제외/보호 완화 없음.
+- preview.7 ZIP13파일/최상위4·규칙/라이선스/원본해시 검증, 검증기 변조4종 거절. SHA-256 `DD7D63723F07BB2518A94574EE582178553EC0F38B1BECD98D134AFA3FA3C001`. preview.6는 보존. 사용자 실제 파일/캐시/시작 등록/서비스/전원/화면 변경, master 병합·원격 게시 없음.
+- **열린 항목**: T6 StartupApproved 토글, T10 버전별 앱 설정 자동 탐지 확대·NVIDIA 직접 정리 지원 계약, T8/T9/T12 실제 UAC/다른 사용자·로그인·전원·화면·업데이트 서비스/COM·캐시 재생성·.NET 없는 PC 평가. 별도 평가 환경이 없어 대역/소유 fixture 검증만 수행. 전체 계획 완료나 정식 출시 승인으로 표시하지 않는다.
