@@ -32,7 +32,7 @@ public sealed class ActionCoordinator
         {
             if (!Enum.IsDefined(definition.Id) || !Enum.IsDefined(definition.Scope)
                 || (definition.Id is ActionId.Startup or ActionId.Power or ActionId.Display or ActionId.UserFiles or ActionId.AppFiles or ActionId.OfficialCache && definition.Scope != ActionScope.CurrentUser)
-                || (definition.Id == ActionId.MachineStartup && definition.Scope != ActionScope.System))
+                || (definition.Id is ActionId.MachineStartup or ActionId.UpdateServices && definition.Scope != ActionScope.System))
             { throw new ArgumentException("조치 정의의 사용자 범위가 올바르지 않습니다.", nameof(adapters)); }
         }
         _time = time ?? TimeProvider.System;

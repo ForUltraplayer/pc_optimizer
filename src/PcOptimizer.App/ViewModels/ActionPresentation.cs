@@ -18,7 +18,8 @@ public sealed class ActionPreviewViewModel(ActionPlan plan)
     /// <summary>되돌리기 계획인지 여부입니다.</summary>
     public bool IsRestore => plan.IsRestore;
     /// <summary>변경하려는 내용을 한 문장으로 보여 줍니다.</summary>
-    public string Title => IsRestore ? ActionId is PcOptimizer.Core.Actions.ActionId.Startup or PcOptimizer.Core.Actions.ActionId.MachineStartup ? "자동 실행 등록 복원" : $"{ActionText.Name(ActionId)} 되돌리기" : ActionText.Name(ActionId);
+    public string Title => IsRestore ? ActionId is PcOptimizer.Core.Actions.ActionId.Startup or PcOptimizer.Core.Actions.ActionId.MachineStartup ? "자동 실행 등록 복원"
+        : ActionId == PcOptimizer.Core.Actions.ActionId.UpdateServices ? "업데이트 서비스 원상복구" : $"{ActionText.Name(ActionId)} 되돌리기" : ActionText.Name(ActionId);
     /// <summary>조치 설명입니다.</summary>
     public string Summary => plan.Preview.Summary;
     /// <summary>실행기의 관측 대상 표시입니다.</summary>
@@ -112,6 +113,14 @@ public sealed class ActionResultViewModel(ActionResult result, ActionId actionId
             "StartupReadFailed" => "자동 실행 등록을 읽지 못했습니다. 항목이 이동·삭제됐거나 접근 권한이 달라졌을 수 있습니다. 다시 검사해 주세요.",
             "StartupWriteFailed" => "Windows가 등록 변경을 완료하지 못했습니다. 다른 앱의 변경·정책을 확인해 주세요. 원래 등록의 복구 기록은 보존했습니다.",
             "PowerWriteFailed" => "Windows가 전원 계획 변경을 완료하지 못했습니다. 정책과 현재 계획을 확인해 주세요. 복구 기록은 보존했습니다.",
+            "UpdateRecoveryRequired" => "이전 업데이트 정리의 서비스 복구가 남아 있습니다. 조치 기록에서 복구한 뒤 다시 확인하세요.",
+            "UpdateRecoveryFailed" => "원래 실행 중이던 서비스를 모두 복구하지 못했습니다. 파일 정리가 일부 진행됐을 수 있습니다. 조치 기록의 서비스 복구 항목을 확인하세요.",
+            "UpdateServiceUnavailable" => "업데이트 관련 서비스 상태나 접근 권한을 확인하지 못했습니다. Windows 서비스 정책을 확인하세요.",
+            "UpdateServiceTransitionFailed" => "서비스가 전환 중이거나 제한 시간 안에 요청한 상태가 되지 않았습니다. 중단된 작업의 복구 기록이 있으면 먼저 확인하세요.",
+            "UpdateServiceChangeFailed" => "Windows가 서비스 변경 요청을 거절했습니다. 종속 서비스나 시작 유형은 추가로 변경하지 않았습니다. 복구 기록을 확인하세요.",
+            "UpdateInstallBusy" => "업데이트 설치 또는 제거가 진행 중입니다. 작업 완료 후 다시 확인하세요.",
+            "UpdateRebootRequired" => "업데이트를 마치려면 재시작이 필요합니다. 작업을 저장하고 Windows에서 재시작한 뒤 확인하세요.",
+            "UpdateStateUnavailable" => "업데이트 활동 상태를 모두 확인하지 못했습니다. 이 결과만으로 캐시 정리를 시작하지 않습니다.",
             "PlanExpired" => "확인 시간이 만료되었거나 이미 사용한 계획입니다. 미리보기를 다시 열어 주세요.",
             "SessionChanged" or "ScopeExcluded" => "사용자 또는 실행 범위가 달라졌습니다. 현재 사용자로 다시 확인해 주세요.",
             "Unsupported" or "TargetRejected" or "Blocked" => "이 대상은 현재 앱에서 처리할 수 없습니다. 지원 도구나 Windows 설정에서 확인해 주세요.",
@@ -136,7 +145,7 @@ internal static class ActionText
     {
         ActionId.UserFiles => "사용자 임시 파일 정리", ActionId.SystemFiles => "Windows 캐시 정리", ActionId.AppFiles => "앱 캐시 정리",
         ActionId.Startup => "자동 실행 등록 해제", ActionId.MachineStartup => "모든 사용자 자동 실행 등록 해제", ActionId.Power => "전원 계획 변경", ActionId.Display => "화면 주사율 변경",
-        ActionId.OfficialCache => "공식 도구 캐시 정리", ActionId.DeliveryOptimization => "배달 최적화 캐시 정리", _ => "지원하지 않는 조치",
+        ActionId.OfficialCache => "공식 도구 캐시 정리", ActionId.DeliveryOptimization => "배달 최적화 캐시 정리", ActionId.UpdateServices => "업데이트 서비스 원상복구", _ => "지원하지 않는 조치",
     };
     internal static string Bytes(decimal bytes)
     {
