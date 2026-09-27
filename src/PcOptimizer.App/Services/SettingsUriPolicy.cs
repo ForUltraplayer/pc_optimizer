@@ -39,6 +39,8 @@ public sealed class SettingsUriPolicy
 
     /// <summary>Windows 업데이트 설정 URI(드라이버 후보는 고급 옵션의 선택적 업데이트에서 확인).</summary>
     public const string WINDOWS_UPDATE_SETTINGS_URI = "ms-settings:windowsupdate-optionalupdates";
+    /// <summary>설정 → 시스템 → 문제 해결(네트워크 문제 해결사 등).</summary>
+    public const string TROUBLESHOOT_SETTINGS_URI = PcOptimizer.Core.Troubleshooting.BuiltInToolCatalog.TROUBLESHOOT_SETTINGS_URI;
 
     private const string LOG_CATEGORY = nameof(SettingsUriPolicy);
 
@@ -52,6 +54,7 @@ public sealed class SettingsUriPolicy
         [STORAGE_SENSE_SETTINGS_URI] = STORAGE_SENSE_SETTINGS_URI,
         [STARTUP_APPS_SETTINGS_URI] = STARTUP_APPS_SETTINGS_URI,
         [WINDOWS_UPDATE_SETTINGS_URI] = WINDOWS_UPDATE_SETTINGS_URI,
+        [TROUBLESHOOT_SETTINGS_URI] = TROUBLESHOOT_SETTINGS_URI,
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     private readonly IAppLogger _logger;

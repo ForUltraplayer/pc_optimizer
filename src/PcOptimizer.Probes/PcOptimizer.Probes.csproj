@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -32,6 +32,7 @@
     <EmbeddedResource Include="..\..\rules\protect.json" Link="rules\protect.json" LogicalName="PcOptimizer.Rules.protect.json" />
     <!-- 공식 드라이버·제조사 지원 링크 허용 표(스펙 §2·§7): 같은 이유로 리소스로만 읽는다. 없거나 검증에 실패하면 링크를 붙이지 않고 확인 불가로 표시한다 -->
     <EmbeddedResource Include="..\..\rules\vendor-links.json" Link="rules\vendor-links.json" LogicalName="PcOptimizer.Rules.vendor-links.json" />
+    <EmbeddedResource Include="..\..\rules\troubleshooting-tools.json" Link="rules\troubleshooting-tools.json" LogicalName="PcOptimizer.Rules.troubleshooting-tools.json" />
   </ItemGroup>
 
   <ItemGroup>
