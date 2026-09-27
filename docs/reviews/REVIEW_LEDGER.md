@@ -755,3 +755,5 @@
 - 사용자 명시 요청: 공개 저장소 전환, 버전 0.0.1, 릴리즈 ZIP 게시. 기존 preview.13 기능은 그대로 두고 csproj Version·README·HANDOFF·릴리즈 노트를 갱신했다. 기본 브랜치는 `codex/sp1-actions`이며 별도 master 병합은 없다.
 - `tools/package.ps1 -Configuration Release -OutputDirectory dist/releases`: 빌드/publish 성공, ZIP 13파일/최상위4·고지·원본·해시 검사 통과. 커밋 전 패키지를 검증했으며 릴리즈 커밋 확정 후 같은 명령으로 다시 만들고 최종 해시는 `.sha256`에 보존한다. 기능 테스트는 이전 1700/1700 기록을 재실행한 것으로 표시하지 않는다.
 - 릴리즈 노트: `docs/releases/v0.0.1.md`. 게시할 태그 `v0.0.1`, 첨부 ZIP 및 `.sha256`. 공개 전 이력 1663 blob에서 대표 자격 증명 패턴 검색 결과 없음(모든 종류의 비밀 탐지 보장을 뜻하지 않음). 독립 리뷰/서브에이전트 및 사용자 PC 설정 변경 없음. 기존 발견/재검증 상태는 보존한다.
+
+- 게시 완료: 릴리즈 커밋 `757bc2f`, 태그 `v0.0.1`, 저장소 PUBLIC, 릴리즈 draft=false를 인증 없는 GitHub API로 확인했다. 최종 ZIP 60,023,927 bytes, SHA-256 `54FC625CE32F1CAA7573610C27727C5850DBA98FFCE92722ED5D0C867DB795D7`가 GitHub asset digest와 일치. 실행 파일 FileVersion `0.0.1.0`, ProductVersion `0.0.1+757bc2f...` 확인. 공개 전환 직후 gh release edit의 태그 조회가 실패했으나 기존 릴리즈 ID 397691887 조회 후 PATCH로 게시했고, 중복 릴리즈를 만들지 않았다.

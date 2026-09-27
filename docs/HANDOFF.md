@@ -4,7 +4,7 @@
 
 ## 공개 배포 버전 — 0.0.1
 
-- 사용자 요청으로 preview.13 기능의 버전 번호를 **0.0.1**로 변경했다. [릴리즈 노트](releases/v0.0.1.md). GitHub 저장소를 공개로 전환하고 `v0.0.1` 태그에 ZIP·SHA-256을 게시하는 작업이다.
+- 사용자 요청으로 preview.13 기능의 버전 번호를 **0.0.1**로 변경했다. [릴리즈 노트](releases/v0.0.1.md). GitHub 저장소 공개 전환 및 `v0.0.1` 태그의 ZIP·SHA-256 게시를 완료했다. 릴리즈 커밋 `757bc2f`, 인증 없는 API 조회로 공개 상태 확인.
 - 저장소: https://github.com/ForUltraplayer/pc_optimizer — 기본 브랜치 `codex/sp1-actions`. 릴리즈: https://github.com/ForUltraplayer/pc_optimizer/releases/tag/v0.0.1
 - 배포본: `dist/releases/PcOptimizer-v0.0.1-win-x64.zip`; 최종 해시는 같은 이름의 `.sha256` 파일과 GitHub 릴리즈 첨부 참조.
 - 아래 preview.13 기록은 기능 기준 및 이전 로컬 산출물이다. 현재 공개 다운로드 버전은 0.0.1이다. 이번 변경은 버전/배포 문서이며 재빌드·ZIP 검증을 수행했다. 기존 1700 테스트는 preview.13에서 실행한 결과로 구분한다.
