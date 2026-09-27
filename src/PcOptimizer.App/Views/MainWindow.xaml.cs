@@ -49,6 +49,12 @@ public partial class MainWindow : FluentWindow
     /// <summary>내 PC 사양 화면의 이미지 저장 대상(하단 익명화 표기 포함).</summary>
     public FrameworkElement SpecCaptureRoot => SpecView.CaptureRoot;
     private ActionCenterWindow? _actionWindow;
+    private async void PrepareDisplayFromCard(object sender, RoutedEventArgs e)
+    {
+        if (_displayTrials is null || sender is not FrameworkElement { DataContext: FindingCardViewModel { CanTrialDisplay: true } card }) { return; }
+        OpenDisplayTrials(sender, e);
+        await _displayTrials.PrepareFindingAsync(card.Finding);
+    }
     private void OpenDisplayTrials(object sender, RoutedEventArgs e)
     {
         if (_displayTrials is null) { return; }

@@ -26,6 +26,7 @@
 
 ## D — 주사율 시험과 복구
 
+- preview.3 후속: 사용자 카드 실행 접근 지적을 반영해 일반 실행 Full 사용자에게 직접 시험 준비를 제공한다. 별도 인자 조건은 제거했으며 실제 변경은 확인 뒤 시작한다. [카드 연결 보고서](2026-09-27-display-card-action-integration.md). 실기 전환 검증 미완료와 단일 프로세스 복구 한계는 그대로다.
 - 2026-09-27 후속: [Task 8 실행기·평가 화면 구현](2026-09-27-sp1-display-trial-implementation.md). 대역 41건 및 관리자 조회/CDS_TEST=0 검증. 실제 전환/원복/재부팅 평가는 남아 `--display-evaluation`에서만 제공한다. 강제 종료·네이티브 호출 정지 중 복구 보장을 추가하지 않았다.
 - [ChangeDisplaySettingsExW](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-changedisplaysettingsexw)는 CDS_TEST, 임시 변경, 사용자 프로필 저장 플래그와 DISP_CHANGE 오류를 구분한다. API 성공은 화면의 실제 가독성 확인이 아니다.
 - 제품 조건(T8): 같은 디스플레이·현재 해상도/색 형식 유지, 모드 재열거, 시험 성공, 원래 모드 저장 후 임시 변경. 15초 내 유지 확인이 없으면 원래 모드 적용·재조회한다. 디스플레이 분리/외부 모드 변경을 무시하고 다른 장치에 원래 모드를 쓰지 않는다.

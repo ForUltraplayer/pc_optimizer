@@ -450,7 +450,7 @@
   <!-- Candidate 초보자용 설명 3줄(SP4 Task 2, 스펙 §8) -->
   <data name="Display_Explain_What" xml:space="preserve"><value>화면이 1초에 몇 번 새로 그려지는지(주사율)를 정합니다.</value></data>
   <data name="Display_Explain_Effect" xml:space="preserve"><value>마우스 이동과 스크롤이 눈에 띄게 부드러워집니다.</value></data>
-  <data name="Display_Explain_Caution" xml:space="preserve"><value>같은 해상도에서만 바꾸며, 화면이 안 나오면 15초 뒤 되돌아옵니다.</value></data>
+  <data name="Display_Explain_Caution" xml:space="preserve"><value>15초 안에 유지하지 않으면 원복을 시도합니다. 앱·드라이버 중단 시 직접 복구가 필요합니다.</value></data>
   <data name="Memory_Explain_What" xml:space="preserve"><value>메모리가 낼 수 있는 속도보다 낮게 설정돼 있는지 봅니다.</value></data>
   <data name="Memory_Explain_Effect" xml:space="preserve"><value>BIOS에서 메모리 프로필을 켜면 게임·작업 반응이 빨라질 수 있습니다.</value></data>
   <data name="Memory_Explain_Caution" xml:space="preserve"><value>BIOS 설정은 앱이 바꾸지 않으며, 구성에 따라 정상 제한일 수 있습니다.</value></data>
