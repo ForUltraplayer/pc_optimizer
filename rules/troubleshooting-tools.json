@@ -32,7 +32,26 @@
       "steps": [
         "[실행]을 누르고 출력 창의 진행률이 100%가 될 때까지 기다립니다. 20% 부근에서 오래 멈춘 것처럼 보이는 것은 정상입니다.",
         "'복원 작업을 완료했습니다'가 나오면 바로 아래의 '시스템 파일 검사(SFC)'를 이어서 실행합니다.",
-        "오류 0x800f081f·0x800f0906이 나오면 인터넷 연결과 Windows Update 서비스를 확인한 뒤 다시 시도합니다."
+        "오류 0x800f0915·0x800f081f(복구 콘텐츠를 찾을 수 없음)가 나오면 Windows Update에서 원본을 받지 못한 것입니다. 광고 차단·VPN·보안 프로그램을 잠시 끄고 다시 시도하고, 프리뷰/인사이더 빌드라면 아래 '설치 미디어로 복구'를 쓰세요.",
+        "오류 0x800f0906이 나오면 인터넷 연결과 Windows Update 서비스를 확인한 뒤 다시 시도합니다."
+      ],
+      "rebootRequired": false
+    },
+    {
+      "id": "dism-restorehealth-source",
+      "category": "시스템 복구",
+      "name": "설치 미디어로 구성 요소 복구 (DISM /Source)",
+      "when": "Windows Update에서 복구 원본을 받지 못해 DISM이 0x800f0915·0x800f081f로 끝났을 때 씁니다.",
+      "what": "Windows 설치 ISO/USB의 install.wim(esd)을 원본으로 써서 구성 요소 저장소를 고칩니다. 인터넷에 접속하지 않습니다.",
+      "caution": "지금 설치된 Windows와 같은 버전·에디션의 설치 미디어가 필요합니다. 다르면 0x800f0954로 실패합니다.",
+      "mode": "direct",
+      "command": "dism-restorehealth-source",
+      "safety": "caution",
+      "steps": [
+        "Windows 설치 ISO(공식 다운로드 페이지)를 받아 파일을 두 번 클릭해 마운트하거나, 설치 USB를 꽂습니다. 설정 → 시스템 → 정보의 버전(예: 24H2)과 같은 것이어야 합니다.",
+        "[설치 미디어 폴더 선택 후 실행]을 누르고 마운트된 드라이브(예: E:\\) 또는 USB의 루트 폴더를 고릅니다. 앱이 sources\\install.wim 또는 install.esd를 찾아 원본으로 씁니다.",
+        "진행률 100%와 '복원 작업을 완료했습니다'를 확인한 뒤 '시스템 파일 검사(SFC)'를 실행합니다.",
+        "0x800f0954가 나오면 설치 미디어 버전이 다른 것입니다. 같은 버전의 ISO를 다시 받으세요."
       ],
       "rebootRequired": false
     },
@@ -510,12 +529,34 @@
       "title": "PC가 느려요",
       "summary": "시작 프로그램과 캐시를 먼저 정리한 뒤, 디스크 상태와 시스템 파일을 순서대로 확인합니다.",
       "steps": [
-        { "tool": "hwinfo64", "note": "먼저 온도를 봅니다. CPU·GPU가 90도 이상이면 느린 원인은 발열일 가능성이 큽니다." },
-        { "tool": "chkdsk-scan", "note": "디스크 오류가 있으면 모든 것이 느려집니다." },
-        { "tool": "crystaldiskinfo", "note": "'주의'·'위험'이면 디스크 교체가 답입니다." },
-        { "tool": "dism-restorehealth", "note": "시스템 파일 손상도 느림·멈춤의 원인입니다." },
-        { "tool": "sfc-scannow", "note": "DISM 뒤에 이어서 실행합니다." },
-        { "tool": "reliability", "note": "느려진 시점에 무엇이 설치됐는지 확인합니다." }
+        {
+          "tool": "hwinfo64",
+          "note": "먼저 온도를 봅니다. CPU·GPU가 90도 이상이면 느린 원인은 발열일 가능성이 큽니다."
+        },
+        {
+          "tool": "chkdsk-scan",
+          "note": "디스크 오류가 있으면 모든 것이 느려집니다."
+        },
+        {
+          "tool": "crystaldiskinfo",
+          "note": "'주의'·'위험'이면 디스크 교체가 답입니다."
+        },
+        {
+          "tool": "dism-restorehealth",
+          "note": "시스템 파일 손상도 느림·멈춤의 원인입니다."
+        },
+        {
+          "tool": "dism-restorehealth-source",
+          "note": "Windows Update에서 원본을 못 받아 DISM이 실패했을 때만 씁니다."
+        },
+        {
+          "tool": "sfc-scannow",
+          "note": "DISM 뒤에 이어서 실행합니다."
+        },
+        {
+          "tool": "reliability",
+          "note": "느려진 시점에 무엇이 설치됐는지 확인합니다."
+        }
       ]
     },
     {
@@ -523,13 +564,38 @@
       "title": "부팅이 안 돼요 / 파란 화면이 떠요",
       "summary": "메모리와 디스크를 검사하고, 시스템 파일을 복구합니다. 계속되면 드라이버와 하드웨어를 의심합니다.",
       "steps": [
-        { "tool": "eventvwr", "note": "Kernel-Power 41(전원), WHEA(하드웨어), disk(저장장치)인지 먼저 확인합니다." },
-        { "tool": "mdsched", "note": "파란 화면의 가장 흔한 원인은 램입니다." },
-        { "tool": "memtest86", "note": "Windows 진단에서 안 잡히면 USB 부팅 검사로 확인합니다." },
-        { "tool": "chkdsk-schedule", "note": "디스크 오류를 다음 부팅에 고칩니다." },
-        { "tool": "dism-restorehealth", "note": "부팅은 되지만 불안정할 때 시스템 파일을 복구합니다." },
-        { "tool": "sfc-scannow", "note": "DISM 뒤에 이어서 실행합니다." },
-        { "tool": "ddu", "note": "화면 관련 파란 화면(nvlddmkm 등)이면 그래픽 드라이버를 완전히 재설치합니다." }
+        {
+          "tool": "eventvwr",
+          "note": "Kernel-Power 41(전원), WHEA(하드웨어), disk(저장장치)인지 먼저 확인합니다."
+        },
+        {
+          "tool": "mdsched",
+          "note": "파란 화면의 가장 흔한 원인은 램입니다."
+        },
+        {
+          "tool": "memtest86",
+          "note": "Windows 진단에서 안 잡히면 USB 부팅 검사로 확인합니다."
+        },
+        {
+          "tool": "chkdsk-schedule",
+          "note": "디스크 오류를 다음 부팅에 고칩니다."
+        },
+        {
+          "tool": "dism-restorehealth",
+          "note": "부팅은 되지만 불안정할 때 시스템 파일을 복구합니다."
+        },
+        {
+          "tool": "dism-restorehealth-source",
+          "note": "Windows Update에서 원본을 못 받아 DISM이 실패했을 때만 씁니다."
+        },
+        {
+          "tool": "sfc-scannow",
+          "note": "DISM 뒤에 이어서 실행합니다."
+        },
+        {
+          "tool": "ddu",
+          "note": "화면 관련 파란 화면(nvlddmkm 등)이면 그래픽 드라이버를 완전히 재설치합니다."
+        }
       ]
     },
     {
@@ -537,11 +603,26 @@
       "title": "화면·게임이 깨져요 / 게임이 튕겨요",
       "summary": "그래픽 드라이버를 깨끗하게 재설치하고, 온도와 GPU 상태를 확인합니다.",
       "steps": [
-        { "tool": "gpu-z", "note": "드라이버 버전·PCIe 연결·Resizable BAR 상태를 확인합니다." },
-        { "tool": "ddu", "note": "드라이버 문제의 표준 해결법입니다. 새 드라이버를 먼저 받아 두세요." },
-        { "tool": "hwinfo64", "note": "게임 중 GPU 온도가 85도 이상이면 냉각 문제입니다." },
-        { "tool": "furmark", "note": "부하에서 화면 깨짐이 재현되면 그래픽카드 자체 문제를 의심합니다." },
-        { "tool": "eventvwr", "note": "튕긴 시각의 응용 프로그램 오류를 확인합니다." }
+        {
+          "tool": "gpu-z",
+          "note": "드라이버 버전·PCIe 연결·Resizable BAR 상태를 확인합니다."
+        },
+        {
+          "tool": "ddu",
+          "note": "드라이버 문제의 표준 해결법입니다. 새 드라이버를 먼저 받아 두세요."
+        },
+        {
+          "tool": "hwinfo64",
+          "note": "게임 중 GPU 온도가 85도 이상이면 냉각 문제입니다."
+        },
+        {
+          "tool": "furmark",
+          "note": "부하에서 화면 깨짐이 재현되면 그래픽카드 자체 문제를 의심합니다."
+        },
+        {
+          "tool": "eventvwr",
+          "note": "튕긴 시각의 응용 프로그램 오류를 확인합니다."
+        }
       ]
     },
     {
@@ -549,9 +630,18 @@
       "title": "인터넷이 안 돼요",
       "summary": "문제 해결사 → DNS 비우기 → Winsock 초기화 순서로 진행합니다. 다른 기기도 안 되면 공유기 문제입니다.",
       "steps": [
-        { "tool": "network-troubleshooter", "note": "먼저 Windows가 자동으로 점검하게 합니다." },
-        { "tool": "flushdns", "note": "특정 사이트만 안 열릴 때 효과가 있습니다." },
-        { "tool": "winsock-reset", "note": "VPN·보안 프로그램 삭제 뒤 안 될 때. 재부팅이 필요합니다." }
+        {
+          "tool": "network-troubleshooter",
+          "note": "먼저 Windows가 자동으로 점검하게 합니다."
+        },
+        {
+          "tool": "flushdns",
+          "note": "특정 사이트만 안 열릴 때 효과가 있습니다."
+        },
+        {
+          "tool": "winsock-reset",
+          "note": "VPN·보안 프로그램 삭제 뒤 안 될 때. 재부팅이 필요합니다."
+        }
       ]
     },
     {
@@ -559,11 +649,26 @@
       "title": "저장장치가 의심돼요",
       "summary": "건강 상태를 먼저 보고, 오류 검사와 속도 측정으로 확인합니다. 이상이 있으면 백업이 먼저입니다.",
       "steps": [
-        { "tool": "crystaldiskinfo", "note": "'주의'·'위험'이면 지금 바로 백업하세요." },
-        { "tool": "chkdsk-scan", "note": "파일 시스템 오류를 검사합니다." },
-        { "tool": "chkdsk-schedule", "note": "오류가 나왔을 때만 예약합니다." },
-        { "tool": "crystaldiskmark", "note": "속도가 규격보다 크게 낮으면 연결·온도·남은 공간을 확인합니다." },
-        { "tool": "diskmgmt", "note": "디스크가 안 보일 때 상태를 확인합니다." }
+        {
+          "tool": "crystaldiskinfo",
+          "note": "'주의'·'위험'이면 지금 바로 백업하세요."
+        },
+        {
+          "tool": "chkdsk-scan",
+          "note": "파일 시스템 오류를 검사합니다."
+        },
+        {
+          "tool": "chkdsk-schedule",
+          "note": "오류가 나왔을 때만 예약합니다."
+        },
+        {
+          "tool": "crystaldiskmark",
+          "note": "속도가 규격보다 크게 낮으면 연결·온도·남은 공간을 확인합니다."
+        },
+        {
+          "tool": "diskmgmt",
+          "note": "디스크가 안 보일 때 상태를 확인합니다."
+        }
       ]
     },
     {
@@ -571,10 +676,22 @@
       "title": "메모리가 의심돼요",
       "summary": "Windows 진단으로 빠르게 보고, 필요하면 MemTest86·TestMem5로 정밀 검사합니다.",
       "steps": [
-        { "tool": "cpu-z", "note": "램이 어느 슬롯에 몇 개, 어떤 속도로 도는지 확인합니다." },
-        { "tool": "mdsched", "note": "재부팅 후 자동 검사합니다." },
-        { "tool": "testmem5", "note": "Windows 안에서 빠르게 확인합니다." },
-        { "tool": "memtest86", "note": "가장 확실한 방법입니다. 오류가 나면 XMP/EXPO를 끄고 다시 검사합니다." }
+        {
+          "tool": "cpu-z",
+          "note": "램이 어느 슬롯에 몇 개, 어떤 속도로 도는지 확인합니다."
+        },
+        {
+          "tool": "mdsched",
+          "note": "재부팅 후 자동 검사합니다."
+        },
+        {
+          "tool": "testmem5",
+          "note": "Windows 안에서 빠르게 확인합니다."
+        },
+        {
+          "tool": "memtest86",
+          "note": "가장 확실한 방법입니다. 오류가 나면 XMP/EXPO를 끄고 다시 검사합니다."
+        }
       ]
     },
     {
@@ -582,9 +699,18 @@
       "title": "발열·소음이 심해요",
       "summary": "온도를 실제로 재고, 부하 테스트로 냉각이 충분한지 확인합니다.",
       "steps": [
-        { "tool": "hwinfo64", "note": "평소·게임 중 온도를 기록합니다. Thermal Throttling이 Yes면 냉각 개선이 필요합니다." },
-        { "tool": "cinebench", "note": "점수가 같은 CPU보다 크게 낮으면 발열로 성능이 깎이는 것입니다." },
-        { "tool": "prime95", "note": "냉각 개선 뒤 안정성을 확인할 때만 짧게 돌립니다." }
+        {
+          "tool": "hwinfo64",
+          "note": "평소·게임 중 온도를 기록합니다. Thermal Throttling이 Yes면 냉각 개선이 필요합니다."
+        },
+        {
+          "tool": "cinebench",
+          "note": "점수가 같은 CPU보다 크게 낮으면 발열로 성능이 깎이는 것입니다."
+        },
+        {
+          "tool": "prime95",
+          "note": "냉각 개선 뒤 안정성을 확인할 때만 짧게 돌립니다."
+        }
       ]
     },
     {
@@ -592,10 +718,22 @@
       "title": "윈도우를 새로 깔고 싶어요",
       "summary": "백업 → 복원 지점·드라이버 준비 → 설치 USB → 설치 → 드라이버 순서입니다.",
       "steps": [
-        { "tool": "cpu-z", "note": "메인보드 모델을 적어 두면 설치 후 드라이버를 찾기 쉽습니다." },
-        { "tool": "windows11-media", "note": "공식 도구로 설치 USB를 만듭니다. 백업이 먼저입니다." },
-        { "tool": "rufus", "note": "공식 도구가 안 되거나 요구 사항 우회가 필요할 때만." },
-        { "tool": "ddu", "note": "새로 설치하지 않고 그래픽만 깨끗하게 재설치하고 싶을 때의 대안입니다." }
+        {
+          "tool": "cpu-z",
+          "note": "메인보드 모델을 적어 두면 설치 후 드라이버를 찾기 쉽습니다."
+        },
+        {
+          "tool": "windows11-media",
+          "note": "공식 도구로 설치 USB를 만듭니다. 백업이 먼저입니다."
+        },
+        {
+          "tool": "rufus",
+          "note": "공식 도구가 안 되거나 요구 사항 우회가 필요할 때만."
+        },
+        {
+          "tool": "ddu",
+          "note": "새로 설치하지 않고 그래픽만 깨끗하게 재설치하고 싶을 때의 대안입니다."
+        }
       ]
     }
   ]

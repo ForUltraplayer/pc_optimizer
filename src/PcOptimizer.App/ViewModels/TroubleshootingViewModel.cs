@@ -16,6 +16,9 @@ using PcOptimizer.Probes.Troubleshooting;
 
 namespace PcOptimizer.App.ViewModels;
 
+/// <summary>유틸리티 탭의 분류 한 묶음입니다.</summary>
+public sealed record UtilityGroup(string Category, IReadOnlyList<ToolCardViewModel> Cards);
+
 /// <summary>증상 목록 항목입니다. "all"은 모든 도구를 분류별로 보여 줍니다. 선택 상태는 칩 강조에 씁니다.</summary>
 public sealed partial class SymptomItem(string id, string title, string summary) : ObservableObject
 {
@@ -68,8 +71,10 @@ public sealed partial class ToolCardViewModel : ObservableObject
     };
     /// <summary>재부팅 안내입니다.</summary>
     public string RebootText => Tool.RebootRequired ? "완료 후 다시 시작이 필요합니다." : "다시 시작 없이 끝납니다.";
+    /// <summary>설치 미디어 폴더를 먼저 골라야 하는 명령인지.</summary>
+    public bool NeedsSourceFolder => Tool.Mode == ToolMode.DirectCommand && RepairCommandCatalog.Find(Tool.Command)?.RequiresSource == true;
     /// <summary>주 버튼 문구입니다.</summary>
-    public string ActionText => Tool.Mode switch { ToolMode.DirectCommand => "실행", ToolMode.BuiltInTool => "열기", _ => "공식 사이트 열기" };
+    public string ActionText => Tool.Mode switch { ToolMode.DirectCommand => NeedsSourceFolder ? "설치 미디어 폴더 선택 후 실행" : "실행", ToolMode.BuiltInTool => "열기", _ => "공식 사이트 열기" };
     /// <summary>절차 펼침 상태입니다.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StepsButtonText))]
@@ -101,13 +106,15 @@ public sealed partial class TroubleshootingViewModel : ObservableObject, IDispos
     private readonly Func<string, bool> _openSettings;
     private readonly VendorLinkCatalog? _links;
     private readonly IAppLogger _logger;
+    private readonly Func<string?>? _pickSourceFolder;
     private CancellationTokenSource? _running;
     private bool _disposed;
 
     /// <summary>카탈로그와 실행 창구를 연결합니다.</summary>
     public TroubleshootingViewModel(TroubleshootingCatalog catalog, TroubleshootingService service, IUiDispatcher dispatcher,
-        Func<string, bool> openLink, Func<string, bool> openSettings, VendorLinkCatalog? links, IAppLogger? logger = null)
+        Func<string, bool> openLink, Func<string, bool> openSettings, VendorLinkCatalog? links, IAppLogger? logger = null, Func<string?>? pickSourceFolder = null)
     {
+        _pickSourceFolder = pickSourceFolder;
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _service = service ?? throw new ArgumentNullException(nameof(service));
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
@@ -116,8 +123,13 @@ public sealed partial class TroubleshootingViewModel : ObservableObject, IDispos
         _links = links;
         _logger = logger ?? NullAppLogger.Instance;
         Symptoms = [.. catalog.Symptoms.Select(s => new SymptomItem(s.Id, s.Title, s.Summary)), new(ALL_TOOLS_ID, "모든 도구 보기", "분류별로 모든 도구를 보여 줍니다. 증상을 모르면 위에서 고르세요.")];
+        UtilityGroups = catalog.Tools.Where(t => t.Mode == ToolMode.ExternalGuide).GroupBy(t => t.Category)
+            .Select(g => new UtilityGroup(g.Key, g.Select(t => new ToolCardViewModel(this, t, null, 0)).ToArray())).ToArray();
         SelectedSymptom = Symptoms[0];
     }
+
+    /// <summary>유틸리티 탭: 외부 도구를 분류별로 묶은 카드입니다(파일 순서).</summary>
+    public IReadOnlyList<UtilityGroup> UtilityGroups { get; }
 
     /// <summary>증상 목록(마지막은 모든 도구).</summary>
     public IReadOnlyList<SymptomItem> Symptoms { get; }
@@ -198,6 +210,12 @@ public sealed partial class TroubleshootingViewModel : ObservableObject, IDispos
     private async Task RunAsync(TroubleshootingTool tool)
     {
         if (IsRunning || _disposed) { return; }
+        string? sourceFolder = null;
+        if (RepairCommandCatalog.Find(tool.Command)?.RequiresSource == true)
+        {
+            sourceFolder = _pickSourceFolder?.Invoke();
+            if (sourceFolder is null) { Status = "설치 미디어 폴더를 고르지 않아 실행하지 않았어요. ISO를 마운트한 드라이브나 설치 USB의 루트 폴더를 고르세요."; return; }
+        }
         using var cts = new CancellationTokenSource();
         _running = cts;
         await _dispatcher.InvokeAsync(() =>
@@ -212,7 +230,7 @@ public sealed partial class TroubleshootingViewModel : ObservableObject, IDispos
             Output.Add(line); OnPropertyChanged(nameof(HasOutput));
         }));
         RepairCommandResult result;
-        try { result = await _service.RunAsync(tool.Command!, progress, cts.Token).ConfigureAwait(false); }
+        try { result = await _service.RunAsync(tool.Command!, progress, cts.Token, sourceFolder).ConfigureAwait(false); }
         catch (Exception ex) when (ex is InvalidOperationException or IOException)
         {
             _logger.Warn(LOG_CATEGORY, $"RunFailure type={ex.GetType().Name}");
@@ -231,10 +249,23 @@ public sealed partial class TroubleshootingViewModel : ObservableObject, IDispos
         });
     }
 
+    /// <summary>DISM/SFC의 알려진 종료 코드(HRESULT를 int로 표시)를 한국어 안내로 바꿉니다. 모르면 null.</summary>
+    internal static string? ExplainExitCode(int exitCode) => unchecked((uint)exitCode) switch
+    {
+        0x800F0915 => "복구에 쓸 원본 파일을 Windows Update에서 받지 못했어요(0x800f0915). 프리뷰/인사이더 빌드이거나 광고 차단·VPN·보안 프로그램이 업데이트 서버를 막을 때 흔합니다. 같은 빌드의 Windows 설치 ISO/USB를 준비해 아래 '설치 미디어로 복구'를 실행하거나, 차단 프로그램을 잠시 끄고 다시 시도하세요.",
+        0x800F081F => "복구 원본 파일을 찾지 못했어요(0x800f081f). 인터넷 연결과 Windows Update 동작을 확인한 뒤 다시 시도하고, 계속되면 설치 미디어로 복구하세요.",
+        0x800F0906 => "원본 파일을 내려받지 못했어요(0x800f0906). 인터넷 연결·Windows Update 서비스를 확인하고 다시 시도하세요.",
+        0x800F0954 => "설치 미디어 원본으로 복구하지 못했어요(0x800f0954). 지금 설치된 Windows와 같은 버전·에디션의 ISO/USB인지 확인하세요.",
+        _ => null,
+    };
+
     private static string Describe(TroubleshootingTool tool, RepairCommandResult result) => result.Code switch
     {
         RepairCommandRunner.CODE_COMPLETED => $"{tool.Name}: 정상 완료" + (result.ExitCode is { } c && c != 0 ? $" (코드 {c})" : ""),
+        RepairCommandRunner.CODE_FAILED when result.ExitCode is { } known && ExplainExitCode(known) is { } explanation => $"{tool.Name}: {explanation}",
         RepairCommandRunner.CODE_FAILED => $"{tool.Name}: 오류로 끝났어요" + (result.ExitCode is { } e ? $" (종료 코드 {e})" : "") + ". 출력의 마지막 줄을 확인하고, 절차의 오류 항목을 따르세요.",
+        RepairCommandRunner.CODE_SOURCE_REQUIRED => "설치 미디어 폴더가 필요한 명령이에요. 폴더를 고른 뒤 다시 실행하세요.",
+        TroubleshootingService.CODE_SOURCE_INVALID => "고른 폴더에 sources\\install.wim 또는 install.esd가 없어요. ISO를 마운트한 드라이브(예: E:\\)나 설치 USB의 루트를 고르세요.",
         RepairCommandRunner.CODE_CANCELLED => $"{tool.Name}: 취소했어요. 중간에 멈춘 작업은 다시 실행하면 이어서 검사합니다.",
         RepairCommandRunner.CODE_TIMED_OUT => $"{tool.Name}: 시간 상한을 넘어 멈췄어요. 디스크가 느리거나 손상이 많을 수 있어요.",
         RepairCommandRunner.CODE_BUSY => "지금은 검사나 다른 조치가 진행 중이라 실행하지 않았어요. 끝난 뒤 다시 누르세요.",

@@ -198,6 +198,11 @@
                                 <DataTrigger Binding="{Binding IsTroubleshootingPage}" Value="True"><Setter Property="Background" Value="#E9EFFD" /><Setter Property="Foreground" Value="#2855D9" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
                             </Style.Triggers></Style></Button.Style>
                         </Button>
+                        <Button Content="유틸리티" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:MainPage.Utilities}" AutomationProperties.AutomationId="NavUtilities">
+                            <Button.Style><Style TargetType="Button" BasedOn="{StaticResource NavButton}"><Style.Triggers>
+                                <DataTrigger Binding="{Binding IsUtilitiesPage}" Value="True"><Setter Property="Background" Value="#E9EFFD" /><Setter Property="Foreground" Value="#2855D9" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
+                            </Style.Triggers></Style></Button.Style>
+                        </Button>
                         <Button Content="내 PC 사양" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:MainPage.Spec}" AutomationProperties.AutomationId="SpecToggleButton">
                             <Button.Style><Style TargetType="Button" BasedOn="{StaticResource NavButton}"><Style.Triggers>
                                 <DataTrigger Binding="{Binding IsSpecVisible}" Value="True"><Setter Property="Background" Value="#E9EFFD" /><Setter Property="Foreground" Value="#2855D9" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
@@ -319,6 +324,10 @@
                             </Expander>
                             <TextBlock x:Name="TroubleshootingUnavailableNote" Text="문제 해결 카탈로그를 읽지 못해 이 페이지를 쓸 수 없어요. 로그를 확인하세요." Style="{StaticResource Muted}" Visibility="Collapsed" />
                             <views:TroubleshootingView x:Name="TroubleshootingView" MinHeight="520" />
+                        </StackPanel>
+                        <!-- 유틸리티(외부 도구 카드 섹션) -->
+                        <StackPanel Visibility="{Binding IsUtilitiesPage, Converter={StaticResource BoolToVisibility}}">
+                            <views:UtilitiesView x:Name="UtilitiesView" />
                         </StackPanel>
                         <!-- 내 PC 사양 -->
                         <Border Visibility="{Binding IsSpecVisible, Converter={StaticResource BoolToVisibility}}">
