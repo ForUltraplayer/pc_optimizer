@@ -2,6 +2,8 @@
 
 기준 `0baa42c`, `codex/sp1-actions`. 구현→UI/UX→검증 우선순위. 독립 리뷰/에이전트/새 패키지 없음. 아래는 구현 기록이며 동작 검증 완료가 아니다.
 
+구현 커밋 `2451878` (`0baa42c..2451878`, 18파일).
+
 ## 구현
 
 - `UpdateActivityReader`: 로컬 WUA `IsBusy`/`RebootRequired`와 wuauserv/BITS 상태를 각각 수집한다. 일부 오류는 null로 남기고 다른 조회를 계속한다. false는 설치/제거 진행 보고가 없다는 뜻이며 다운로드·CBS·전체 작업 유휴/배타성을 보장하지 않는다.
