@@ -26,6 +26,13 @@ public static class StartupSelection
             string? Text(string field) => snapshot.GetMeasurement(probe, StartupItemsProbeContract.ItemMeasurementName(i, field)) is { Quality: MeasurementQuality.Observed, Value: TextValue text } ? text.Value : null;
             var name = Text(StartupItemsProbeContract.FIELD_NAME);
             var source = Text(StartupItemsProbeContract.FIELD_SOURCE);
+            if (source is StartupRegistration.UserFolder or StartupRegistration.CommonFolder)
+            {
+                if (name is not null && StartupRegistration.ValidName(name) && name.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase)
+                    && name.IndexOfAny(['\\', '/', ':', '*', '?', '"', '<', '>', '|', '~']) < 0)
+                { targets.TryAdd(source + ":" + name, new(source, name)); }
+                continue;
+            }
             var view = source switch { StartupRegistration.Source or StartupRegistration.Machine64 => "Registry64", StartupRegistration.Machine32 => "Registry32", _ => null };
             if (name is null || !StartupRegistration.ValidName(name) || view is null
                 || Text(StartupItemsProbeContract.FIELD_REGISTRY_VIEW) != view || Text(StartupItemsProbeContract.FIELD_VALUE_KIND) is not ("String" or "ExpandString")) { continue; }

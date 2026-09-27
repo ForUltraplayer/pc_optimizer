@@ -174,6 +174,7 @@ public sealed class ScanServiceTests
             [GpuProbeContract.PROBE_ID] = ProbeScope.System,
             [NvidiaLookupProbeContract.PROBE_ID] = ProbeScope.System,
             [WindowsUpdateProbeContract.PROBE_ID] = ProbeScope.System,
+            [PcOptimizer.Core.Rules.WindowsUpdateStateRule.ProbeId] = ProbeScope.System,
             [VolumeProbeContract.PROBE_ID] = ProbeScope.System,
             [PhysicalDiskProbeContract.PROBE_ID] = ProbeScope.System,
             [TrimPolicyProbeContract.PROBE_ID] = ProbeScope.System,

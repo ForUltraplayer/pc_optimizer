@@ -34,6 +34,8 @@ public sealed class ActionCenterLayoutTests
             try
             {
                 Render(window, "action-choices", 1);
+                var groupDescription = Descendants<TextBlock>((FrameworkElement)window.Content).Single(t => t.Text.StartsWith("현재 사용 목적에 맞는"));
+                Assert.True(groupDescription.ActualHeight > groupDescription.FontSize * 2);
                 var scroll = Descendants<ScrollViewer>((FrameworkElement)window.Content).First();
                 scroll.ScrollToEnd(); window.UpdateLayout();
                 Assert.True(scroll.VerticalOffset > 0);

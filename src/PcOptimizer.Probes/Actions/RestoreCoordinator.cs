@@ -76,7 +76,7 @@ public sealed class RestoreCoordinator
                         "이 앱이 정리 전에 실행 중으로 기록한 서비스만 다시 시작합니다. 시작 유형은 바꾸지 않으며 삭제된 파일은 복원하지 않습니다.",
                         new(label, "이미 실행 중이면 다시 시작하지 않습니다. 서비스가 전환 중이거나 복구하지 못하면 기록을 남깁니다.", RequiresRestart: false));
                 }
-                if (record.ActionId is ActionId.Startup or ActionId.MachineStartup && StartupRegistration.Name(record.TargetKey) is { } name)
+                if (record.ActionId is ActionId.Startup or ActionId.MachineStartup or ActionId.StartupFolder or ActionId.CommonStartupFolder && StartupRegistration.Name(record.TargetKey) is { } name)
                 {
                     var scopeLabel = StartupRegistration.Label(StartupRegistration.SourceOfKey(record.TargetKey)!);
                     return new(target, $"'{name}'의 원래 자동 실행 등록 복원 · {scopeLabel}", "표시한 사용자 범위에서 다음 로그인 때 원래 등록 명령을 다시 사용할 수 있게 합니다. 작업 관리자의 사용/사용 안 함 상태는 변경하지 않으며 앱을 지금 실행하지 않습니다.",
