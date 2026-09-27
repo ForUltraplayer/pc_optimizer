@@ -2,6 +2,8 @@
 
 기존 Windows·제조사·패키지 도구를 한 화면에서 연결하는 진단 앱입니다. LLM은 필요하지 않습니다. 진단은 조회 전용이며, 정리는 별도 화면에서 대상 확인과 사용자 확인 후에만 실행합니다.
 
+preview.13에서는 제목 표시줄·왼쪽 메뉴를 짙은 남색으로 구분하고 본문 글자·카드 경계·스크롤바 대비를 높였습니다. 내부 목록 위에서도 휠로 스크롤할 수 있고, 목록 끝에서는 바깥 본문으로 이어집니다. 탭마다 보던 위치를 앱 실행 중 기억하며, 새 조치 확인·결과가 생길 때만 상단으로 이동합니다.
+
 ## 실행
 
 GitHub Release의 `PcOptimizer-v<버전>-win-x64.zip`을 받아 압축을 풀고 **`PcOptimizer.exe`** 하나만 실행합니다(설치 없음, .NET 런타임 포함 단일 실행 파일). 관리자 권한 확인창에서 "예"를 누릅니다. 삭제는 폴더를 지우면 되고, 설정·로그는 `%LocalAppData%\PcOptimizer`에 있습니다. zip 최상위에는 `PcOptimizer.exe`, `실행방법.txt`, `LICENSES/`(라이선스 고지), `rules/`(규칙 원문 `winapp2.ini`·`supplement.ini`·`rule-metadata.json`과 출처 `sources.json`, 실행 시 읽지 않음)만 있습니다.

@@ -82,6 +82,118 @@ public sealed class MainWindowLayoutTests
             }
         });
     }
+    /// <summary>탭마다 보던 위치를 복원하고 빠른 탭 전환과 명시적인 대상 확인을 구분합니다.</summary>
+    [Fact]
+    public void NavigationRestoresEachPageAndOnlyNewConfirmationReturnsToTop()
+    {
+        ActionCenterLayoutTests.RunOnSta(async () =>
+        {
+            var adapter = new ActionCenterTests.Adapter();
+            var workflow = new ActionWorkflow(new PcOptimizer.Core.Actions.OperationCoordinator(), new ActionCenterTests.Store(),
+                () => ActionCenterTests.Session, [adapter], []);
+            using var actions = new ActionCenterViewModel(workflow, new WpfUiDispatcher(Dispatcher.CurrentDispatcher), () => Task.CompletedTask,
+                Enumerable.Range(0, 20).Select(i => new ActionChoice(PcOptimizer.Core.Actions.ActionId.Power, ActionCenterTests.Target, "전원 계획 " + i, "전력 사용과 응답성")));
+            using var vm = CreateScannedViewModel(actions: actions);
+            var window = new MainWindow(vm);
+            try
+            {
+                var root = (FrameworkElement)window.Content;
+                var scroll = (ScrollViewer)window.FindName("MainScroll");
+                void Layout()
+                {
+                    root.Measure(new Size(1100, 680)); root.Arrange(new Rect(0, 0, 1100, 680)); root.UpdateLayout();
+                }
+                async Task Settle()
+                {
+                    Layout();
+                    await Dispatcher.CurrentDispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle);
+                    Layout();
+                }
+                vm.CurrentPage = MainPage.AllResults;
+                await Settle();
+                Assert.True(scroll.ScrollableHeight > 120);
+                scroll.ScrollToVerticalOffset(120); Layout();
+                var resultsOffset = scroll.VerticalOffset;
+                vm.CurrentPage = MainPage.Actions;
+                await Settle();
+                Assert.Equal(0, scroll.VerticalOffset);
+                Assert.True(scroll.ScrollableHeight > 300);
+                scroll.ScrollToVerticalOffset(300); Layout();
+                var actionOffset = scroll.VerticalOffset;
+                vm.CurrentPage = MainPage.AllResults;
+                await Settle();
+                Assert.Equal(resultsOffset, scroll.VerticalOffset, 1);
+                vm.CurrentPage = MainPage.Actions;
+                await Settle();
+                Assert.Equal(actionOffset, scroll.VerticalOffset, 1);
+                // 복원 전 연속 전환도 빈 페이지의 0으로 저장 위치를 덮어쓰지 않는다.
+                vm.CurrentPage = MainPage.Settings;
+                vm.CurrentPage = MainPage.AllResults;
+                vm.CurrentPage = MainPage.Actions;
+                await Settle();
+                Assert.Equal(actionOffset, scroll.VerticalOffset, 1);
+                await actions.PrepareChoiceCommand.ExecuteAsync(actions.Choices[0]);
+                await Settle();
+                Assert.True(actions.HasPreview);
+                Assert.Equal(0, scroll.VerticalOffset);
+                scroll.ScrollToVerticalOffset(230); Layout();
+                var previewOffset = scroll.VerticalOffset;
+                actions.Preview = null;
+                await Settle();
+                Assert.Equal(previewOffset, scroll.VerticalOffset, 1);
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    /// <summary>실제 앱 테마를 로드해 제목 표시줄의 창 버튼과 색상, 세 배율 렌더를 확인합니다.</summary>
+    [Theory]
+    [InlineData(1.0)]
+    [InlineData(1.5)]
+    [InlineData(2.0)]
+    public void RealThemeRendersVisibleTitleBarButtons(double scale)
+    {
+        ActionCenterLayoutTests.RunOnSta(async () =>
+        {
+            var window = new MainWindow(CreateScannedViewModel(overview: true, rule: new ImprovementRule()));
+            try
+            {
+                window.Resources.MergedDictionaries.Insert(0, new Wpf.Ui.Markup.ThemesDictionary { Theme = Wpf.Ui.Appearance.ApplicationTheme.Light });
+                window.Resources.MergedDictionaries.Insert(1, new Wpf.Ui.Markup.ControlsDictionary());
+                var root = (FrameworkElement)window.Content;
+                var size = new Size(1100, 800);
+                root.Measure(size); root.Arrange(new Rect(size)); root.UpdateLayout();
+                var title = Descendants<Wpf.Ui.Controls.TitleBar>(root).Single();
+                await Dispatcher.CurrentDispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle);
+                root.UpdateLayout();
+                foreach (var button in Descendants<Wpf.Ui.Controls.TitleBarButton>(title).Where(b => b.Visibility == Visibility.Visible))
+                {
+                    var glyph = Descendants<System.Windows.Shapes.Path>(button).Single();
+                    Assert.Equal(Colors.White, ((SolidColorBrush)glyph.Fill).Color);
+                    Assert.Equal(42, button.ActualHeight);
+                    button.Hover();
+                    Assert.Equal(Colors.White, ((SolidColorBrush)glyph.Fill).Color);
+                    button.RemoveHover();
+                    Assert.Equal(Colors.White, ((SolidColorBrush)glyph.Fill).Color);
+                }
+                Assert.Equal(42, title.ActualHeight);
+                Assert.True(Descendants<Button>(title).Count(b => b.ActualWidth > 0) >= 3);
+                Assert.Equal(Colors.White, ((SolidColorBrush)title.ButtonsForeground).Color);
+                Assert.NotEqual(((SolidColorBrush)window.Background).Color, ((SolidColorBrush)title.Background).Color);
+                var output = Environment.GetEnvironmentVariable("PCOPTIMIZER_UI_ARTIFACTS");
+                if (!string.IsNullOrEmpty(output))
+                {
+                    Directory.CreateDirectory(output);
+                    var bitmap = new RenderTargetBitmap((int)(size.Width * scale), (int)(size.Height * scale), 96 * scale, 96 * scale, PixelFormats.Pbgra32);
+                    bitmap.Render(root);
+                    var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                    using var file = File.Create(Path.Combine(output, $"main-themed-{scale * 100:0}.png")); encoder.Save(file);
+                }
+            }
+            finally { window.Close(); }
+        });
+    }
+
     private const double LAYOUT_WIDTH = 900;
     private const double LAYOUT_HEIGHT = 2000;
     private const int PATH_SEGMENTS = 40;

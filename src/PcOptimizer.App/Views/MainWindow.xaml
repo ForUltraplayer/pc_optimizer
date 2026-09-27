@@ -14,9 +14,12 @@
     xmlns:models="clr-namespace:PcOptimizer.Core.Models;assembly=PcOptimizer.Core"
     Title="{x:Static res:Strings.MainWindow_Title}" Width="1240" Height="840" MinWidth="760" MinHeight="480"
     WindowStartupLocation="CenterScreen" ExtendsContentIntoTitleBar="True" WindowBackdropType="None"
-    WindowCornerPreference="Round" Background="#F4F6FA" Foreground="#19253B" FontFamily="Segoe UI, Malgun Gothic"
+    WindowCornerPreference="Round" Background="{DynamicResource AppCanvasBrush}" Foreground="{DynamicResource AppTextBrush}" FontFamily="Segoe UI, Malgun Gothic"
     KeyboardNavigation.TabNavigation="Cycle">
     <ui:FluentWindow.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="/PcOptimizer;component/Resources/VisibilityTheme.xaml" /></ResourceDictionary.MergedDictionaries>
+
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
         <Style TargetType="TextBlock">
             <Setter Property="TextWrapping" Value="Wrap" />
@@ -24,7 +27,7 @@
         <Style TargetType="Button">
             <Setter Property="Background" Value="White" />
             <Setter Property="Foreground" Value="#253652" />
-            <Setter Property="BorderBrush" Value="#CCD5E2" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="14,9" />
             <Setter Property="Cursor" Value="Hand" />
@@ -38,7 +41,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Opacity" Value="0.82" /></Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="#122E73" /><Setter TargetName="Surface" Property="BorderThickness" Value="2" /></Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="{Binding BorderBrush, RelativeSource={RelativeSource TemplatedParent}}" /><Setter TargetName="Surface" Property="BorderThickness" Value="2" /></Trigger>
                             <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Surface" Property="Opacity" Value="0.45" /></Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -52,21 +55,23 @@
         <Style x:Key="CardButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Margin" Value="0,12,8,0" />
         </Style>
-        <!-- 좌측 내비게이션 항목: 선택된 페이지는 연한 파랑 배경과 진한 글자로 표시한다. -->
+        <!-- 짙은 내비게이션 위에 선택 항목과 키보드 포커스를 밝게 표시한다. -->
         <Style x:Key="NavButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Foreground" Value="{DynamicResource AppOnDarkBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppOnDarkBrush}" />
             <Setter Property="Background" Value="Transparent" /><Setter Property="BorderThickness" Value="0" />
             <Setter Property="HorizontalAlignment" Value="Stretch" /><Setter Property="HorizontalContentAlignment" Value="Left" />
             <Setter Property="Padding" Value="12,10" /><Setter Property="Margin" Value="0,0,0,4" /><Setter Property="FontSize" Value="14" />
         </Style>
         <Style x:Key="NavSelected" TargetType="Button" BasedOn="{StaticResource NavButton}">
-            <Setter Property="Background" Value="#E9EFFD" /><Setter Property="Foreground" Value="#2855D9" /><Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Background" Value="{DynamicResource AppSelectedBrush}" /><Setter Property="Foreground" Value="{DynamicResource AppOnDarkBrush}" /><Setter Property="FontWeight" Value="SemiBold" />
         </Style>
         <Style x:Key="Muted" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#53627A" /><Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource AppSecondaryTextBrush}" /><Setter Property="TextWrapping" Value="Wrap" />
         </Style>
         <Style x:Key="Tile" TargetType="Border">
             <Setter Property="Background" Value="White" /><Setter Property="CornerRadius" Value="12" />
-            <Setter Property="Padding" Value="18" /><Setter Property="BorderBrush" Value="#E0E5EE" /><Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="18" /><Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}" /><Setter Property="BorderThickness" Value="1" />
         </Style>
         <Style x:Key="VerdictBadge" TargetType="Border">
             <Setter Property="Background" Value="#EDF1F6" /><Setter Property="CornerRadius" Value="5" /><Setter Property="Padding" Value="8,3" />
@@ -151,7 +156,7 @@
                         <TextBox Style="{x:Null}" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0" Background="Transparent" Padding="0"
                                  Text="{Binding LinkStatusText, Mode=OneWay}" Margin="0,6,0,0" AutomationProperties.AutomationId="LinkStatus"
                                  Visibility="{Binding HasLinkStatus, Converter={StaticResource BoolToVisibility}}" />
-                        <Border Margin="0,14,0,0" Padding="14" Background="#F5F7FA" CornerRadius="6" Visibility="{Binding IsDetailsVisible, Converter={StaticResource BoolToVisibility}}">
+                        <Border Margin="0,14,0,0" Padding="14" Background="{DynamicResource AppInsetBrush}" CornerRadius="6" Visibility="{Binding IsDetailsVisible, Converter={StaticResource BoolToVisibility}}">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Card_EvidenceHeader}" FontWeight="SemiBold" />
                                 <TextBlock TextWrapping="Wrap" Text="{Binding Evidence}" Margin="0,4,0,10" />
@@ -168,59 +173,63 @@
                 </StackPanel>
             </Border>
         </DataTemplate>
+            </ResourceDictionary>
     </ui:FluentWindow.Resources>
-    <Grid Background="#F4F6FA">
+    <Grid Background="{DynamicResource AppCanvasBrush}">
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-        <ui:TitleBar Grid.Row="0" Title="{x:Static res:Strings.MainWindow_Title}" />
+        <views:ContrastTitleBar Grid.Row="0" Height="42" Title="{x:Static res:Strings.MainWindow_Title}"
+                     Background="{DynamicResource AppChromeBrush}" Foreground="{DynamicResource AppOnDarkBrush}"
+                     ButtonsBackground="#38506F" ButtonsForeground="{DynamicResource AppOnDarkBrush}"
+                     AutomationProperties.AutomationId="AppTitleBar" />
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions><ColumnDefinition Width="228" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
             <!-- 좌측 내비게이션(사용자 확정 배치안: 7개 항목). -->
-            <Border Grid.Column="0" Background="White" BorderBrush="#E3E8EF" BorderThickness="0,0,1,0" Padding="12,14">
+            <Border Grid.Column="0" Background="{DynamicResource AppSidebarBrush}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,1,0" Padding="12,14">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Bottom" Margin="12,12,12,4">
-                        <TextBlock TextWrapping="Wrap" Text="{Binding LastMeasuredText}" Style="{StaticResource Muted}" FontSize="12" AutomationProperties.AutomationId="LastMeasuredText" />
-                        <TextBlock TextWrapping="Wrap" Text="{Binding StateText}" Style="{StaticResource Muted}" FontSize="12" Margin="0,4,0,0" AutomationProperties.AutomationId="StateText" />
+                        <TextBlock TextWrapping="Wrap" Text="{Binding LastMeasuredText}" Style="{StaticResource Muted}" Foreground="{DynamicResource AppOnDarkMutedBrush}" FontSize="12" AutomationProperties.AutomationId="LastMeasuredText" />
+                        <TextBlock TextWrapping="Wrap" Text="{Binding StateText}" Style="{StaticResource Muted}" Foreground="{DynamicResource AppOnDarkMutedBrush}" FontSize="12" Margin="0,4,0,0" AutomationProperties.AutomationId="StateText" />
                     </StackPanel>
                     <StackPanel>
-                        <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Overview_AppTitle}" FontSize="17" FontWeight="Bold" Margin="12,6,12,18" />
+                        <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Overview_AppTitle}" Foreground="{DynamicResource AppOnDarkBrush}" FontSize="17" FontWeight="Bold" Margin="12,6,12,18" />
                         <Button Content="추천 조치" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:MainPage.Recommended}" AutomationProperties.AutomationId="NavRecommended">
                             <Button.Style><Style TargetType="Button" BasedOn="{StaticResource NavButton}"><Style.Triggers>
-                                <DataTrigger Binding="{Binding IsRecommendedPage}" Value="True"><Setter Property="Background" Value="#E9EFFD" /><Setter Property="Foreground" Value="#2855D9" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
+                                <DataTrigger Binding="{Binding IsRecommendedPage}" Value="True"><Setter Property="Background" Value="{DynamicResource AppSelectedBrush}" /><Setter Property="Foreground" Value="{DynamicResource AppOnDarkBrush}" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
                             </Style.Triggers></Style></Button.Style>
                         </Button>
                         <Button Content="전체 결과" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:MainPage.AllResults}" AutomationProperties.AutomationId="NavAllResults">
                             <Button.Style><Style TargetType="Button" BasedOn="{StaticResource NavButton}"><Style.Triggers>
-                                <DataTrigger Binding="{Binding IsAllResultsPage}" Value="True"><Setter Property="Background" Value="#E9EFFD" /><Setter Property="Foreground" Value="#2855D9" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
+                                <DataTrigger Binding="{Binding IsAllResultsPage}" Value="True"><Setter Property="Background" Value="{DynamicResource AppSelectedBrush}" /><Setter Property="Foreground" Value="{DynamicResource AppOnDarkBrush}" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
                             </Style.Triggers></Style></Button.Style>
                         </Button>
                         <Button Content="문제 해결" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:MainPage.Troubleshooting}" AutomationProperties.AutomationId="NavTroubleshooting">
                             <Button.Style><Style TargetType="Button" BasedOn="{StaticResource NavButton}"><Style.Triggers>
-                                <DataTrigger Binding="{Binding IsTroubleshootingPage}" Value="True"><Setter Property="Background" Value="#E9EFFD" /><Setter Property="Foreground" Value="#2855D9" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
+                                <DataTrigger Binding="{Binding IsTroubleshootingPage}" Value="True"><Setter Property="Background" Value="{DynamicResource AppSelectedBrush}" /><Setter Property="Foreground" Value="{DynamicResource AppOnDarkBrush}" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
                             </Style.Triggers></Style></Button.Style>
                         </Button>
                         <Button Content="유틸리티" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:MainPage.Utilities}" AutomationProperties.AutomationId="NavUtilities">
                             <Button.Style><Style TargetType="Button" BasedOn="{StaticResource NavButton}"><Style.Triggers>
-                                <DataTrigger Binding="{Binding IsUtilitiesPage}" Value="True"><Setter Property="Background" Value="#E9EFFD" /><Setter Property="Foreground" Value="#2855D9" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
+                                <DataTrigger Binding="{Binding IsUtilitiesPage}" Value="True"><Setter Property="Background" Value="{DynamicResource AppSelectedBrush}" /><Setter Property="Foreground" Value="{DynamicResource AppOnDarkBrush}" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
                             </Style.Triggers></Style></Button.Style>
                         </Button>
                         <Button Content="내 PC 사양" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:MainPage.Spec}" AutomationProperties.AutomationId="SpecToggleButton">
                             <Button.Style><Style TargetType="Button" BasedOn="{StaticResource NavButton}"><Style.Triggers>
-                                <DataTrigger Binding="{Binding IsSpecVisible}" Value="True"><Setter Property="Background" Value="#E9EFFD" /><Setter Property="Foreground" Value="#2855D9" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
+                                <DataTrigger Binding="{Binding IsSpecVisible}" Value="True"><Setter Property="Background" Value="{DynamicResource AppSelectedBrush}" /><Setter Property="Foreground" Value="{DynamicResource AppOnDarkBrush}" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
                             </Style.Triggers></Style></Button.Style>
                         </Button>
                         <Button Content="고급" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:MainPage.Advanced}" AutomationProperties.AutomationId="NavAdvanced">
                             <Button.Style><Style TargetType="Button" BasedOn="{StaticResource NavButton}"><Style.Triggers>
-                                <DataTrigger Binding="{Binding IsAdvancedPage}" Value="True"><Setter Property="Background" Value="#E9EFFD" /><Setter Property="Foreground" Value="#2855D9" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
+                                <DataTrigger Binding="{Binding IsAdvancedPage}" Value="True"><Setter Property="Background" Value="{DynamicResource AppSelectedBrush}" /><Setter Property="Foreground" Value="{DynamicResource AppOnDarkBrush}" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
                             </Style.Triggers></Style></Button.Style>
                         </Button>
                         <Button Content="조치 실행 · 되돌리기" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:MainPage.Actions}" AutomationProperties.AutomationId="OpenActionCenter">
                             <Button.Style><Style TargetType="Button" BasedOn="{StaticResource NavButton}"><Style.Triggers>
-                                <DataTrigger Binding="{Binding IsActionsPage}" Value="True"><Setter Property="Background" Value="#E9EFFD" /><Setter Property="Foreground" Value="#2855D9" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
+                                <DataTrigger Binding="{Binding IsActionsPage}" Value="True"><Setter Property="Background" Value="{DynamicResource AppSelectedBrush}" /><Setter Property="Foreground" Value="{DynamicResource AppOnDarkBrush}" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
                             </Style.Triggers></Style></Button.Style>
                         </Button>
                         <Button Content="설정" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:MainPage.Settings}" AutomationProperties.AutomationId="NavSettings">
                             <Button.Style><Style TargetType="Button" BasedOn="{StaticResource NavButton}"><Style.Triggers>
-                                <DataTrigger Binding="{Binding IsSettingsPage}" Value="True"><Setter Property="Background" Value="#E9EFFD" /><Setter Property="Foreground" Value="#2855D9" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
+                                <DataTrigger Binding="{Binding IsSettingsPage}" Value="True"><Setter Property="Background" Value="{DynamicResource AppSelectedBrush}" /><Setter Property="Foreground" Value="{DynamicResource AppOnDarkBrush}" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
                             </Style.Triggers></Style></Button.Style>
                         </Button>
                     </StackPanel>
@@ -239,7 +248,7 @@
                         <TextBlock TextWrapping="Wrap" Text="{Binding PageTitle}" FontSize="21" FontWeight="Bold" AutomationProperties.AutomationId="PageTitle" />
                     </StackPanel>
                 </DockPanel>
-                <ScrollViewer x:Name="MainScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                <ScrollViewer services:ScrollChain.IsEnabled="True" x:Name="MainScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
                     <StackPanel Margin="28,0,28,28">
                         <!-- 추천 조치 · 전체 결과 -->
                         <StackPanel Visibility="{Binding IsResultsVisible, Converter={StaticResource BoolToVisibility}}">

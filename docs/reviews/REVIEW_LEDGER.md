@@ -1,4 +1,4 @@
-# 공유 리뷰 원장
+﻿# 공유 리뷰 원장
 
 사용자 요청에 따라 Codex의 검토 결과를 구현자·리뷰어가 파일로 확인하고 대응하기 위한 원장이다. 마지막 기록일: 2026-09-27(SP4 Task 9 시점 REV-016~018 신규 재현, REV-010 잔여 재현 확인). 사용자의 ‘이어서 작업 진행’ 지시 이후 Codex가 구현도 인계받았다. 이후 자기 수정 검증과 별도 독립 리뷰를 구분한다.
 
@@ -739,3 +739,12 @@
 - DISM /Source: 명령 목록은 닫혀 있고 사용자 입력은 폴더 하나뿐이며 `InstallMediaSource.TryResolve`(절대 경로·UNC/와일드카드 금지·sources\install.wim|esd 존재)를 통과한 값만 `/Source:` 인자로 들어간다. `TroubleshootingTests.InstallMediaResolvesImageFile`, `SourceCommandRefusesWithoutValidFolder`.
 - 검증: Release 0/0, 기본 1693/1693, Smoke 58/58, preview.11 ZIP 검증. 독립 리뷰 없음(사용자 지시).
 - 후속 `5acc71e`: 도구 카드 보조 링크(`extraLinks`, 링크 표 항목만 허용·도구당 3개 상한) 지원. Rufus 카드에 '홍차의 꿈 블로그(한국어 안내)' 버튼(jsb000.tistory.com/search/rufus, 사용자 요청). 공식 배포처 버튼과 구분해 두었고 파일은 받지 않는다. 기본 1694/1694, preview.12 ZIP 검증.
+
+
+## 2026-09-27 스크롤·탭 위치·시인성 개선 / preview.13
+
+- 기준 `d6ea835`, 본 기록과 같은 구현 커밋. [변경 파일·재현·검증·배포·제한](2026-09-27-scroll-visibility.md). REV-015 UI 사용성 후속: 내부 목록 끝에서 바깥 본문으로 휠 전달, 탭별 스크롤 위치 복원, 새 확인/결과만 상단 표시, 제목 표시줄·메뉴·카드·글자·스크롤바 대비 개선.
+- 변경 파일: App `ScrollChain.cs`, `VisibilityTheme.xaml`, `ContrastTitleBar.cs`, `Views/*.xaml`, MainWindow/ActionCenterView 코드 비하인드. 테스트 `ScrollChainTests`, `MainWindowLayoutTests`, 렌더 헬퍼 `ActionCenterLayoutTests`.
+- Release 빌드 경고0/오류0, 기본 **1700/1700**(신규6), 100/150/200% 실제 테마 렌더 및 중첩 휠/탭 연속 전환/미리보기 표시·해제 재현 통과. 명령/TRX는 보고서 참조. 초기 검정 창 버튼 재현 후 흰 아이콘/hover/복귀를 검증했다.
+- preview.13 ZIP 13파일/최상위4·고지·규칙 원문·해시 통과. SHA-256 `3CA80153DDB0745C549525709BDEAD3578C0ABBCAC66B4CD015245638478AFD6`. 이전 배포/실행 중 앱 보존.
+- 실행기·보호 관문·익명화·링크 정책은 변경 없음. REV-008/013/016/017/018의 기존 상태·독립 검증 이력은 유지한다. 사용자 지시로 독립 리뷰/에이전트 없음. 자체 재현을 독립 검증 완료로 표시하지 않는다. Smoke/Online/ToolSmoke 및 실제 마우스/터치패드·DPI·Snap·UAC는 이번에 검증하지 않았다.

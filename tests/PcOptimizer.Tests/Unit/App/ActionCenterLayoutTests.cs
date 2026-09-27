@@ -133,6 +133,10 @@ public sealed class ActionCenterLayoutTests
         if (string.IsNullOrEmpty(output)) { return; }
         Directory.CreateDirectory(output);
         var bitmap = new RenderTargetBitmap((int)(size.Width * scale), (int)(size.Height * scale), 96 * scale, 96 * scale, PixelFormats.Pbgra32);
+        // 창 자체를 표시하지 않아도 실제 창 배경 위에 본문을 합성한다.
+        var backdrop = new DrawingVisual();
+        using (var drawing = backdrop.RenderOpen()) { drawing.DrawRectangle(window.Background ?? SystemColors.WindowBrush, null, new Rect(size)); }
+        bitmap.Render(backdrop);
         bitmap.Render(root);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var stream = File.Create(Path.Combine(output, name + ".png")); encoder.Save(stream);

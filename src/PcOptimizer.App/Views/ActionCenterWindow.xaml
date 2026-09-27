@@ -8,8 +8,11 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:PcOptimizer.App.Views"
         Title="개선할 작업 선택 · 결과 · 되돌리기" Width="760" Height="820" MinWidth="420" MinHeight="360"
-        WindowStartupLocation="CenterOwner" Background="#F4F6FA" Foreground="#19253B"
+        WindowStartupLocation="CenterOwner" Background="{DynamicResource AppCanvasBrush}" Foreground="{DynamicResource AppTextBrush}"
         FontFamily="Segoe UI, Malgun Gothic">
+    <Window.Resources><ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="/PcOptimizer;component/Resources/VisibilityTheme.xaml" /></ResourceDictionary.MergedDictionaries>
+</ResourceDictionary></Window.Resources>
     <DockPanel Margin="22">
         <Button DockPanel.Dock="Bottom" Content="창 닫기 (Esc)" IsCancel="True" Click="CloseWindow" HorizontalAlignment="Left" Padding="14,9" Margin="0,8,0,0" AutomationProperties.AutomationId="CloseActionCenter" />
         <views:ActionCenterView />
