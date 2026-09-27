@@ -134,6 +134,7 @@ public sealed class ScanService
                 new DisplayProbe(),
                 new SystemInfoProbe(),
                 new SystemDetailsProbe(),
+                new DeviceDriverProbe(),
                 new GraphicsSettingsProbe(),
                 new GameModeSettingsProbe(),
                 new SecurityStatusProbe(),

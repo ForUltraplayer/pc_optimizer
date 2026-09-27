@@ -168,6 +168,7 @@ public sealed class ScanServiceTests
             [DisplayProbeContract.PROBE_ID] = ProbeScope.System,
             [SystemInfoProbeContract.PROBE_ID] = ProbeScope.System,
             [SystemDetailsProbeContract.PROBE_ID] = ProbeScope.System,
+            [DeviceDriverProbeContract.PROBE_ID] = ProbeScope.System,
             [GraphicsSettingsProbeContract.PROBE_ID] = ProbeScope.System,
             [GraphicsSettingsProbeContract.GAME_MODE_PROBE_ID] = ProbeScope.User,
             [SecurityStatusProbeContract.PROBE_ID] = ProbeScope.System,
