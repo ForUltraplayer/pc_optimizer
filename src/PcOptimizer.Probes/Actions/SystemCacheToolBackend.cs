@@ -183,6 +183,11 @@ public sealed class SystemCacheToolBackend : ICacheToolBackend
     public static bool AnyToolInProtectedLocation() => AnyToolInProtectedLocation(SystemPathEnvironment.Instance, ProtectedProgramRoot,
         Environment.GetEnvironmentVariable(PATH_VARIABLE), FileSystemDirectoryEntrySource.Instance);
 
+    /// <summary>도구 하나의 보호 위치 설치 여부를 프로세스 실행 없이 확인합니다.</summary>
+    public static bool IsToolInProtectedLocation(CacheTool tool) => IsToolInProtectedLocation(tool, SystemPathEnvironment.Instance, ProtectedProgramRoot,
+        Environment.GetEnvironmentVariable(PATH_VARIABLE), FileSystemDirectoryEntrySource.Instance);
+
+
     /// <summary>주입 가능한 <see cref="AnyToolInProtectedLocation()"/>입니다.</summary>
     /// <param name="environment">경로 정규화 환경.</param>
     /// <param name="programRoot">보호 위치 이름별 경로(없으면 null).</param>

@@ -93,7 +93,7 @@ public partial class App : Application
             elevation,
             userScope,
             // 앱 안에서 바로 실행하는 조치는 보호 위치(Program Files) 도구의 npm·pip·NuGet 캐시 정리뿐이다. 도구 위치는 존재 확인만 하며 프로세스를 실행하지 않는다.
-            new CacheToolActionAvailability(() => SystemCacheToolBackend.AnyToolInProtectedLocation(), CacheToolActionAvailability.DEFAULT_REVIEWED_APP_IDS),
+            new CacheToolActionAvailability(SystemCacheToolBackend.IsToolInProtectedLocation, CacheToolActionAvailability.DEFAULT_REVIEWED_APP_IDS, userScope == UserScopeMode.SystemOnly),
             spec,
             // SID를 알아내지 못해 시스템만으로 정한 경우는 "다른 관리자 계정" 배너가 아니라 "확인하지 못함" 배너를 보인다.
             userScopeUnresolved);

@@ -19,7 +19,7 @@ namespace PcOptimizer.App.Services;
 /// (2) NVIDIA 허용 호스트의 드라이버 페이지 또는 Windows 배포 파일 경로입니다.
 /// 이 정책은 출처와 관계없이 호스트와 경로를 다시 확인합니다. 호스트는 퓨니코드로 비교해 유사 문자 도메인을 막습니다.
 /// 열 때는 검증한 <see cref="Uri.AbsoluteUri"/>(정규화한 문자열)만 <see cref="UnelevatedShellLauncher"/>에 넘깁니다. 앱이 항상 관리자 권한이므로
-/// URL을 직접 셸 실행하지 않고 이미 실행 중인 비승격 셸(explorer.exe)에 인자로 넘겨 브라우저가 일반 권한으로 열리게 합니다.
+/// URL을 직접 셸 실행하지 않고 이미 실행 중인 비승격 데스크톱 셸에 COM으로 위임해 브라우저가 일반 권한으로 열리게 합니다.
 /// 열지 못하면 <see cref="LinkOpenResult.Failed"/>를 돌려주고 카드가 주소 복사 안내를 보여 줍니다.
 /// </remarks>
 public sealed class LinkPolicy
@@ -41,7 +41,7 @@ public sealed class LinkPolicy
     }
 
     /// <summary>
-    /// 비승격 셸 실행기를 지정해 정책을 만듭니다(테스트에서 프로세스 시작기만 바꿔 실제 시작 정보를 확인하기 위함).
+    /// 비승격 셸 실행기를 지정해 정책을 만듭니다(테스트에서 데스크톱 연결을 대역으로 바꾸기 위함).
     /// </summary>
     /// <param name="catalog">공식 링크 표.</param>
     /// <param name="logger">공용 로거.</param>

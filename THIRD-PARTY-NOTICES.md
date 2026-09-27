@@ -55,3 +55,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## 포터블 ZIP의 추가 원문 고지
+
+패키징 시 복원된 런타임·WPF-UI 버전의 원문을 LICENSES/에 복사합니다:
+`dotnet-THIRD-PARTY-NOTICES.txt`, `dotnet-LICENSE.txt`, `windowsdesktop-LICENSE.txt`,
+`WPF-UI-ThirdPartyNotices.txt`, `WPF-UI-LICENSE.md`. 앱은 이 문서를 실행 입력으로 사용하지 않습니다.

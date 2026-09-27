@@ -19,11 +19,6 @@ public sealed partial class MainViewModel
     [NotifyPropertyChangedFor(nameof(VisibleCards), nameof(ResultsHeading), nameof(ResultsDescription), nameof(IsOverview), nameof(IsResultListEmpty), nameof(EmptyResultsText))]
     private bool _showAllResults;
 
-    /// <summary>설정 후보만 표시할지 여부.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(VisibleCards), nameof(ResultsDescription), nameof(IsResultListEmpty), nameof(EmptyResultsText))]
-    private bool _showSettingsOnly;
-
     /// <summary>최근 실제 정리 실행 결과.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasCleanupOutcome))]
@@ -44,14 +39,14 @@ public sealed partial class MainViewModel
 
     /// <summary>선택한 목적과 표시 범위에 맞는 카드.</summary>
     public IEnumerable<FindingCardViewModel> VisibleCards => ShowAllResults ? Cards
-        : RecommendedCards.Where(c => !ShowSettingsOnly || c.Finding.Category != FindingCategory.Driver);
+        : RecommendedCards;
     /// <summary>현재 결과 목록이 비었는지 여부.</summary>
     public bool IsResultListEmpty => !VisibleCards.Any();
     /// <summary>결과 목록의 제목.</summary>
     public string ResultsHeading => ShowAllResults ? Strings.Overview_All : Strings.Overview_Recommendations;
     /// <summary>선택한 결과 범위의 설명.</summary>
     public string ResultsDescription => ShowAllResults ? Strings.Overview_AllHelp
-        : ShowSettingsOnly ? Strings.Overview_SettingsFocusHelp : Strings.Overview_RecommendationsHelp;
+        : Strings.Overview_RecommendationsHelp;
     /// <summary>추천 조치 건수를 포함한 탭 문구.</summary>
     public string RecommendationsTab => DisplayText.Format(Strings.Overview_RecommendationsCount, RecommendedCards.Count);
     /// <summary>전체 결과 건수를 포함한 탭 문구.</summary>
@@ -93,36 +88,13 @@ public sealed partial class MainViewModel
     public string EmptyResultsText => IsScanning ? Strings.Overview_ScanningHelp
         : LastResult is null ? Strings.Overview_EmptyBefore
         : ShowAllResults ? Strings.Overview_EmptyFilter
-        : ShowSettingsOnly ? Strings.Overview_EmptySettings : Strings.Overview_EmptyAfter;
+        : Strings.Overview_EmptyAfter;
 
     /// <summary>추천 조치 전체로 돌아갑니다.</summary>
     [RelayCommand]
     private void ShowRecommendations()
     {
-        ShowSettingsOnly = false;
         ShowAllResults = false;
-    }
-
-    /// <summary>설정 개선 후보만 표시합니다.</summary>
-    [RelayCommand]
-    private void ShowSettings()
-    {
-        ShowSettingsOnly = true;
-        ShowAllResults = false;
-    }
-
-    /// <summary>드라이버 분류의 모든 결과를 엽니다.</summary>
-    [RelayCommand]
-    private void ShowDrivers()
-    {
-        ShowAllResults = true;
-        var category = Categories.FirstOrDefault(c => c.Category == FindingCategory.Driver);
-        if (category is null)
-        {
-            category = new CategoryItemViewModel(FindingCategory.Driver, 0);
-            Categories.Add(category);
-        }
-        SelectedCategory = category;
     }
 
     /// <summary>모든 분류의 결과를 표시합니다.</summary>

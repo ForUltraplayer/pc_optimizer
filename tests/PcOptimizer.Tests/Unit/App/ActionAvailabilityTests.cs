@@ -33,7 +33,7 @@ public sealed class ActionAvailabilityTests
     [InlineData("display.refresh:display-1", true, false)]
     public void OnlyReviewedCacheCardsWithProtectedToolsAreExecutable(string id, bool toolInstalled, bool expected)
     {
-        var availability = new CacheToolActionAvailability(() => toolInstalled, reviewedAppIds: ["npm", "pip", "nuget"]);
+        var availability = new CacheToolActionAvailability(_ => toolInstalled, reviewedAppIds: ["npm", "pip", "nuget"]);
         Assert.Equal(expected, availability.CanExecuteInApp(Card(id, Verdict.Candidate)));
     }
 
@@ -46,7 +46,7 @@ public sealed class ActionAvailabilityTests
     [InlineData("appCache.config:npm", Verdict.Candidate, false)]
     public void ReviewedAppIdsAreCaseInsensitiveAndOnlyCandidatesCount(string id, Verdict verdict, bool expected)
     {
-        var availability = new CacheToolActionAvailability(() => true, CacheToolActionAvailability.DEFAULT_REVIEWED_APP_IDS);
+        var availability = new CacheToolActionAvailability(_ => true, CacheToolActionAvailability.DEFAULT_REVIEWED_APP_IDS);
         Assert.Equal(expected, availability.CanExecuteInApp(Card(id, verdict)));
     }
 
@@ -56,8 +56,37 @@ public sealed class ActionAvailabilityTests
     [InlineData(false)]
     public void CacheToolsAvailableFollowsProtectedLocationCheck(bool installed)
     {
-        var availability = new CacheToolActionAvailability(() => installed, CacheToolActionAvailability.DEFAULT_REVIEWED_APP_IDS);
+        var availability = new CacheToolActionAvailability(_ => installed, CacheToolActionAvailability.DEFAULT_REVIEWED_APP_IDS);
         Assert.Equal(installed, availability.CacheToolsAvailable);
+    }
+
+    /// <summary>dotnet만 설치되어 있으면 npm/pip을 바로 실행으로 세지 않으며 getter는 다시 조회하지 않습니다.</summary>
+    [Fact]
+    public void AvailabilityIsPerToolAndRefreshesExplicitly()
+    {
+        var calls = 0;
+        var installed = CacheTool.NuGetHttp;
+        var availability = new CacheToolActionAvailability(tool => { calls++; return tool == installed; }, CacheToolActionAvailability.DEFAULT_REVIEWED_APP_IDS);
+        Assert.True(availability.CacheToolsAvailable);
+        Assert.True(availability.CanExecuteInApp(Card("appCache.app:NuGet", Verdict.Candidate)));
+        Assert.False(availability.CanExecuteInApp(Card("appCache.app:npm", Verdict.Candidate)));
+        Assert.False(availability.CanExecuteInApp(Card("appCache.app:pip", Verdict.Candidate)));
+        Assert.Equal(3, calls);
+        installed = CacheTool.Npm;
+        availability.Refresh();
+        Assert.True(availability.CanExecuteInApp(Card("appCache.app:npm", Verdict.Candidate)));
+        Assert.False(availability.CanExecuteInApp(Card("appCache.app:NuGet", Verdict.Candidate)));
+        Assert.Equal(6, calls);
+    }
+
+    /// <summary>SystemOnly에서는 사용자 도구 위치를 조회하거나 실행 후보로 노출하지 않습니다.</summary>
+    [Fact]
+    public void SystemOnlyDoesNotProbeTools()
+    {
+        var availability = new CacheToolActionAvailability(_ => throw new InvalidOperationException(), CacheToolActionAvailability.DEFAULT_REVIEWED_APP_IDS, true);
+        availability.Refresh();
+        Assert.False(availability.CacheToolsAvailable);
+        Assert.False(availability.CanExecuteInApp(Card("appCache.app:npm", Verdict.Candidate)));
     }
 
     /// <summary>노출 판정은 실행 규칙과 같다: 표준 위치 npm은 진입 파일까지 있어야 하고, 보호 위치를 모르면 어떤 도구도 노출하지 않는다.</summary>

@@ -249,7 +249,8 @@ public sealed partial class PcSpecService
             };
             items[index] = new(
                 label,
-                Join(
+                Join(capacity, volumes.Text(Name(VolumeProbeContract.FIELD_FILE_SYSTEM))),
+                IdentifyingValue: Join(
                     volumes.Text(Name(VolumeProbeContract.FIELD_LABEL)),
                     capacity,
                     volumes.Text(Name(VolumeProbeContract.FIELD_FILE_SYSTEM))));

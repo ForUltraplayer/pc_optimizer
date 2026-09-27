@@ -13,7 +13,14 @@ namespace PcOptimizer.Tests.Unit.App;
 /// <summary>배포 속성을 검증합니다.</summary>
 public sealed class PackagingTests
 {
-    private static readonly string CSPROJ = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "PcOptimizer.App", "PcOptimizer.App.csproj"));
+    private static readonly string ROOT = FindRoot();
+    private static readonly string CSPROJ = Path.Combine(ROOT, "src", "PcOptimizer.App", "PcOptimizer.App.csproj");
+    private static string FindRoot()
+    {
+        for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
+        { if (File.Exists(Path.Combine(dir.FullName, "PcOptimizer.sln"))) { return dir.FullName; } }
+        throw new InvalidOperationException("테스트 저장소를 찾지 못했습니다.");
+    }
 
     /// <summary>단일 파일 self-contained 배포·아이콘·이름·버전 속성과 시작 훅 끄기(관리자 권한 앱에 사용자 환경 변수 DOTNET_STARTUP_HOOKS 주입 차단)가 있다.</summary>
     [Theory]
@@ -29,7 +36,8 @@ public sealed class PackagingTests
     [InlineData("StartupHookSupport", "false")]
     public void PublishPropertiesArePresent(string name, string expected)
     {
-        var doc = XDocument.Load(CSPROJ);
+        var doc = XDocument.Load(name is "AssemblyName" or "ApplicationIcon" or "StartupHookSupport" ? CSPROJ
+            : Path.Combine(ROOT, "src", "PcOptimizer.App", "Properties", "PublishProfiles", "win-x64.pubxml"));
         var value = doc.Descendants(name).Select(e => e.Value.Trim()).FirstOrDefault();
         Assert.Equal(expected, value);
     }

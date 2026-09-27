@@ -236,15 +236,13 @@ public sealed class MainViewModelTests
         using var vm = CreateViewModel([new FixtureMemoryProbe()]);
         await vm.StartScanCommand.ExecuteAsync(null);
         var report = vm.LastResult;
-        vm.ShowSettingsCommand.Execute(null);
-        Assert.True(vm.ShowSettingsOnly);
-        Assert.Single(vm.VisibleCards);
-        vm.ShowDriversCommand.Execute(null);
+        vm.ShowAllCommand.Execute(null);
+        vm.Categories.Add(new CategoryItemViewModel(FindingCategory.Driver, 0));
+        vm.SelectedCategory = vm.Categories.Single(c => c.Category == FindingCategory.Driver);
         Assert.True(vm.ShowAllResults);
         Assert.Equal(FindingCategory.Driver, vm.SelectedCategory!.Category);
         Assert.Empty(vm.VisibleCards); // Never falls back to unrelated findings.
         vm.ShowRecommendationsCommand.Execute(null);
-        Assert.False(vm.ShowSettingsOnly);
         Assert.Single(vm.VisibleCards);
         Assert.Same(report, vm.LastResult);
     }
@@ -375,11 +373,11 @@ public sealed class MainViewModelTests
 
         var calls = 0;
         using var counted = CreateViewModel([new FixtureMemoryProbe()],
-            availability: new CacheToolActionAvailability(() => { calls++; return true; }, CacheToolActionAvailability.DEFAULT_REVIEWED_APP_IDS));
+            availability: new CacheToolActionAvailability(_ => { calls++; return true; }, CacheToolActionAvailability.DEFAULT_REVIEWED_APP_IDS));
         await counted.StartScanCommand.ExecuteAsync(null);
         Assert.True(counted.CanOpenCacheTools);
         Assert.True(counted.CanOpenCacheTools);
-        Assert.Equal(1, calls);
+        Assert.Equal(6, calls); // 시작 시 도구 3종 + 검사 때 3종, getter는 조회하지 않음.
     }
 
     private sealed class DriverCannotVerifyFixtureRule(string id) : IRule

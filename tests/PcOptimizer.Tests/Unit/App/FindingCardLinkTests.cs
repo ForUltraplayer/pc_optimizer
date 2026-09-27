@@ -74,15 +74,18 @@ public sealed class FindingCardLinkTests
     }
 
     /// <summary>셸 실행이 실패하면 카드에 주소를 복사해 브라우저에 붙여 넣으라는 안내와 검증한 주소를 보여 준다(예외 없음).</summary>
-    [Fact]
-    public void 실행_실패는_안내한다()
+    [Theory]
+    [InlineData(DELL_URL)]
+    [InlineData("HTTPS://WWW.DELL.COM/support/home/지원")]
+    public void 실행_실패는_안내한다(string url)
     {
-        var card = CreateCard(WithLinks(new OpenLinkAction(DELL_URL, "Dell 지원")), _ => throw new InvalidOperationException("no browser"));
+        var card = CreateCard(WithLinks(new OpenLinkAction(url, "Dell 지원")), _ => throw new InvalidOperationException("no browser"));
 
         card.Links[0].OpenCommand.Execute(null);
 
-        Assert.Equal(DisplayText.Format(Strings.Link_OpenFailedCopyFormat, DELL_URL), card.LinkStatusText);
-        Assert.Contains(DELL_URL, card.LinkStatusText, StringComparison.Ordinal);
+        var canonical = new Uri(url).AbsoluteUri;
+        Assert.Equal(DisplayText.Format(Strings.Link_OpenFailedCopyFormat, canonical), card.LinkStatusText);
+        Assert.Contains(canonical, card.LinkStatusText, StringComparison.Ordinal);
         Assert.True(card.HasLinkStatus);
     }
 

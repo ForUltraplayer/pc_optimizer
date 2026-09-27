@@ -16,19 +16,9 @@
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>
 
-  <!--
-    포터블 배포(tools/package.ps1): 런타임을 포함한 단일 실행 파일 하나로 publish한다.
-    WPF는 trimming을 지원하지 않으므로 PublishTrimmed는 두지 않는다. 한국어 외 위성 리소스와 pdb는 넣지 않는다.
-  -->
+  <!-- 일반 빌드는 framework-dependent + PDB. 단일 파일 속성은 publish profile에만 둔다. -->
   <PropertyGroup>
-    <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>true</SelfContained>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-    <SatelliteResourceLanguages>ko</SatelliteResourceLanguages>
-    <DebugType>none</DebugType>
-    <PublishReadyToRun>false</PublishReadyToRun>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
   </PropertyGroup>
 
   <!--
@@ -71,6 +61,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="PcOptimizer.Tests" />
     <ProjectReference Include="..\PcOptimizer.Core\PcOptimizer.Core.csproj" />
     <ProjectReference Include="..\PcOptimizer.Probes\PcOptimizer.Probes.csproj" />
   </ItemGroup>

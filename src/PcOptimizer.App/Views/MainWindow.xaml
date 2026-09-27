@@ -192,7 +192,6 @@
                 </Border>
                 <!-- Rows=1이면 숨긴(Collapsed) 타일을 빼고 열을 나누므로, 바로 할 수 있는 것이 0이면 직접 해야 하는 것 타일이 전체 폭을 쓴다. -->
                 <!-- 검사 결과가 생기기 전에는 타일 묶음을 숨긴다(검사 전 "직접 해야 하는 것 0건"이 "문제 없음"으로 읽히지 않게). -->
-                <!-- 검사 결과가 생기기 전에는 타일 묶음을 숨긴다(검사 전 "직접 해야 하는 것 0건"이 "문제 없음"으로 읽히지 않게). -->
                 <UniformGrid Rows="1" Margin="0,0,0,12" AutomationProperties.AutomationId="SummaryTiles"
                              Visibility="{Binding HasCards, Converter={StaticResource BoolToVisibility}}">
                     <Border Style="{StaticResource Tile}" Margin="0,0,12,0" AutomationProperties.AutomationId="DoNowTile"

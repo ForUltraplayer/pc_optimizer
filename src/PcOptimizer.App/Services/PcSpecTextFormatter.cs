@@ -104,7 +104,8 @@ public sealed class PcSpecTextFormatter
     public static IEnumerable<PcSpecItem> VisibleItems(PcSpecSection section, bool includeIdentity)
     {
         ArgumentNullException.ThrowIfNull(section);
-        return section.Items.Where(item => includeIdentity || !item.IsIdentifying);
+        return section.Items.Where(item => includeIdentity || !item.IsIdentifying)
+            .Select(item => includeIdentity && item.IdentifyingValue is not null ? item with { Value = item.IdentifyingValue } : item);
     }
 
     /// <summary>섹션 제목 줄("[운영체제]")입니다.</summary>
