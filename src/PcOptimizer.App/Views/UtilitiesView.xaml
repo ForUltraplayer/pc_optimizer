@@ -41,7 +41,6 @@
         </Style>
     </UserControl.Resources>
     <StackPanel>
-        <TextBlock TextWrapping="Wrap" Text="{Binding Status}" Foreground="#53627A" Margin="0,0,0,12" AutomationProperties.LiveSetting="Polite" />
         <TextBlock TextWrapping="Wrap" Text="컴퓨터를 잘 아는 사람들이 흔히 쓰는 무료·공식 도구입니다. 이 앱은 공식 배포처만 열어 주고 파일은 직접 받습니다. 버전은 사이트에서 최신을 고르세요." Foreground="#53627A" Margin="0,0,0,16" />
         <ItemsControl ItemsSource="{Binding UtilityGroups}" AutomationProperties.AutomationId="UtilityGroups">
             <ItemsControl.ItemTemplate>
