@@ -88,6 +88,13 @@ public sealed class RestoreCoordinator
                     return new(target, $"'{name}'의 원래 자동 실행 등록 복원 · {scopeLabel}", "표시한 사용자 범위에서 다음 로그인 때 원래 등록 명령을 다시 사용할 수 있게 합니다. 작업 관리자의 사용/사용 안 함 상태는 변경하지 않으며 앱을 지금 실행하지 않습니다.",
                         new(name + " · " + scopeLabel, "선택한 출처에 같은 이름의 새 등록이 없을 때만 원래 형식과 내용을 복원합니다. 다른 앱이 다시 등록한 값은 덮어쓰지 않습니다.", RequiresRestart: false));
                 }
+                if (record.ActionId is ActionId.Mpo or ActionId.Hags or ActionId.GameMode)
+                {
+                    var option = record.ActionId == ActionId.Mpo ? AdvancedOption.Mpo : record.ActionId == ActionId.Hags ? AdvancedOption.Hags : AdvancedOption.GameMode;
+                    return new(target, AdvancedOptions.Name(option) + " 변경 전 값으로 되돌리기",
+                        "현재 값이 앱의 적용 값과 같을 때만 원래 값 또는 값 없음으로 되돌립니다. Windows 기본값으로 변경하는 것과 다릅니다.",
+                        new(AdvancedOptions.Name(option), "외부 프로그램이 바꾼 값은 덮어쓰지 않습니다.", RequiresRestart: option != AdvancedOption.GameMode));
+                }
                 return new(target, "이 앱이 변경한 설정 되돌리기", "현재 값이 앱의 적용 값과 같을 때만 이전 값으로 되돌립니다.");
             }
             finally { await DrainAsync().ConfigureAwait(false); }

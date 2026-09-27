@@ -343,7 +343,7 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
         using var cancellation = new CancellationTokenSource();
         _cancellation = cancellation;
         NotifyGates();
-        Status = plan.IsRestore ? "설정을 되돌리고 있습니다." : "선택한 조치를 실행하고 있습니다.";
+        Status = plan.ActionId == ActionId.Restart ? "5초 후 Windows에 재부팅을 요청합니다. 지금 취소할 수 있습니다. 전달 후에는 취소할 수 없습니다." : plan.IsRestore ? "설정을 되돌리고 있습니다." : "선택한 조치를 실행하고 있습니다.";
         try
         {
             var result = await _workflow.ExecuteAsync(plan.Id, cancellation.Token);
@@ -428,7 +428,7 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
                     _executing = null;
                     IsWorking = false;
                     Status = Result.Title;
-                    _rescanPending |= final?.Started == true;
+                    _rescanPending |= final?.Started == true && plan.ActionId != ActionId.Restart;
                     refresh = true;
                 }
                 if (_rescanPending) { _rescanPending = false; rescan = true; }

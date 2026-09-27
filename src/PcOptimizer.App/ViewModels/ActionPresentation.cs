@@ -54,6 +54,8 @@ public sealed class ActionResultViewModel(ActionResult result, ActionId actionId
 {
     /// <summary>실행/복구 종류와 결과 제목입니다.</summary>
     public string Title => IsDraining ? "실제 작업이 끝나기를 기다리는 중입니다"
+        : result.Code == "RestartRequested" ? "Windows에 재부팅을 요청했습니다"
+        : result.Succeeded && actionId is ActionId.Mpo or ActionId.Hags ? "설정값을 저장했습니다 · 재부팅 필요"
         : result.Succeeded ? restore ? "이전 설정으로 되돌렸습니다" : "선택한 조치를 완료했습니다"
         : result.Code == "AlreadyOriginal" ? "이미 원래 설정입니다"
         : result.Code == "AlreadyApplied" ? "이미 선택한 설정이 적용되어 있습니다"
@@ -85,6 +87,8 @@ public sealed class ActionResultViewModel(ActionResult result, ActionId actionId
     public string Detail => OutcomeDetail + (!IsDraining && result.ServiceRecoveryCompleted == true
         ? " 이번 조치에 기록한 업데이트 서비스는 원래 상태로 돌아온 것을 확인했습니다." : "");
     private string OutcomeDetail => IsDraining ? "중단 요청 뒤에도 실제 작업이 남아 있을 수 있습니다. 종료가 확인될 때까지 다른 조치는 시작하지 않습니다."
+        : result.Code == "RestartRequested" ? "요청 전달만 확인했습니다. 실제 진입 여부는 재부팅 후 확인하세요. 안전 모드 메뉴에서는 시작 설정에서 직접 선택해야 합니다."
+        : result.Succeeded && actionId is ActionId.Mpo or ActionId.Hags ? "저장된 설정값을 다시 읽어 확인했습니다. 변경·복원 모두 재부팅 후 효과를 확인하세요. 실제 GPU 처리 상태를 확인한 것은 아닙니다."
         : result.Succeeded ? HasSpaceEffect ? "완료 후 상태를 다시 검사합니다. 여유 공간 변화에는 다른 프로그램의 작업도 영향을 줍니다." : "선택한 설정의 변경을 확인했습니다. 재검사 결과는 메인 화면에서 확인해 주세요."
         : result.Code switch
         {
@@ -148,6 +152,13 @@ public sealed class ActionResultViewModel(ActionResult result, ActionId actionId
             "UpdateMaintenanceFailed" => "업데이트 캐시 정리 중 오류가 발생했습니다. 이미 처리한 파일과 서비스 복구 기록을 확인하세요.",
             "PlanExpired" => "확인 시간이 만료되었거나 이미 사용한 계획입니다. 미리보기를 다시 열어 주세요.",
             "SessionChanged" or "ScopeExcluded" => "사용자 또는 실행 범위가 달라졌습니다. 현재 사용자로 다시 확인해 주세요.",
+            "AdvancedKeyUnavailable" => "설정 키가 없거나 읽을 수 없습니다. 임의로 키를 만들지 않았습니다. Windows 설정에서 지원 여부를 확인하세요.",
+            "AdvancedValueUnsupported" => "알려지지 않은 설정 형식·값입니다. 원래 설정을 보존하기 위해 변경하지 않았습니다.",
+            "HagsSupportUnknown" => "HAGS 명시 설정이 없어 GPU 지원 여부를 확인할 수 없습니다. Windows 고급 그래픽 설정에서 먼저 확인하세요.",
+            "AdvancedWriteFailed" => "설정값 저장에 실패했습니다. 현재 상태와 되돌리기 기록을 확인하세요.",
+            "FirmwareUnavailable" => "UEFI 펌웨어 사용 여부를 확인하지 못했습니다. 재부팅 요청을 보내지 않았습니다.",
+            "RestartNotStarted" => "재부팅 요청 도구를 시작하지 못했습니다.",
+            "RestartRejected" => "Windows가 재부팅 요청을 완료하지 못했습니다. 펌웨어·복구 환경 지원이나 다른 작업의 종료 여부를 확인하세요.",
             "Unsupported" or "TargetRejected" or "Blocked" => "이 대상은 현재 앱에서 처리할 수 없습니다. 지원 도구나 Windows 설정에서 확인해 주세요.",
             "Busy" => "다른 검사나 조치가 아직 진행 중입니다. 종료 후 다시 확인해 주세요.",
             "Cancelled" or "TimedOut" when !result.Started => "실행 전에 취소되었거나 확인 시간이 초과되었습니다. 변경을 시작하지 않았습니다.",
@@ -168,6 +179,7 @@ internal static class ActionText
     internal static bool IsSpaceAction(ActionId id) => id is ActionId.UserFiles or ActionId.SystemFiles or ActionId.AppFiles or ActionId.OfficialCache or ActionId.DeliveryOptimization or ActionId.WindowsUpdateCache or ActionId.SteamShaderCache or ActionId.GraphicsShaderCache;
     internal static string Name(ActionId id) => id switch
     {
+        ActionId.Mpo => "MPO 화면 오버레이 설정", ActionId.Hags => "GPU 하드웨어 가속 일정 예약", ActionId.GameMode => "Windows 게임 모드", ActionId.Restart => "목적을 선택해 다시 시작",
         ActionId.UserFiles => "사용자 임시 파일 정리", ActionId.SystemFiles => "Windows 캐시 정리", ActionId.AppFiles => "앱 캐시 정리",
         ActionId.StartupFolder => "시작 바로가기 보관", ActionId.CommonStartupFolder => "공용 시작 바로가기 보관", ActionId.Startup => "자동 실행 등록 해제", ActionId.MachineStartup => "모든 사용자 자동 실행 등록 해제", ActionId.Power => "전원 계획 변경", ActionId.Display => "화면 주사율 변경",
         ActionId.OfficialCache => "공식 도구 캐시 정리", ActionId.DeliveryOptimization => "배달 최적화 캐시 정리", ActionId.UpdateServices => "업데이트 서비스 원상복구", ActionId.WindowsUpdateCache => "Windows 업데이트 다운로드 캐시 정리", ActionId.SteamShaderCache => "Steam 셰이더 캐시 정리",

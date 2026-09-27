@@ -29,7 +29,7 @@ public partial class MainWindow : FluentWindow
     /// 화면 모델로 메인 창을 만듭니다. 문제 해결·드라이버 안내 모델이 없으면 해당 페이지에 준비 안내만 보입니다.
     /// </summary>
     /// <param name="viewModel">메인 화면 모델.</param>
-    public MainWindow(MainViewModel viewModel, IAppLogger? logger = null, DisplayTrialViewModel? displayTrials = null, TroubleshootingViewModel? troubleshooting = null, DriverGuideViewModel? driverGuide = null)
+    public MainWindow(MainViewModel viewModel, IAppLogger? logger = null, DisplayTrialViewModel? displayTrials = null, TroubleshootingViewModel? troubleshooting = null, DriverGuideViewModel? driverGuide = null, AdvancedViewModel? advanced = null)
     {
         _logger = logger ?? NullAppLogger.Instance;
         ArgumentNullException.ThrowIfNull(viewModel);
@@ -40,6 +40,7 @@ public partial class MainWindow : FluentWindow
         UtilitiesView.DataContext = troubleshooting;
         TroubleshootingView.Visibility = troubleshooting is null ? Visibility.Collapsed : Visibility.Visible;
         TroubleshootingUnavailableNote.Visibility = troubleshooting is null ? Visibility.Visible : Visibility.Collapsed;
+        AdvancedView.DataContext = advanced;
         DriverGuideView.DataContext = driverGuide;
         DriverGuideExpander.Visibility = driverGuide is null ? Visibility.Collapsed : Visibility.Visible;
         DisplayEvaluationButton.Visibility = displayTrials is null ? Visibility.Collapsed : Visibility.Visible;
@@ -86,6 +87,11 @@ public partial class MainWindow : FluentWindow
                 }
             };
         }
+        viewModel.PropertyChanged += async (_, e) =>
+        {
+            if (e.PropertyName == nameof(MainViewModel.CurrentPage) && viewModel.CurrentPage == MainPage.Advanced
+                && advanced?.RefreshCommand.CanExecute(null) == true) { await advanced.RefreshCommand.ExecuteAsync(null); }
+        };
         Loaded += async (_, _) =>
         {
             StartScanButton.Focus();
@@ -97,7 +103,7 @@ public partial class MainWindow : FluentWindow
             if (_displayTrials?.IsWorking == true) { _displayTrials.RequestClose(); e.Cancel = true; }
             if (_troubleshooting?.IsRunning == true) { viewModel.CurrentPage = MainPage.Troubleshooting; e.Cancel = true; }
         };
-        Closed += (_, _) => { _displayTrials?.Dispose(); _troubleshooting?.Dispose(); viewModel.Dispose(); };
+        Closed += (_, _) => { _displayTrials?.Dispose(); _troubleshooting?.Dispose(); advanced?.Dispose(); viewModel.Dispose(); };
     }
 
     /// <summary>내 PC 사양 화면의 이미지 저장 대상(하단 익명화 표기 포함).</summary>
