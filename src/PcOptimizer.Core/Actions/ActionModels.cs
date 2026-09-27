@@ -6,7 +6,7 @@
 namespace PcOptimizer.Core.Actions;
 
 /// <summary>자동 조치의 코드 허용 목록입니다. 문자열 명령을 받지 않습니다.</summary>
-public enum ActionId { UserFiles, SystemFiles, AppFiles, Startup, Power, Display, OfficialCache, DeliveryOptimization, MachineStartup, UpdateServices }
+public enum ActionId { UserFiles, SystemFiles, AppFiles, Startup, Power, Display, OfficialCache, DeliveryOptimization, MachineStartup, UpdateServices, WindowsUpdateCache }
 /// <summary>현재 사용자 확인이 필요한지 구분합니다.</summary>
 public enum ActionScope { CurrentUser, System }
 /// <summary>실행 인스턴스의 사용자 범위입니다.</summary>
@@ -44,7 +44,7 @@ public sealed record ActionDefinition(ActionId Id, ActionScope Scope, bool Suppo
     /// <summary>현재 버전은 항목별 확인만 허용하며 일괄 자동 실행은 제공하지 않습니다.</summary>
     public bool BatchEligible => false;
     /// <summary>영구 파일 삭제/공식 purge는 되돌릴 수 없음, 설정 변경은 주의로 표시합니다.</summary>
-    public PcOptimizer.Core.Models.SafetyLevel Safety => Id is ActionId.UserFiles or ActionId.SystemFiles or ActionId.AppFiles or ActionId.OfficialCache or ActionId.DeliveryOptimization
+    public PcOptimizer.Core.Models.SafetyLevel Safety => Id is ActionId.UserFiles or ActionId.SystemFiles or ActionId.AppFiles or ActionId.OfficialCache or ActionId.DeliveryOptimization or ActionId.WindowsUpdateCache
         ? PcOptimizer.Core.Models.SafetyLevel.Irreversible : PcOptimizer.Core.Models.SafetyLevel.Caution;
 }
 /// <summary>어댑터가 검증한 대상과 미리보기 설명입니다.</summary>
@@ -56,7 +56,11 @@ public sealed record ActionPlan(Guid Id, ActionDefinition Definition, ActionPrev
 /// <summary>계획 준비 성공 또는 실행 전 거절 사유입니다.</summary>
 public sealed record ActionPreparation(ActionPlan? Plan, string? Code);
 /// <summary>관측 결과와 실제 변경 시작 여부입니다. 성공·실패·거절을 코드로 구분합니다.</summary>
-public sealed record ActionResult(Guid PlanId, bool Started, bool Succeeded, string Code, ActionEffect? Effect = null);
+public sealed record ActionResult(Guid PlanId, bool Started, bool Succeeded, string Code, ActionEffect? Effect = null)
+{
+    /// <summary>기록한 서비스들의 원상태 재관측 결과입니다. null은 서비스 복구 작업 없음입니다.</summary>
+    public bool? ServiceRecoveryCompleted { get; init; }
+}
 /// <summary>관측한 여유 공간 변화입니다. null은 확인 불가, 음수는 여유 공간 감소입니다.</summary>
 public sealed record ActionEffect(long? FreeSpaceDeltaBytes, int? ChangedFiles = null, int? SkippedFiles = null, int? FailedFiles = null,
     long? BeforeLogicalBytes = null, long? AfterLogicalBytes = null);

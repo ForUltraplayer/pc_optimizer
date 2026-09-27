@@ -34,7 +34,7 @@ public sealed class WindowsUpdateStateRule : IRule
         return [new Finding(Id, FindingCategory.Storage, title, probe.Measurements,
             "로컬 Windows Update API와 서비스 관리자의 보고값입니다. 네트워크 업데이트 검색·서비스 중지·파일 삭제는 하지 않았습니다.",
             missing ? Verdict.CannotVerify : Verdict.Info, missing ? CannotVerifyReason.PartialData : null,
-            $"설치·제거 진행: {Flag(busy)}\n업데이트 재시작 필요: {Flag(reboot)}\nWindows Update: {State(wu)}\nBITS: {State(bits)}\n설치가 진행되지 않는다는 보고만으로 다운로드·설치 작업 전체가 멈췄다고 판단할 수 없습니다. Download 직접 정리는 아직 제공하지 않습니다.",
+            $"설치·제거 진행: {Flag(busy)}\n업데이트 재시작 필요: {Flag(reboot)}\nWindows Update: {State(wu)}\nBITS: {State(bits)}\n설치가 진행되지 않는다는 보고만으로 다운로드·설치 작업 전체가 멈췄다고 판단할 수 없습니다. 다운로드 캐시 정리는 조치 목록에서 전송·재부팅 대기 등 추가 조건을 확인한 뒤 선택할 수 있습니다.",
             null, new Impact("업데이트 작업 또는 재시작을 먼저 마쳐야 하는지 확인합니다.", "서비스가 정지됐다는 이유만으로 오류로 판단하거나 자동으로 켜지 않습니다."),
             [new ShowDetailsAction(), new OpenSettingsAction("ms-settings:windowsupdate-optionalupdates")])];
     }
