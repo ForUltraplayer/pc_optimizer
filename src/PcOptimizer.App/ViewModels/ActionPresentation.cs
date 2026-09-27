@@ -48,6 +48,7 @@ public sealed class ActionResultViewModel(ActionResult result, ActionId actionId
     public string Title => IsDraining ? "실제 작업이 끝나기를 기다리는 중입니다"
         : result.Succeeded ? restore ? "이전 설정으로 되돌렸습니다" : "선택한 조치를 완료했습니다"
         : result.Code == "AlreadyOriginal" ? "이미 원래 설정입니다"
+        : result.Code == "AlreadyApplied" ? "이미 선택한 설정이 적용되어 있습니다"
         : result.Started ? restore ? "되돌리기를 끝내지 못했습니다" : "변경 결과를 확인해야 합니다" : "설정을 변경하기 전에 멈췄습니다";
     /// <summary>뒤늦게 종료되는 작업을 완료로 표시하지 않습니다.</summary>
     public bool IsDraining => result.Code is "Draining" or "Running" or "Validating";
@@ -71,6 +72,7 @@ public sealed class ActionResultViewModel(ActionResult result, ActionId actionId
         : result.Code switch
         {
             "AlreadyOriginal" => "다시 쓸 필요가 없어 설정을 변경하지 않았습니다.",
+            "AlreadyApplied" => "현재 값이 선택한 설정과 같아 변경하지 않았습니다.",
             "CurrentValueChanged" => "확인 이후 설정이 달라졌습니다. 사용자가 바꾼 값을 덮어쓰지 않습니다. 다시 검사해 주세요.",
             "PlanExpired" => "확인 시간이 만료되었거나 이미 사용한 계획입니다. 미리보기를 다시 열어 주세요.",
             "SessionChanged" or "ScopeExcluded" => "사용자 또는 실행 범위가 달라졌습니다. 현재 사용자로 다시 확인해 주세요.",
