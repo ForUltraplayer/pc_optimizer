@@ -188,6 +188,8 @@
                                    Visibility="{Binding HasDrainingNote, Converter={StaticResource BoolToVisibility}}" />
                         <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Spec_DrainingNote}" FontWeight="SemiBold" Margin="0,6,0,0" AutomationProperties.AutomationId="SpecDrainingNoteMain"
                                    Visibility="{Binding HasSpecDrainingNote, Converter={StaticResource BoolToVisibility}}" />
+                        <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Operation_Busy}" FontWeight="SemiBold" Margin="0,6,0,0" AutomationProperties.AutomationId="OperationNote"
+                                   Visibility="{Binding HasOperationNote, Converter={StaticResource BoolToVisibility}}" />
                     </StackPanel>
                 </Border>
                 <!-- Rows=1이면 숨긴(Collapsed) 타일을 빼고 열을 나누므로, 바로 할 수 있는 것이 0이면 직접 해야 하는 것 타일이 전체 폭을 쓴다. -->

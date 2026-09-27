@@ -7,6 +7,7 @@
 // 기본 패키지
 using System.Collections.Concurrent;
 using System.Globalization;
+using PcOptimizer.Core.Actions;
 
 // 사용자 패키지
 using PcOptimizer.App.Models;
@@ -80,7 +81,8 @@ public sealed partial class PcSpecService
     /// <param name="clock">UTC 시계.</param>
     /// <param name="logger">공용 로거.</param>
     /// <param name="contextFactory">검사 컨텍스트 생성기(새 ScanId).</param>
-    public PcSpecService(IReadOnlyList<IProbe> probes, IClock clock, IAppLogger logger, Func<ScanContext> contextFactory)
+    /// <param name="operations">같은 프로브를 사용하는 ScanService의 관문. 단독 테스트는 생략할 수 있습니다.</param>
+    public PcSpecService(IReadOnlyList<IProbe> probes, IClock clock, IAppLogger logger, Func<ScanContext> contextFactory, IOperationCoordinator? operations = null)
     {
         ArgumentNullException.ThrowIfNull(probes);
         ArgumentNullException.ThrowIfNull(clock);
@@ -91,7 +93,11 @@ public sealed partial class PcSpecService
         _clock = clock;
         _logger = logger;
         _contextFactory = contextFactory;
+        Operations = operations ?? new OperationCoordinator(logger);
     }
+
+    /// <summary>같은 프로브를 사용하는 검사 서비스와 공유할 실행 관문입니다.</summary>
+    public IOperationCoordinator Operations { get; }
 
     /// <summary>
     /// 사양 수집이 타임아웃·취소로 기다리기를 멈췄지만 아직 끝나지 않은 프로브 실행이 있는지 여부입니다.
@@ -126,6 +132,8 @@ public sealed partial class PcSpecService
     /// <exception cref="OperationCanceledException">사용자가 취소한 경우.</exception>
     public async Task<PcSpecSnapshot> CaptureAsync(CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
+        using var lease = Operations.TryAcquire(OperationKind.Specification) ?? throw new InvalidOperationException("다른 작업이 실행 중이거나 종료를 기다리고 있습니다.");
         var context = _contextFactory();
         var results = new Dictionary<string, ProbeResult>(StringComparer.Ordinal);
         foreach (var id in PROBE_IDS)
@@ -150,7 +158,7 @@ public sealed partial class PcSpecService
                 continue;
             }
 
-            if (await RunProbeAsync(probe, context, ct).ConfigureAwait(false) is { } result)
+            if (await RunProbeAsync(probe, context, ct, lease).ConfigureAwait(false) is { } result)
             {
                 results[id] = result;
             }
@@ -204,7 +212,7 @@ public sealed partial class PcSpecService
     /// 프로브 하나를 스레드 풀에서 기본 타임아웃 안에서 실행한다. 동기로 막는 프로브나 취소 토큰을 무시하는 프로브도 기다리지 않도록 대기 자체에 시간 제한을 두고,
     /// 기다리기를 멈춘 뒤에도 끝나지 않은 실행은 <see cref="TrackIfLive"/>로 보관한다.
     /// </summary>
-    private async Task<ProbeResult?> RunProbeAsync(IProbe probe, ScanContext context, CancellationToken ct)
+    private async Task<ProbeResult?> RunProbeAsync(IProbe probe, ScanContext context, CancellationToken ct, IOperationLease lease)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(probe.DefaultTimeout);
@@ -214,6 +222,7 @@ public sealed partial class PcSpecService
             // 실제 사양 프로브는 동기 WMI 조회 뒤 Task.FromResult를 돌려주므로 그대로 부르면 호출 스레드(UI)에서 끝까지 실행되고
             // 타임아웃·살아 있는 실행 추적이 적용되지 않는다. 검사 조율기(ProbeExecutor)와 같이 스레드 풀에서 시작한다.
             running = Task.Run(() => probe.RunAsync(context, timeout.Token), CancellationToken.None);
+            lease.Track(running);
             var result = await running.WaitAsync(probe.DefaultTimeout, ct).ConfigureAwait(false);
             if (!string.Equals(result.ProbeId, probe.Id, StringComparison.Ordinal))
             {

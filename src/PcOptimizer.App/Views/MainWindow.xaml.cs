@@ -43,7 +43,7 @@ public partial class MainWindow : FluentWindow
     {
         if (DataContext is not MainViewModel viewModel || !viewModel.CanOpenCacheTools) { return; }
         // UI 관문과 별개로 실행기에도 사용자 범위를 전달해 SystemOnly면 관측·실행 전에 거절한다(REV-016).
-        var window = new CacheToolsWindow(_logger, viewModel.IsSystemOnly) { Owner = this };
+        var window = new CacheToolsWindow(_logger, viewModel.IsSystemOnly, viewModel.Operations) { Owner = this };
         window.ShowDialog();
         if (window.ViewModel.Outcome is { } outcome) { viewModel.LastCleanupOutcome = outcome; }
         // 검사 중이거나 사양을 읽는 중(프로브 공유)에는 재검사를 시작하지 않는다.

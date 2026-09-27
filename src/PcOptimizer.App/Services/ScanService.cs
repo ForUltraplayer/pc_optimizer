@@ -7,6 +7,7 @@
 // 기본 패키지
 using System.Reflection;
 using System.Security.Principal;
+using PcOptimizer.Core.Actions;
 
 // 사용자 패키지
 using PcOptimizer.Core.Abstractions;
@@ -63,6 +64,7 @@ public sealed class ScanService
     /// 시스템 범위 프로브만 실행할지 여부(기본 false). 대화형 로그온 사용자와 다른 관리자 계정으로 실행 중이면(또는 확인 불가) true이며,
     /// 사용자별 프로브는 호출하지 않고 관리자 계정으로 로그인해서 실행하라는 안내와 함께 건너뜁니다.
     /// </param>
+    /// <param name="operations">사양·조치와 공유할 실행 관문. 생략하면 이 서비스가 하나를 소유합니다.</param>
     public ScanService(
         IEnumerable<IProbe> probes,
         IEnumerable<IRule> rules,
@@ -71,7 +73,7 @@ public sealed class ScanService
         IClock clock,
         IAppLogger logger,
         Func<bool> isElevated,
-        bool limitToSystemScope = false)
+        bool limitToSystemScope = false, IOperationCoordinator? operations = null)
     {
         ArgumentNullException.ThrowIfNull(probes);
         ArgumentNullException.ThrowIfNull(clock);
@@ -85,7 +87,11 @@ public sealed class ScanService
         _logger = logger;
         _isElevated = isElevated;
         _limitToSystemScope = limitToSystemScope;
+        Operations = operations ?? new OperationCoordinator(logger);
     }
+
+    /// <summary>사양·조치 서비스와 공유해야 하는 실행 관문입니다.</summary>
+    public IOperationCoordinator Operations { get; }
 
     /// <summary>등록한 프로브(등록 순서).</summary>
     public IReadOnlyList<IProbe> Probes { get; }
@@ -201,12 +207,14 @@ public sealed class ScanService
     /// <exception cref="InvalidOperationException">다른 검사가 진행 중인 경우.</exception>
     public async Task<ScanResult> RunScanAsync(bool onlineCheckRequested, CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
+        using var lease = Operations.TryAcquire(OperationKind.Scan) ?? throw new InvalidOperationException("다른 작업이 실행 중이거나 종료를 기다리고 있습니다.");
         var context = CreateContext(onlineCheckRequested);
 
         _logger.Info(
             LOG_CATEGORY,
             $"ScanStarted scan={context.ScanId} elevated={context.IsElevated} online={onlineCheckRequested} systemScopeOnly={context.LimitToSystemScope}");
-        var result = await _coordinator.RunScanAsync(context, ct).ConfigureAwait(false);
+        var result = await _coordinator.RunScanAsync(context, ct, lease).ConfigureAwait(false);
         _logger.Info(
             LOG_CATEGORY,
             $"ScanFinished scan={context.ScanId} outcome={result.Report.Outcome} findings={result.Report.Findings.Count} draining={_coordinator.DrainingProbeIds.Count}");

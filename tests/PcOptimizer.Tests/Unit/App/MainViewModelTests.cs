@@ -30,6 +30,29 @@ public sealed class MainViewModelTests
 
     private readonly List<string> _launchedUris = [];
 
+    /// <summary>서비스 관문만 점유해도 UI의 검사·사양·정리와 안내가 갱신되며 창 해제는 실제 작업을 풀지 않습니다.</summary>
+    [Fact]
+    public async Task SharedOperationNotifiesUiAndOutlivesViewModel()
+    {
+        var vm = CreateViewModel([], availability: new FixedActionAvailability(true));
+        var changes = new List<bool>();
+        vm.StartScanCommand.CanExecuteChanged += (_, _) => changes.Add(vm.StartScanCommand.CanExecute(null));
+        var pending = OperationLifetimeTests.Source();
+        var lease = vm.Operations.TryAcquire(PcOptimizer.Core.Actions.OperationKind.Restore)!;
+        lease.Track(pending.Task);
+        lease.Dispose();
+        Assert.False(vm.StartScanCommand.CanExecute(null));
+        Assert.False(vm.CanOpenCacheTools);
+        Assert.False(vm.Spec.RefreshCommand.CanExecute(null));
+        Assert.True(vm.HasOperationNote);
+        Assert.Contains(false, changes);
+        vm.Dispose();
+        Assert.True(vm.Operations.State.IsBusy);
+        pending.SetResult();
+        await OperationLifetimeTests.Idle(vm.Operations);
+        Assert.False(vm.HasOperationNote);
+    }
+
     /// <summary>
     /// 프로브·규칙으로 뷰모델을 만든다.
     /// </summary>

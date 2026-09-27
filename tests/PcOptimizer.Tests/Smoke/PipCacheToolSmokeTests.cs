@@ -31,5 +31,6 @@ public sealed class PipCacheToolSmokeTests
         Assert.False(File.Exists(http));
         Assert.False(File.Exists(wheel));
         Assert.True(File.Exists(installed));
+        await CacheToolProcess.WaitForDrainAsync(PcOptimizer.Core.Abstractions.NullAppLogger.Instance).WaitAsync(TimeSpan.FromSeconds(5));
     }
 }

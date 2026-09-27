@@ -364,13 +364,13 @@ public sealed class PcSpecTests
         {
             await service.CaptureAsync(default).WaitAsync(Bound);
             Assert.False(probe.Release.Task.IsCompleted);
-            await service.CaptureAsync(default).WaitAsync(Bound);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => service.CaptureAsync(default).WaitAsync(Bound));
             Assert.Equal(1, probe.Calls);
         }
         finally { probe.Release.TrySetResult(); }
     }
 
-    /// <summary>살아 있는 프로브는 건너뜀 경고(ID만)로 남고, 끝나면 추적이 풀려 다음 수집에서 다시 호출된다(REV-017).</summary>
+    /// <summary>살아 있는 프로브가 있으면 공통 관문이 새 수집을 거절하고, 실제 종료 뒤 다음 수집을 허용합니다(REV-017).</summary>
     [Fact]
     public async Task LiveProbeIsSkippedUntilItFinishesThenRunsAgain()
     {
@@ -385,8 +385,8 @@ public sealed class PcSpecTests
             var drain = service.WaitForDrainAsync(default);
             Assert.False(drain.IsCompleted);
 
-            await service.CaptureAsync(default).WaitAsync(Bound);
-            Assert.Contains(logger.Entries, e => e.Message == $"SpecProbeStillRunning probe={SystemDetailsProbeContract.PROBE_ID}");
+            await Assert.ThrowsAsync<InvalidOperationException>(() => service.CaptureAsync(default).WaitAsync(Bound));
+            Assert.True(service.Operations.State.IsBusy);
 
             probe.Release.TrySetResult();
             await drain.WaitAsync(Bound);

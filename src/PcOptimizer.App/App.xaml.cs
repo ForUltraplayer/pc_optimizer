@@ -72,7 +72,7 @@ public partial class App : Application
         var exportPathPicker = new SaveFileDialogExportPathPicker();
         MainWindow? window = null;
         var spec = new PcSpecViewModel(
-            new PcSpecService(scanService.Probes, SystemClock.Instance, logger, () => scanService.CreateContext(false)),
+            new PcSpecService(scanService.Probes, SystemClock.Instance, logger, () => scanService.CreateContext(false), scanService.Operations),
             new PcSpecTextFormatter(),
             new WpfClipboard(),
             exportPathPicker,

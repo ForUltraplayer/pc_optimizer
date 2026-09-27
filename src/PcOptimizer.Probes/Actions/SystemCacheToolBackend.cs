@@ -21,6 +21,8 @@ namespace PcOptimizer.Probes.Actions;
 /// </summary>
 public sealed class SystemCacheToolBackend : ICacheToolBackend
 {
+    /// <inheritdoc />
+    public Task WaitForDrainAsync() => CacheToolProcess.WaitForDrainAsync(_logger);
     /// <summary>다른 관리자 계정으로 승격된(SystemOnly) 인스턴스라 사용자별 캐시(npm·pip·NuGet 모두 해당)를 다루지 않는다는 거절 코드입니다.</summary>
     public const string USER_SCOPE_EXCLUDED = "UserScopeExcluded";
 

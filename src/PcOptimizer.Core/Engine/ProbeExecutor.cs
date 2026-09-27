@@ -7,6 +7,7 @@
 // 기본 패키지
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using PcOptimizer.Core.Actions;
 
 // 사용자 패키지
 using PcOptimizer.Core.Abstractions;
@@ -81,12 +82,13 @@ internal sealed class ProbeExecutor
     /// <param name="context">검사 컨텍스트.</param>
     /// <param name="timeout">이 호출의 제한 시간.</param>
     /// <param name="userToken">사용자 취소 토큰.</param>
+    /// <param name="lease">실제 프로브 작업을 추적할 호출 서비스의 소유권입니다.</param>
     /// <returns>수집 결과 또는 실패·취소·타임아웃 결과.</returns>
     public async Task<ProbeResult> RunAsync(
         IProbe probe,
         ScanContext context,
         TimeSpan timeout,
-        CancellationToken userToken)
+        CancellationToken userToken, IOperationLease? lease = null)
     {
         var startedAt = _clock.UtcNow;
         var stopwatch = Stopwatch.StartNew();
@@ -103,6 +105,7 @@ internal sealed class ProbeExecutor
 
             // 스레드를 동기적으로 막는 프로브도 조율기를 멈추지 못하도록 스레드 풀에서 시작한다.
             var probeTask = Task.Run(() => probe.RunAsync(context, probeToken), CancellationToken.None);
+            lease?.Track(probeTask);
 
             using var deadlineCts = new CancellationTokenSource();
             var deadline = Task.Delay(timeout, deadlineCts.Token);
