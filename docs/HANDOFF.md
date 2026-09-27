@@ -2,7 +2,16 @@
 
 현재 브랜치 `codex/sp1-actions`. 사용자 인계 지시에 따라 `feature/p0-skeleton`을 로컬 `master`에 fast-forward 병합했다(`77efa2e` → `32ab51f`). 기존 브랜치는 보존했고 원격 게시는 하지 않았다. 아래 날짜별 기록은 당시 상태를 보존한 이력이다.
 
-## 현재 작업 — SP1 계획 (Codex, 2026-09-27)
+## 현재 작업 — SP1 Task 1 구현 완료 (Codex, 2026-09-27)
+
+- 코드 `11959e0`, [Task 1 자체 검증 보고서](reviews/2026-09-27-sp1-task1-implementation.md). 기본 **1288/1288**, Smoke **23/23**, Debug/Release 빌드 0경고·0오류. 솔루션/4개 프로젝트/publish locked restore 및 실제 ZIP 검증 통과.
+- 링크 COM 위임과 승격 셸 거절, 도구별 실행 가능 표시, 사양 볼륨 이름 익명화, 문구·죽은 코드, publish profile·라이선스·해시 검증 구현. 독립 리뷰 대기이며 SP1 전체 구현 완료는 아니다.
+- 현재 호스트 Explorer가 승격 상태라 정상적인 비승격 COM 성공·브라우저 토큰은 검증하지 못했다. Smoke는 이 환경의 **거절 경로**를 통과한 것이다. 새 Explorer/브라우저를 승격 실행하는 폴백은 없다.
+- [플랫폼 계약 및 이월 책임표](reviews/sp1-platform-contracts.md)를 먼저 읽을 것. 시작 프로그램 쓰기·Update/DO 정리는 문서 조사만으로 활성화하지 않으며 각 Task의 평가 조건을 유지한다.
+- 다음 작업: **Task 2 — 공통 조치 모델과 실제 작업 수명 공유**. Scan·Spec·Action·Restore의 서비스 직접 호출 상호 배제, 늦은 종료까지 관문 보존, 계획 소비/만료/세션·SID 경계를 구현한다. 실제 신규 삭제/설정 명령은 Task 2에 등록하지 않는다.
+- 평가 ZIP은 `dist/sp1-evaluation/PcOptimizer-v0.2.0-win-x64.zip`(git-ignored). 실제 사용자 캐시 정리·설정 변경·원격 게시 없음. 기존 일반 권한 UAC·다른 관리자 계정·.NET 없는 PC·DPI 검증은 T12 대기.
+
+## 계획 작성 당시 기록 — SP1 계획 (Codex, 2026-09-27)
 
 - [SP1 실행 계획](superpowers/plans/2026-09-27-sp1-actions.md)을 작성했다. A1·A2·B·C·D·F1·F2와 공통 확인·결과·되돌리기, 총 12개 Task. **계획 완료, 제품 코드 구현 미착수**.
 - 다음 착수: **Task 1 — SP4 이월 정리와 실행 API 근거 확정**. 링크 쉼표/셸 없는 경우, 도구별 실행 가능 판정, 문구/죽은 코드, 게시·RID/lock·고지·SmartScreen을 먼저 처리한다. 서비스 공통 직렬화는 Task 2, 복구는 Task 3, 실환경 한계는 Task 12로 명시했다.
