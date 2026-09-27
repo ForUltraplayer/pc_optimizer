@@ -2,6 +2,13 @@
 
 이 문서의 **재개 안내와 현재 상태가 아래 과거 기록보다 우선**한다. SP1 전체 완료/정식 출시 상태가 아니다. 최신 요청은 중첩 스크롤·시인성·탭 전환 위치 보존이며 preview.13에 반영했다.
 
+## 공개 배포 버전 — 0.0.1
+
+- 사용자 요청으로 preview.13 기능의 버전 번호를 **0.0.1**로 변경했다. [릴리즈 노트](releases/v0.0.1.md). GitHub 저장소를 공개로 전환하고 `v0.0.1` 태그에 ZIP·SHA-256을 게시하는 작업이다.
+- 저장소: https://github.com/ForUltraplayer/pc_optimizer — 기본 브랜치 `codex/sp1-actions`. 릴리즈: https://github.com/ForUltraplayer/pc_optimizer/releases/tag/v0.0.1
+- 배포본: `dist/releases/PcOptimizer-v0.0.1-win-x64.zip`; 최종 해시는 같은 이름의 `.sha256` 파일과 GitHub 릴리즈 첨부 참조.
+- 아래 preview.13 기록은 기능 기준 및 이전 로컬 산출물이다. 현재 공개 다운로드 버전은 0.0.1이다. 이번 변경은 버전/배포 문서이며 재빌드·ZIP 검증을 수행했다. 기존 1700 테스트는 preview.13에서 실행한 결과로 구분한다.
+
 ## 최신 UI 수정 — preview.13
 
 - [스크롤·시인성 구현 및 자체 검증 기록](reviews/2026-09-27-scroll-visibility.md). 중첩 목록 휠 전달, 탭별 위치 복원(현재 앱 수명), 새 대상 확인/결과만 상단 이동, 남색 제목 표시줄·메뉴와 강화한 카드/텍스트/스크롤바 대비.
