@@ -16,8 +16,19 @@ using PcOptimizer.Probes.Troubleshooting;
 
 namespace PcOptimizer.App.ViewModels;
 
-/// <summary>증상 목록 항목입니다. "all"은 모든 도구를 분류별로 보여 줍니다.</summary>
-public sealed record SymptomItem(string Id, string Title, string Summary);
+/// <summary>증상 목록 항목입니다. "all"은 모든 도구를 분류별로 보여 줍니다. 선택 상태는 칩 강조에 씁니다.</summary>
+public sealed partial class SymptomItem(string id, string title, string summary) : ObservableObject
+{
+    /// <summary>증상 ID.</summary>
+    public string Id { get; } = id;
+    /// <summary>증상 제목(사용자 말투).</summary>
+    public string Title { get; } = title;
+    /// <summary>권장 순서 요약.</summary>
+    public string Summary { get; } = summary;
+    /// <summary>현재 선택된 증상인지.</summary>
+    [ObservableProperty]
+    private bool _isSelected;
+}
 
 /// <summary>도구 카드 하나입니다. 실행은 부모 화면 모델이 한 번에 하나만 합니다.</summary>
 public sealed partial class ToolCardViewModel : ObservableObject
@@ -114,7 +125,11 @@ public sealed partial class TroubleshootingViewModel : ObservableObject, IDispos
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SymptomSummary), nameof(SymptomTitle))]
     private SymptomItem? _selectedSymptom;
-    partial void OnSelectedSymptomChanged(SymptomItem? value) => Cards = Build(value?.Id);
+    partial void OnSelectedSymptomChanged(SymptomItem? value)
+    {
+        foreach (var item in Symptoms) { item.IsSelected = ReferenceEquals(item, value); }
+        Cards = Build(value?.Id);
+    }
     /// <summary>선택한 증상의 제목입니다.</summary>
     public string SymptomTitle => SelectedSymptom?.Title ?? "";
     /// <summary>선택한 증상의 요약입니다.</summary>
