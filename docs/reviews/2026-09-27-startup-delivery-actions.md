@@ -54,4 +54,6 @@ T6의 다른 시작 출처/Task Manager 비공개 형식, T9 Windows Update 서�
 
 ## 완료 기록
 
+제품 코드·테스트·보고서 커밋 `2438648` (`e7413ea..2438648`, 27파일). 마지막 사전 거절 UI 문구 회귀 추가 후 기본 전체 `actions-basic-complete.trx` **1620/1620**. 최종 Smoke 이후 바뀐 제품 코드는 결과 설명 문구뿐이며 네이티브 경계는 그대로다. 후속 커밋은 문서의 커밋 참조만 기록한다.
+
 최종 전체 Smoke **48/48**: `test tests/PcOptimizer.Tests -c Release --no-build --no-restore --filter 'Category=Smoke' --logger 'trx;LogFileName=actions-smoke-final.trx' --results-directory TestResults/actions-batch`. 단순 대역 통과와 달리 실제 레지스트리 링크 거절/fixture 정리 및 DO 조회 ABI를 포함한다. 실제 로그인·DO 캐시 삭제는 이 결과에 포함되지 않는다.
