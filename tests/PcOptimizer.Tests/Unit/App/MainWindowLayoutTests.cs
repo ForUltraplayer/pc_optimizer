@@ -100,11 +100,11 @@ public sealed class MainWindowLayoutTests
     /// 긴 경로가 든 CannotVerify를 돌려주는 규칙이 있는 뷰모델로 검사를 한 번 실행한다.
     /// </summary>
     private static MainViewModel CreateScannedViewModel(bool isElevated = false, UserScopeMode userScope = UserScopeMode.Full,
-        bool overview = false, bool scan = true, IRule? rule = null, IActionAvailability? availability = null, bool userScopeUnresolved = false, bool displayTrialsAvailable = false, ActionCenterViewModel? actions = null)
+        bool overview = false, bool scan = true, IRule? rule = null, IActionAvailability? availability = null, bool userScopeUnresolved = false, bool displayTrialsAvailable = false, ActionCenterViewModel? actions = null, IProbe? probe = null)
     {
         var elevation = new FakeElevationState(isElevated);
         var service = new ScanService(
-            [new ThrowingProbe("fixture.failing") { Category = FindingCategory.Storage }],
+            [probe ?? new ThrowingProbe("fixture.failing") { Category = FindingCategory.Storage }],
             [rule ?? new LongTextRule()],
             new ScanOptions(),
             new ScanReportVersions("test-app", "test-rules"),
@@ -687,6 +687,39 @@ public sealed class MainWindowLayoutTests
             }
             finally { window.Close(); }
         });
+    }
+    /// <summary>시작 항목 스냅샷→목록→카드 버튼의 실제 연결과 시스템 전용 차단을 확인합니다.</summary>
+    [Theory] [InlineData(UserScopeMode.Full, true)] [InlineData(UserScopeMode.SystemOnly, false)]
+    public void StartupCardOffersExactSelectedRegistration(UserScopeMode scope, bool expected)
+    {
+        RunOnSta(() =>
+        {
+            var session = ActionCenterTests.Session;
+            var workflow = new ActionWorkflow(new PcOptimizer.Core.Actions.OperationCoordinator(), new ActionCenterTests.Store(), () => session, [],
+                [new PcOptimizer.Probes.Actions.Startup.StartupRunActionAdapter(new StartupActionTests.Platform(), () => session)]);
+            using var actions = new ActionCenterViewModel(workflow, new ActionCenterTests.Dispatch(), () => Task.CompletedTask);
+            var vm = CreateScannedViewModel(userScope: scope, actions: actions, rule: new PcOptimizer.Core.Rules.StartupItemsRule(), probe: new StartupSnapshotProbe());
+            var window = new MainWindow(vm);
+            try
+            {
+                var root = (FrameworkElement)window.Content; root.Measure(new Size(1100, 1600)); root.Arrange(new Rect(0, 0, 1100, 1600)); root.UpdateLayout();
+                var buttons = Descendants<Button>(root).Where(b => AutomationProperties.GetAutomationId(b) == "PrepareStartupFromCard" && b.Visibility == Visibility.Visible).ToArray();
+                Assert.Equal(expected ? 1 : 0, buttons.Length);
+                Assert.Equal(expected ? 1 : 0, actions.Choices.Count);
+                if (expected)
+                {
+                    var card = Assert.IsType<FindingCardViewModel>(buttons[0].DataContext);
+                    Assert.Equal("Fixture App", card.StartupTarget!.ValueName);
+                    Assert.Equal(PcOptimizer.Core.Models.Verdict.Info, card.Finding.Verdict);
+                }
+            }
+            finally { window.Close(); }
+        });
+    }
+    private sealed class StartupSnapshotProbe() : FakeProbe(PcOptimizer.Core.Rules.StartupItemsProbeContract.PROBE_ID, GENEROUS_TIMEOUT)
+    {
+        protected override Task<ProbeResult> RunCoreAsync(ScanContext context, CancellationToken ct)
+            => Task.FromResult(StartupSelectionTests.Snapshot().ProbeResults[0]);
     }
     /// <summary>전체 결과에서 두 영상 앱의 정보 카드와 정리 안내 버튼을 실제 XAML로 연결합니다.</summary>
     [Fact]

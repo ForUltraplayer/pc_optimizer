@@ -17,6 +17,8 @@ using PcOptimizer.Core.Actions;
 using PcOptimizer.Probes.Actions;
 using PcOptimizer.Probes.Actions.Files;
 using PcOptimizer.Probes.Actions.Power;
+using PcOptimizer.Probes.Actions.Startup;
+using PcOptimizer.Probes.Actions.SystemCleanup;
 using PcOptimizer.Probes.Actions.Display;
 using PcOptimizer.Probes.Applications;
 using PcOptimizer.Probes.Drivers;
@@ -93,13 +95,14 @@ public partial class App : Application
         ActionSession ReadActionSession() => SystemActionSession.Read(actionScope);
         // 코드 카탈로그만 등록하며 준비/확인 전에는 사용자 파일을 변경하지 않는다.
         var actions = new ActionCenterViewModel(new ActionWorkflow(scanService.Operations, new RollbackStore(),
-            ReadActionSession, [new FileCleanupAdapter(ReadActionSession), FileCleanupAdapter.ForSystemTemp(ReadActionSession), FileCleanupAdapter.ForAdobeCache(ReadActionSession), new OfficialCacheActionAdapter(new SystemCacheToolBackend(logger, actionScope != ActionUserScope.Full), ReadActionSession)], [new PowerActionAdapter(ReadActionSession)]), dispatcher, async () =>
+            ReadActionSession, [new FileCleanupAdapter(ReadActionSession), FileCleanupAdapter.ForSystemTemp(ReadActionSession), FileCleanupAdapter.ForAdobeCache(ReadActionSession), new DeliveryOptimizationAdapter(ReadActionSession), new OfficialCacheActionAdapter(new SystemCacheToolBackend(logger, actionScope != ActionUserScope.Full), ReadActionSession)], [new PowerActionAdapter(ReadActionSession), new StartupRunActionAdapter(ReadActionSession)]), dispatcher, async () =>
             {
                 if (viewModel?.StartScanCommand.CanExecute(null) != true) { throw new InvalidOperationException("RescanUnavailable"); }
                 await viewModel.StartScanCommand.ExecuteAsync(null);
             }, [new(ActionId.UserFiles, new ActionTarget.Files(UserTempTargets.Temp), "오래된 임시 파일 정리", "7일 이상 지난 임시 파일로 차지한 공간을 줄입니다. 폴더와 최근 파일은 남깁니다."),
                 new(ActionId.UserFiles, new ActionTarget.Files(UserTempTargets.ExplorerCache), "탐색기 미리보기 캐시 정리", "사용 중이 아닌 오래된 썸네일·아이콘 캐시만 확인합니다. 이후 미리보기를 다시 만들 때 잠시 느릴 수 있습니다."),
                 new(ActionId.SystemFiles, new ActionTarget.Files(SystemTempTargets.Temp), "Windows 임시 파일 정리", "7일 이상 지난 사용 중이 아닌 시스템 임시 파일을 확인합니다. 모든 사용자에게 영향을 줄 수 있으며 업데이트 캐시·설치 파일은 포함하지 않습니다."),
+                new(ActionId.DeliveryOptimization, new ActionTarget.DeliveryCache(), "Windows 배달 최적화 캐시 정리", "Windows·Store의 다운로드 완료 캐시를 확인합니다. 모든 사용자에게 영향이 있으며 필요하면 다시 다운로드합니다. 고정 보관·진행 중인 다운로드는 제외합니다."),
                 new(ActionId.AppFiles, new ActionTarget.Files(AdobeCacheTargets.Media), "Adobe 기본 미디어 캐시 정리", "90일 이상 된 .cfa·.pek만 확인합니다. 편집 앱을 닫아 주세요. 다음 사용 때 다시 만드는 시간이 필요하며 옮긴 캐시 위치는 포함하지 않습니다."),
                 new(ActionId.AppFiles, new ActionTarget.Files(AdobeCacheTargets.Peaks), "Adobe 기본 파형 캐시 정리", "Peak Files의 90일 이상 된 .pek만 확인합니다. 미디어 캐시와 별도로 선택하며 원본 미디어·프로젝트는 대상이 아닙니다."),
                 new(ActionId.Power, new ActionTarget.Power(PowerActionAdapter.Balanced), "균형 조정 전원 계획", "소비 전력과 응답성의 균형을 선택합니다. 이 PC에 설치된 계획인지 먼저 확인하며 이전 계획으로 되돌릴 수 있습니다."),

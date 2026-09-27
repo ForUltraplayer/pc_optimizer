@@ -4,6 +4,8 @@
 
 ## B — 시작 프로그램
 
+- 후속 구현: [현재 사용자 Run 등록 해제·복원](2026-09-27-startup-delivery-actions.md). StartupApproved 비트를 변경하지 않는 별도 계약이다. HKCU Run64 문자열 원문·형식 보존, 링크 거절, 직전 비교·후속 조회, 복원 전 원본 기록 보존을 구현/fixture 검증했다. 아래 ‘활성화 근거 없음’은 StartupApproved 쓰기의 당시 결론이며 이 구현을 금지하는 항목이 아니다. 네이티브 CAS·실제 다음 로그인·다른 계정 평가는 미확인.
+
 - [Microsoft 시작 앱 관리 안내](https://support.microsoft.com/en-gb/windows/experience/startup-boot/configure-startup-applications-in-windows?nochrome=true)는 설정/작업 관리자에서 켜고 끄는 흐름을 설명한다. 이번 공식 자료 조사에서 `StartupApproved` REG_BINARY를 타 프로그램이 쓸 때의 전체 형식·버전 호환 계약은 찾지 못했다. 공식 계약이 없다고 증명한 것은 아니다.
 - 기존 분류기의 0x02/0x03 읽기와 실제 쓰기는 별개다. 단순히 첫 바이트를 바꾸는 구현을 지원 완료로 표시하지 않는다. 다른 사용자의 SID, HKCU/HKLM, 32/64비트 보기, Run/Run32/StartupFolder를 구분한다.
 - T6 평가 fixture: 테스트용 항목만 등록한 VM에서 OS 빌드·레지스트리 보기·전체 원문 bytes/타입/부재를 보존하고 작업 관리자 전환 전후 및 다음 로그인 동작을 확인한다. 미지원 형식/없음/패키지·예약 작업 항목은 쓰지 않고 설정 안내로 남긴다. T3 복구 저장소와 현재 값 일치 조건이 선행한다.
@@ -18,6 +20,8 @@
 - 현재 활성화 근거: **없음**. 업데이트 활동 감지/재진입 차단의 실효성이 평가되지 않으면 직접 정리를 활성화하지 않고 Windows 정리 도구 연결을 유지한다.
 
 ## A2 — 배달 최적화
+
+- 후속 구현: [개별 ID별 Windows 제공자 호출](2026-09-27-startup-delivery-actions.md). 별도 Microsoft 관리 문서와 System32 공식 모듈 구현·실제 로컬 CIM 스키마를 확인했다. fileId 고정·deletePinned=false·전송 상태 재검사·후속 관측을 구현했다. 실제 삭제는 대역 검증이며 호스트에서는 읽기만 했다. 아래 UI 연결만 제공하던 시점은 이력으로 남긴다. Windows Update 폴더 직접 정리/서비스 조작은 계속 미등록.
 
 - [Delete-DeliveryOptimizationCache](https://learn.microsoft.com/en-us/powershell/module/deliveryoptimization/delete-deliveryoptimizationcache?view=windowsserver2025-ps) 문서에는 FileId/IncludePinnedFiles가 있지만 설명 일부가 미완성이다. 이름만으로 기본 삭제 범위나 고정 파일의 처리 의미를 확정하지 않는다.
 - [Microsoft 지원의 배달 최적화 안내](https://support.microsoft.com/en-us/windows/deployment/updates-lifecycle/delivery-optimization-in-windows)는 자동 캐시 관리와 디스크 정리 UI를 안내한다. 시스템 내부 캐시 경로를 직접 지우는 근거로 사용하지 않는다.

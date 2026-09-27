@@ -76,12 +76,22 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     /// <summary>최근 완료 결과는 화면을 전환해도 보존합니다.</summary>
     public ObservableCollection<ActionResultViewModel> Results { get; } = [];
     /// <summary>현재 범위와 코드 등록이 허용하는 조치만 표시합니다. 실행 가능 여부는 미리보기에서 다시 검사합니다.</summary>
-    public IReadOnlyList<ActionChoice> Choices { get; }
+    public IReadOnlyList<ActionChoice> Choices { get; private set; }
+    /// <summary>검사 결과의 현재 사용자 등록만 갱신하고 오래된 선택 대상을 남기지 않습니다.</summary>
+    public void UpdateStartupChoices(PcOptimizer.Core.Models.ScanSnapshot snapshot, bool fullScope)
+    {
+        var fixedChoices = Choices.Where(c => c.Id != ActionId.Startup);
+        var names = fullScope && _workflow.Supports(ActionId.Startup, false) ? StartupSelection.Names(snapshot) : [];
+        Choices = fixedChoices.Concat(names.Select(name => new ActionChoice(ActionId.Startup,
+            new ActionTarget.Startup(StartupRegistration.Source, name), $"자동 실행 등록 해제 · {name}",
+            "다음 로그인부터 이 등록으로 시작하지 않게 합니다. 필요한 앱인지 직접 선택하세요. 프로그램 삭제·앱 종료는 하지 않으며 원래 등록을 되돌릴 수 있습니다."))).ToArray();
+        OnPropertyChanged(nameof(Choices)); PrepareChoiceCommand.NotifyCanExecuteChanged();
+    }
     /// <summary>자동 지원 미확인 기능은 성공 버튼 대신 이유와 공식 경로를 제공합니다.</summary>
     public IReadOnlyList<ManualActionChoice> ManualChoices { get; } = [
-        new("시작 앱 줄이기", "로그인할 때 필요 없는 앱을 직접 끌 수 있습니다. 이 버전은 자동 비활성화·복원을 제공하지 않습니다.", SettingsUriPolicy.STARTUP_APPS_SETTINGS_URI),
+        new("그 밖의 시작 앱 관리", "현재 사용자 Run 등록은 검사 후 위 목록에서 해제·복원할 수 있습니다. 다른 출처의 시작 앱과 사용/사용 안 함 전환은 Windows 설정에서 관리하세요.", SettingsUriPolicy.STARTUP_APPS_SETTINGS_URI),
         new("Windows에서 주사율 설정", "앱의 주사율 시험이 지원되지 않는 화면은 Windows 디스플레이 설정에서 직접 확인하세요.", SettingsUriPolicy.DISPLAY_SETTINGS_URI),
-        new("업데이트·배달 최적화 캐시 정리", "Windows 저장소에서 임시 파일 종류를 확인하고 정리하세요. 앱이 업데이트 서비스를 중지하거나 내부 캐시를 직접 삭제하지는 않습니다.", SettingsUriPolicy.STORAGE_SENSE_SETTINGS_URI),
+        new("그 밖의 Windows 업데이트 파일 정리", "배달 최적화 캐시는 위 목록에서 선택할 수 있습니다. 그 밖의 업데이트·설치 파일은 Windows 저장소에서 확인하세요. 앱이 업데이트 서비스를 중지하지는 않습니다.", SettingsUriPolicy.STORAGE_SENSE_SETTINGS_URI),
         new("사용자 지정 Adobe 캐시·게임 캐시", "Adobe는 기본 폴더의 오래된 오디오·파형만 위 목록에서 정리합니다. 옮긴 위치와 Steam·NVIDIA 캐시는 해당 앱의 관리 기능을 사용해 주세요.", null)];
     /// <summary>실행 확인 영역 표시 여부입니다.</summary>
     public bool HasPreview => Preview is not null;
@@ -216,7 +226,8 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
                 var completed = r.State is RollbackState.Restored or RollbackState.Unchanged;
                 var state = r.NeedsRecovery ? "중단된 작업 — 현재 상태 확인 필요" : completed ? "복구 완료" : "적용됨";
                 var responsibility = r.Purpose == RollbackPurpose.UserUndo ? "사용자 되돌리기" : "임시 변경 복구";
-                Records.Add(new(r.Id, r.ActionId, ActionText.Name(r.ActionId), $"{state} · {responsibility} · {r.UpdatedAt.ToLocalTime():g}", r.NeedsRecovery,
+                var label = r.ActionId == ActionId.Startup && StartupRegistration.Name(r.TargetKey) is { } name ? $"자동 실행 등록 · {name}" : ActionText.Name(r.ActionId);
+                Records.Add(new(r.Id, r.ActionId, label, $"{state} · {responsibility} · {r.UpdatedAt.ToLocalTime():g}", r.NeedsRecovery,
                     !completed && _workflow.Supports(r.ActionId, true)));
             }
             var pending = catalog.Records.Count(r => r.NeedsRecovery);
