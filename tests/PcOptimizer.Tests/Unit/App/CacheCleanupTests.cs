@@ -129,6 +129,7 @@ public sealed class CacheCleanupTests
         var first = (await service.PrepareAsync(CacheTool.Npm, default)).Plan!;
         var second = (await service.PrepareAsync(CacheTool.Npm, default)).Plan!;
         var running = service.ExecuteAsync(first.Id, default);
+        await backend.ClearEntered.Task.WaitAsync(TimeSpan.FromSeconds(3));
         var refused = await service.ExecuteAsync(second.Id, default);
         Assert.Equal("Busy", refused.Code);
         Assert.False(refused.Started);
@@ -534,6 +535,7 @@ public sealed class CacheCleanupTests
         public bool Succeeds { get; set; } = true;
         public bool BlockAfterClear { get; set; }
         public TaskCompletionSource? ClearGate { get; set; }
+        public TaskCompletionSource ClearEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public int Clears { get; private set; }
         public long BeforeBytes { get; set; } = 500;
         public Task<CacheToolLocation?> LocateAsync(CacheTool tool, CancellationToken ct) => Unavailable is { } code ? throw new CacheToolUnavailableException(code) : Task.FromResult<CacheToolLocation?>(Location);
@@ -542,6 +544,7 @@ public sealed class CacheCleanupTests
         {
             if (!Started) { return new(false, false, "StartFailed"); }
             Clears++;
+            ClearEntered.TrySetResult();
             if (ClearGate is not null) { await ClearGate.Task; }
             if (BlockAfterClear) { Allowed = false; }
             return new(true, Succeeds, Succeeds ? "Completed" : "ToolFailed");

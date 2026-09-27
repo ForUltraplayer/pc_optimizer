@@ -32,7 +32,7 @@ namespace PcOptimizer.App.ViewModels;
 /// 사양 프로브는 검사와 공유하므로 검사 진행·종료 중에는 <see cref="SetBusy"/>로 새로 고침을 막고,
 /// 사양 읽기가 타임아웃 뒤에도 끝나지 않은 프로브를 남기면 끝날 때까지 <see cref="IsDraining"/>을 켜 둡니다(REV-017).
 /// </summary>
-public sealed partial class PcSpecViewModel : ObservableObject
+public sealed partial class PcSpecViewModel : ObservableObject, IDisposable
 {
     private const string LOG_CATEGORY = nameof(PcSpecViewModel);
     private const string FILE_NAME_PREFIX = "pc-spec-";
@@ -52,6 +52,7 @@ public sealed partial class PcSpecViewModel : ObservableObject
     private readonly IAppLogger _logger;
     private readonly string? _machineName;
     private readonly string? _userName;
+    private bool _disposed;
 
     /// <summary>사양을 읽는 중인지 여부.</summary>
     [ObservableProperty]
@@ -124,6 +125,20 @@ public sealed partial class PcSpecViewModel : ObservableObject
         _logger = logger;
         _machineName = machineName;
         _userName = userName;
+        _service.Operations.Changed += OnOperationChanged;
+    }
+
+    private async void OnOperationChanged(object? sender, EventArgs args)
+    {
+        try { await _dispatcher.InvokeAsync(() => { if (!_disposed) { RefreshCommand.NotifyCanExecuteChanged(); } }); }
+        catch (Exception ex) { _logger.Warn(LOG_CATEGORY, $"SpecOperationUiFailed type={ex.GetType().Name}"); }
+    }
+
+    /// <summary>창이 닫히면 알림만 해제합니다. 실행 중 작업의 소유권은 서비스에 남습니다.</summary>
+    public void Dispose()
+    {
+        _disposed = true;
+        _service.Operations.Changed -= OnOperationChanged;
     }
 
     /// <summary>마지막으로 읽은 사양 스냅샷(아직 없으면 null).</summary>
@@ -334,7 +349,7 @@ public sealed partial class PcSpecViewModel : ObservableObject
     }
 
     /// <summary>새로 고칠 수 있는지 여부(읽는 중·검사 진행/종료 중·사양 프로브 종료 대기 중이 아닐 때).</summary>
-    private bool CanRefresh() => !IsLoading && !IsScanBusy && !IsDraining;
+    private bool CanRefresh() => !_disposed && !_service.Operations.State.IsBusy && !IsLoading && !IsScanBusy && !IsDraining;
 
     /// <summary>스냅샷을 복사·저장할 수 있는지 여부.</summary>
     private bool CanUseSnapshot() => Snapshot is not null && !IsLoading;

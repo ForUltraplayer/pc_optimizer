@@ -267,6 +267,7 @@
   <data name="Cleanup_QueryFailed" xml:space="preserve"><value>캐시 정보를 확인하지 못했습니다. 정리는 실행하지 않았습니다.</value></data>
   <data name="Cleanup_SettingsFailed" xml:space="preserve"><value>Windows 설정을 열지 못했습니다. 설정 앱에서 저장소를 열어 주세요.</value></data>
   <data name="Cleanup_ProcessStillRunning" xml:space="preserve"><value>이전 도구가 아직 종료되지 않아 새 실행을 막았습니다. 종료 후 다시 확인해 주세요.</value></data>
+  <data name="Cleanup_SessionChanged" xml:space="preserve"><value>실행할 사용자 정보가 바뀌었어요. 대상을 다시 확인해 주세요.</value></data>
   <data name="Cleanup_Busy" xml:space="preserve"><value>다른 도구가 사용 중입니다. 끝난 뒤 다시 확인해 주세요.</value></data>
   <data name="Spec_Section_Os" xml:space="preserve"><value>운영체제</value></data>
   <data name="Spec_Section_Cpu" xml:space="preserve"><value>CPU</value></data>
@@ -347,7 +348,8 @@
   <data name="Spec_UserName" xml:space="preserve"><value>사용자명</value></data>
   <data name="Spec_SectionUnavailable" xml:space="preserve"><value>확인 불가 — dxdiag 또는 HWiNFO64로 확인</value></data>
   <data name="Spec_Loading" xml:space="preserve"><value>사양을 읽는 중이에요…</value></data>
-  <data name="Spec_BusyScanning" xml:space="preserve"><value>검사 작업이 아직 끝나지 않아 사양을 새로 고칠 수 없어요. 종료 대기가 끝나면 다시 시도하세요.</value></data>
+  <data name="Spec_BusyScanning" xml:space="preserve"><value>다른 작업이 아직 끝나지 않아 사양을 새로 고칠 수 없어요. 종료 대기가 끝나면 다시 시도하세요.</value></data>
+  <data name="Operation_Busy" xml:space="preserve"><value>이전 조치가 실행 중이거나 종료를 기다리고 있어요. 실제 작업이 끝나면 검사와 다른 조치를 시작할 수 있어요.</value></data>
   <data name="Spec_DrainingNote" xml:space="preserve"><value>이전 사양 읽기가 끝나기를 기다리는 중이에요.</value></data>
   <data name="Spec_RefreshFailed" xml:space="preserve"><value>사양을 읽지 못했어요 ({0})</value><comment>{0}=예외 형식 이름</comment></data>
   <data name="Spec_Copied" xml:space="preserve"><value>사양 텍스트를 클립보드에 복사했어요.</value></data>

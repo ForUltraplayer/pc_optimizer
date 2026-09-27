@@ -171,6 +171,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         _scanService = scanService;
         _scanService.DrainingChanged += OnDrainingChanged;
+        _scanService.Operations.Changed += OnOperationsChanged;
         _exporter = exporter;
         _exportPathPicker = exportPathPicker;
         _settingsPolicy = settingsPolicy;
@@ -234,7 +235,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>
     /// 보호 위치에 도구가 있고, 진단·사양 읽기와 양쪽의 프로브 종료 대기가 끝났으며, 이 계정의 사용자 범위를 다룰 수 있을 때(SystemOnly 아님)만 정리 도구를 엽니다.
     /// </summary>
-    public bool CanOpenCacheTools => CacheToolsAvailable && !IsScanning && !HasDrainingNote && !IsSystemOnly && !Spec.IsLoading && !Spec.IsDraining;
+    public bool CanOpenCacheTools => CacheToolsAvailable && !Operations.State.IsBusy && !IsScanning && !HasDrainingNote && !IsSystemOnly && !Spec.IsLoading && !Spec.IsDraining;
+
+    /// <summary>정리 창에도 전달하는 공통 실행 관문입니다.</summary>
+    public PcOptimizer.Core.Actions.IOperationCoordinator Operations => _scanService.Operations;
+
+    /// <summary>화면의 정리 창이 닫혀도 실제 조치가 끝나지 않은 사유를 남깁니다.</summary>
+    public bool HasOperationNote => Operations.State.IsBusy && Operations.State.Kind is PcOptimizer.Core.Actions.OperationKind.Prepare or PcOptimizer.Core.Actions.OperationKind.Apply or PcOptimizer.Core.Actions.OperationKind.Restore;
 
     /// <summary>상태 문자열("상태: …").</summary>
     public string StateText => DisplayText.Format(Strings.State_Format, DisplayText.State(State));
@@ -420,7 +427,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>검사를 시작할 수 있는지 여부(사양을 읽는 중이거나 사양 프로브가 아직 종료 중이면 프로브 공유를 피하려고 막음, REV-017).</summary>
-    private bool CanStartScan() => State != ScanState.Scanning && !Spec.IsLoading && !Spec.IsDraining;
+    private bool CanStartScan() => !Operations.State.IsBusy && State != ScanState.Scanning && !Spec.IsLoading && !Spec.IsDraining;
 
     /// <summary>
     /// 검사 상태가 바뀌면 사양 새로 고침 가능 여부를 맞춘다(프로브 공유). 검사 중에 사양 화면을 열어 읽지 못했다면 검사가 끝날 때 읽는다.
@@ -444,7 +451,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// </summary>
     private void SyncSpecBusy()
     {
-        Spec.SetBusy(IsScanning || HasDrainingNote);
+        var operation = Operations.State;
+        Spec.SetBusy(IsScanning || HasDrainingNote || (operation.IsBusy && operation.Kind != PcOptimizer.Core.Actions.OperationKind.Specification));
         if (!Spec.IsScanBusy)
         {
             EnsureSpecLoaded();
@@ -532,12 +540,30 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         catch (Exception ex) { _logger.Warn(LOG_CATEGORY, $"DrainingUiFailed error={ex.GetType().Name}"); }
     }
 
+    private async void OnOperationsChanged(object? sender, EventArgs e)
+    {
+        try
+        {
+            await _dispatcher.InvokeAsync(() =>
+            {
+                if (_disposed) { return; }
+                StartScanCommand.NotifyCanExecuteChanged();
+                OnPropertyChanged(nameof(CanOpenCacheTools));
+                OnPropertyChanged(nameof(HasOperationNote));
+                SyncSpecBusy();
+            });
+        }
+        catch (Exception ex) { _logger.Warn(LOG_CATEGORY, $"OperationUiFailed type={ex.GetType().Name}"); }
+    }
+
     /// <summary>창이 닫히면 변경 구독을 해제하고 진행 중 검사를 취소합니다.</summary>
     public void Dispose()
     {
         _disposed = true;
         _scanService.DrainingChanged -= OnDrainingChanged;
+        _scanService.Operations.Changed -= OnOperationsChanged;
         Spec.PropertyChanged -= OnSpecPropertyChanged;
+        Spec.Dispose();
         _scanCancellation?.Cancel();
     }
 

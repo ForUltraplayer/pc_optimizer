@@ -4,6 +4,7 @@
  * @brief   : 공식 캐시 도구의 일회성 미리보기와 실행 직전 재검증·실행 후 관측 계약
  */
 using PcOptimizer.Core.Abstractions;
+using PcOptimizer.Core.Actions;
 
 namespace PcOptimizer.Probes.Actions;
 
@@ -51,20 +52,38 @@ public interface ICacheToolBackend
     Task<CacheInspection> InspectAsync(CacheToolLocation location, CancellationToken ct);
     /// <summary>고정 명령만 실행합니다. 프로세스 시작 이후의 운영 오류는 예외 대신 Started 결과로 반환합니다.</summary>
     Task<CacheToolExecution> ClearAsync(CacheToolLocation location, CancellationToken ct);
+    /// <summary>호출 반환 후에도 살아 있는 자식 프로세스가 실제로 종료될 때까지 기다립니다.</summary>
+    Task WaitForDrainAsync() => Task.CompletedTask;
 }
 
 /// <summary>미리보기 없이는 실행하지 않으며 실행 중복을 막는 공식 도구 조율기입니다.</summary>
-public sealed class CacheCleanupService(ICacheToolBackend backend, TimeProvider? time = null, IAppLogger? logger = null)
+public sealed class CacheCleanupService(ICacheToolBackend backend, TimeProvider? time = null, IAppLogger? logger = null, IOperationCoordinator? operations = null, Func<ActionSession>? session = null)
 {
     private static readonly TimeSpan PLAN_LIFETIME = TimeSpan.FromMinutes(5);
     private readonly TimeProvider _time = time ?? TimeProvider.System;
     private readonly IAppLogger _logger = logger ?? NullAppLogger.Instance;
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, (CacheCleanupPlan Plan, long Started)> _plans = new();
-    private readonly SemaphoreSlim _gate = new(1);
+    private readonly IOperationCoordinator _operations = operations ?? new OperationCoordinator(logger);
+    private readonly Func<ActionSession> _session = session ?? (() => SystemActionSession.Read());
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, (CacheCleanupPlan Plan, long Started, ActionSession Session)> _plans = new();
 
     /// <summary>도구와 대상을 조회하여 짧은 수명의 일회성 계획을 발급합니다. 정리는 하지 않습니다.</summary>
     public async Task<CachePreparation> PrepareAsync(CacheTool tool, CancellationToken ct)
     {
+        using var lease = _operations.TryAcquire(OperationKind.Prepare);
+        if (lease is null) { return new(null, "Busy"); }
+        var running = Task.Run(async () =>
+        {
+            try { ct.ThrowIfCancellationRequested(); return await PrepareCoreAsync(tool, ct).ConfigureAwait(false); }
+            finally { lease.Track(backend.WaitForDrainAsync()); }
+        }, CancellationToken.None);
+        lease.Track(running);
+        return await running.WaitAsync(ct).ConfigureAwait(false);
+    }
+
+    private async Task<CachePreparation> PrepareCoreAsync(CacheTool tool, CancellationToken ct)
+    {
+        var session = _session();
+        if (!session.IsKnown || session.Scope != ActionUserScope.Full) { return new(null, "UserScopeExcluded"); }
         foreach (var pair in _plans.Where(pair => _time.GetElapsedTime(pair.Value.Started) >= PLAN_LIFETIME)) { _plans.TryRemove(pair.Key, out _); }
         CacheToolLocation? location;
         try { location = await backend.LocateAsync(tool, ct).ConfigureAwait(false); }
@@ -73,7 +92,9 @@ public sealed class CacheCleanupService(ICacheToolBackend backend, TimeProvider?
         var inspection = await backend.InspectAsync(location, ct).ConfigureAwait(false);
         if (!inspection.Allowed) { return new(null, inspection.Reason); }
         var plan = new CacheCleanupPlan(Guid.NewGuid(), location, inspection.Bytes, _time.GetUtcNow() + PLAN_LIFETIME);
-        _plans[plan.Id] = (plan, _time.GetTimestamp());
+        ct.ThrowIfCancellationRequested();
+        if (_session() != session) { return new(null, "SessionChanged"); }
+        _plans[plan.Id] = (plan, _time.GetTimestamp(), session);
         _logger.Info(nameof(CacheCleanupService), $"CleanupPreview tool={tool} plan={plan.Id}");
         return new(plan, null);
     }
@@ -81,18 +102,34 @@ public sealed class CacheCleanupService(ICacheToolBackend backend, TimeProvider?
     /// <summary>확인된 계획 ID로만 실행합니다. 대상·도구가 바뀌면 재확인을 요구합니다.</summary>
     public async Task<CacheCleanupResult> ExecuteAsync(Guid planId, CancellationToken ct)
     {
-        if (!await _gate.WaitAsync(0, ct).ConfigureAwait(false)) { return new(false, null, "Busy"); }
+        using var lease = _operations.TryAcquire(OperationKind.Apply);
+        if (lease is null) { return new(false, null, "Busy"); }
+        var running = Task.Run(async () =>
+        {
+            try { return await ExecuteCoreAsync(planId, ct).ConfigureAwait(false); }
+            finally { lease.Track(backend.WaitForDrainAsync()); }
+        }, CancellationToken.None);
+        lease.Track(running);
+        // 실제 변경 시작 여부(Started)를 잃지 않도록 실행 호출 결과는 끝까지 기다립니다.
+        return await running.ConfigureAwait(false);
+    }
+
+    private async Task<CacheCleanupResult> ExecuteCoreAsync(Guid planId, CancellationToken ct)
+    {
         CacheToolExecution? execution = null;
         long? before = null;
         try
         {
             if (!_plans.TryRemove(planId, out var entry) || _time.GetElapsedTime(entry.Started) >= PLAN_LIFETIME) { return new(false, null, "PlanExpired"); }
+            ct.ThrowIfCancellationRequested();
+            if (_session() != entry.Session) { return new(false, null, "SessionChanged"); }
             var plan = entry.Plan;
             var current = await backend.LocateAsync(plan.Location.Tool, ct).ConfigureAwait(false);
             if (current != plan.Location) { return new(false, null, "TargetChanged"); }
             var inspection = await backend.InspectAsync(current, ct).ConfigureAwait(false);
             if (!inspection.Allowed) { return new(false, null, inspection.Reason ?? "Blocked"); }
             if (_time.GetElapsedTime(entry.Started) >= PLAN_LIFETIME) { return new(false, null, "PlanExpired"); }
+            if (_session() != entry.Session) { return new(false, null, "SessionChanged"); }
             ct.ThrowIfCancellationRequested();
             before = inspection.Bytes;
             execution = await backend.ClearAsync(current, ct).ConfigureAwait(false);
@@ -108,6 +145,5 @@ public sealed class CacheCleanupService(ICacheToolBackend backend, TimeProvider?
                 ex is CacheToolUnavailableException unavailable ? unavailable.Code : execution?.Started == true ? "ObservationFailed" : "PreflightFailed")
                 { Started = execution?.Started == true, BeforeBytes = execution?.Started == true ? before : null };
         }
-        finally { _gate.Release(); }
     }
 }

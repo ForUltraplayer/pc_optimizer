@@ -21,6 +21,19 @@ internal static class CacheToolProcess
     private static readonly SemaphoreSlim Gate = new(1);
     private static readonly CacheProcessGuard Guard = new();
 
+    /// <summary>종료 실패 프로세스의 실제 종료를 관측할 때까지 공유 작업 관문을 유지합니다.</summary>
+    internal static async Task WaitForDrainAsync(IAppLogger log)
+    {
+        while (true)
+        {
+            await Gate.WaitAsync().ConfigureAwait(false);
+            try { if (Guard.CanRun(log)) { return; } }
+            catch (Exception ex) { log.Warn(nameof(CacheToolProcess), $"DrainObservation type={ex.GetType().Name}"); }
+            finally { Gate.Release(); }
+            await Task.Delay(TimeSpan.FromMilliseconds(250)).ConfigureAwait(false);
+        }
+    }
+
     /// <summary>
     /// 시작 전에 지우는 주입 가능 환경 변수 이름(대소문자 무시). 관리자 권한 자식 프로세스(node·python·dotnet)에 사용자 코드를 실을 수 있는 값이다
     /// (시작 훅·추가 deps·공유 저장소·NODE_OPTIONS의 --require·PYTHONSTARTUP·PYTHONPATH·PYTHONHOME). 같은 사용자의 일반 권한 프로세스가

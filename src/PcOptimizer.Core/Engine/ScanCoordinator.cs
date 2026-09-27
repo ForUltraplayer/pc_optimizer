@@ -6,6 +6,7 @@
 
 // 기본 패키지
 using System.Collections.Frozen;
+using PcOptimizer.Core.Actions;
 
 // 사용자 패키지
 using PcOptimizer.Core.Abstractions;
@@ -119,9 +120,10 @@ public sealed class ScanCoordinator
     /// </summary>
     /// <param name="context">검사 컨텍스트.</param>
     /// <param name="cancellationToken">사용자 취소 토큰.</param>
+    /// <param name="lease">호출 서비스가 소유한 공통 관문. 실제 프로브 작업만 등록하며 여기서 해제하지 않습니다.</param>
     /// <returns>리포트와 스냅샷.</returns>
     /// <exception cref="InvalidOperationException">다른 검사가 진행 중인 경우(호출 즉시 던짐).</exception>
-    public Task<ScanResult> RunScanAsync(ScanContext context, CancellationToken cancellationToken)
+    public Task<ScanResult> RunScanAsync(ScanContext context, CancellationToken cancellationToken, IOperationLease? lease = null)
     {
         ArgumentNullException.ThrowIfNull(context);
 
@@ -130,17 +132,17 @@ public sealed class ScanCoordinator
             throw new InvalidOperationException("이미 검사가 진행 중입니다. 두 검사를 동시에 실행할 수 없습니다.");
         }
 
-        return RunExclusiveScanAsync(context, cancellationToken);
+        return RunExclusiveScanAsync(context, cancellationToken, lease);
     }
 
     /// <summary>
     /// 실행 권한을 얻은 뒤 수집·평가·리포트를 수행하고, 끝나면 권한을 돌려준다.
     /// </summary>
-    private async Task<ScanResult> RunExclusiveScanAsync(ScanContext context, CancellationToken cancellationToken)
+    private async Task<ScanResult> RunExclusiveScanAsync(ScanContext context, CancellationToken cancellationToken, IOperationLease? lease)
     {
         try
         {
-            var results = await CollectAsync(context, cancellationToken).ConfigureAwait(false);
+            var results = await CollectAsync(context, cancellationToken, lease).ConfigureAwait(false);
             return BuildResult(context, results, cancellationToken.IsCancellationRequested);
         }
         finally
@@ -153,7 +155,7 @@ public sealed class ScanCoordinator
     /// 정책 검사 후 프로브를 제한된 병렬도로 실행하고 등록 순서대로 결과를 모은다.
     /// 사용자가 취소하면 아직 시작하지 않은 프로브는 시작하지 않고 Cancelled로 남긴다.
     /// </summary>
-    private async Task<ProbeResult[]> CollectAsync(ScanContext context, CancellationToken cancellationToken)
+    private async Task<ProbeResult[]> CollectAsync(ScanContext context, CancellationToken cancellationToken, IOperationLease? lease)
     {
         using var gate = new SemaphoreSlim(_options.MaxParallelism, _options.MaxParallelism);
         var runs = new Task<ProbeResult>[_probes.Count];
@@ -175,7 +177,7 @@ public sealed class ScanCoordinator
                 continue;
             }
 
-            runs[index] = RunInGateAsync(probe, context, gate, cancellationToken);
+            runs[index] = RunInGateAsync(probe, context, gate, cancellationToken, lease);
         }
 
         return await Task.WhenAll(runs).ConfigureAwait(false);
@@ -248,11 +250,11 @@ public sealed class ScanCoordinator
         IProbe probe,
         ScanContext context,
         SemaphoreSlim gate,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, IOperationLease? lease)
     {
         try
         {
-            return await _executor.RunAsync(probe, context, _probeTimeouts[probe.Id], cancellationToken).ConfigureAwait(false);
+            return await _executor.RunAsync(probe, context, _probeTimeouts[probe.Id], cancellationToken, lease).ConfigureAwait(false);
         }
         finally
         {

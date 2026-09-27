@@ -131,6 +131,7 @@ public sealed partial class CacheToolsViewModel : ObservableObject
         SystemCacheToolBackend.USER_SCOPE_EXCLUDED => Strings.Cleanup_UserScopeExcluded,
         SystemCacheToolBackend.TOOL_NOT_IN_PROTECTED_LOCATION => DisplayText.Format(Strings.Cleanup_ToolUserWritable, DIRECT_COMMANDS[(int)tool]),
         "PlanExpired" or "TargetChanged" or "ToolChanged" => Strings.Cleanup_Changed,
+        "SessionChanged" => Strings.Cleanup_SessionChanged,
         "OutsideUserProfile" => Strings.Cleanup_OutsideProfile,
         "Busy" => Strings.Cleanup_Busy,
         "ProcessStillRunning" => Strings.Cleanup_ProcessStillRunning,
