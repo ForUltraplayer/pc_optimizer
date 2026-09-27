@@ -15,6 +15,7 @@ using PcOptimizer.App.Views;
 using PcOptimizer.Core.Abstractions;
 using PcOptimizer.Core.Actions;
 using PcOptimizer.Probes.Actions;
+using PcOptimizer.Probes.Actions.Files;
 using PcOptimizer.Probes.Applications;
 using PcOptimizer.Probes.Drivers;
 using PcOptimizer.Probes.Platform;
@@ -85,13 +86,15 @@ public partial class App : Application
 
         MainViewModel? viewModel = null;
         var actionScope = userScopeUnresolved ? ActionUserScope.Unknown : userScope == UserScopeMode.SystemOnly ? ActionUserScope.SystemOnly : ActionUserScope.Full;
-        // T4는 공통 UI만 연결한다. 후속 Task에서 검증한 실제 어댑터만 등록한다.
+        ActionSession ReadActionSession() => SystemActionSession.Read(actionScope);
+        // 코드 카탈로그만 등록하며 준비/확인 전에는 사용자 파일을 변경하지 않는다.
         var actions = new ActionCenterViewModel(new ActionWorkflow(scanService.Operations, new RollbackStore(),
-            () => SystemActionSession.Read(actionScope), [], []), dispatcher, async () =>
+            ReadActionSession, [new FileCleanupAdapter(ReadActionSession)], []), dispatcher, async () =>
             {
                 if (viewModel?.StartScanCommand.CanExecute(null) != true) { throw new InvalidOperationException("RescanUnavailable"); }
                 await viewModel.StartScanCommand.ExecuteAsync(null);
-            });
+            }, [new(ActionId.UserFiles, new ActionTarget.Files(UserTempTargets.Temp), "오래된 임시 파일 정리", "7일 이상 지난 임시 파일로 차지한 공간을 줄입니다. 폴더와 최근 파일은 남깁니다."),
+                new(ActionId.UserFiles, new ActionTarget.Files(UserTempTargets.ExplorerCache), "탐색기 미리보기 캐시 정리", "사용 중이 아닌 오래된 썸네일·아이콘 캐시만 확인합니다. 이후 미리보기를 다시 만들 때 잠시 느릴 수 있습니다.")]);
         viewModel = new MainViewModel(
             scanService,
             new ReportExporter(PersonalDataScrubber.FromEnvironment()),
