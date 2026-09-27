@@ -42,11 +42,11 @@ public sealed class TroubleshootingLayoutTests
                 Assert.Equal(Visibility.Collapsed, output.Visibility);
                 var cardTitles = ActionCenterLayoutTests.Descendants<TextBlock>(root).Where(t => vm.Cards.Any(c => c.Title == t.Text)).ToList();
                 Assert.Equal(vm.Cards.Count, cardTitles.Count);
-                Assert.DoesNotContain(ActionCenterLayoutTests.Descendants<TextBlock>(root), t => t.Text.StartsWith("1. ", StringComparison.Ordinal) && t.IsVisible);
+                Assert.DoesNotContain(ActionCenterLayoutTests.Descendants<TextBlock>(root), t => t.Text.StartsWith("1. ", StringComparison.Ordinal) && t.ActualHeight > 0);
                 vm.Cards[0].ToggleStepsCommand.Execute(null);
                 root.UpdateLayout();
                 ActionCenterLayoutTests.Render(window, "troubleshooting-steps", 1);
-                Assert.Contains(ActionCenterLayoutTests.Descendants<TextBlock>(root), t => t.Text == vm.Cards[0].Steps[0] && t.IsVisible);
+                Assert.Contains(ActionCenterLayoutTests.Descendants<TextBlock>(root), t => t.Text == vm.Cards[0].Steps[0] && t.ActualHeight > 0);
                 vm.SelectSymptomCommand.Execute(vm.Symptoms.Last());
                 root.UpdateLayout();
                 Assert.Equal("모든 도구 보기", title.Text);
