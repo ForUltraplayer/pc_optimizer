@@ -74,6 +74,7 @@ public sealed class ActionCoordinator
         }
         catch (OperationCanceledException) { return new(null, ct.IsCancellationRequested ? "Cancelled" : "TimedOut"); }
         catch (TimeoutException) { return new(null, "TimedOut"); }
+        catch (ActionUnavailableException ex) { return new(null, ex.Code); }
         catch (Exception ex) { LogFailure("PrepareFailed", ex); return new(null, "PreparationFailed"); }
     }
 
@@ -103,6 +104,7 @@ public sealed class ActionCoordinator
                 result = result with { PlanId = planId, Started = execution.Started, Succeeded = execution.Started && result.Succeeded };
             }
             catch (ActionRejected ex) { result = new(planId, execution.Started, false, ex.Code); }
+            catch (ActionUnavailableException ex) { result = new(planId, execution.Started, false, ex.Code); }
             catch (OperationCanceledException) { result = new(planId, execution.Started, false, ct.IsCancellationRequested ? "Cancelled" : "TimedOut"); }
             catch (Exception ex) { LogFailure("ExecuteFailed", ex); result = new(planId, execution.Started, false, "Failed"); }
             _results[planId] = result with { Succeeded = false, Code = result.Succeeded ? "Draining" : result.Code };
@@ -182,6 +184,18 @@ public sealed class ActionCoordinator
         public void MarkStarted()
         {
             validate();
+            RecordStarted();
+        }
+        public bool TryStartProcess(Func<bool> start)
+        {
+            validate();
+            if (Started) { throw new InvalidOperationException("AlreadyStarted"); }
+            if (!start()) { return false; }
+            RecordStarted();
+            return true;
+        }
+        private void RecordStarted()
+        {
             if (Interlocked.CompareExchange(ref _started, 1, 0) != 0) { throw new InvalidOperationException("조치는 한 번만 시작할 수 있습니다."); }
             onStarted();
         }

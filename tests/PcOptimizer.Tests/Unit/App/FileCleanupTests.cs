@@ -179,6 +179,18 @@ public sealed class FileCleanupTests
     }
     private static ActionCoordinator Service(Platform fs, int max = 20000, OperationCoordinator? gate = null) => new(gate ?? new OperationCoordinator(), () => Session,
         [new FileCleanupAdapter((_, _) => Target(), () => Session, fs, maxEntries: max)]);
+    /// <summary>시스템 전용 세션은 시스템 카탈로그만 실행할 수 있고 사용자 정의를 승격하지 않습니다.</summary>
+    [Fact]
+    public async Task SystemOnlyUsesSeparateSystemDefinition()
+    {
+        var owner = Session with { Scope = ActionUserScope.SystemOnly }; var fs = new Platform(); fs.Add("old.tmp");
+        var adapter = new FileCleanupAdapter((_, _) => Target(), () => owner, fs, definition: new(ActionId.SystemFiles, ActionScope.System));
+        var service = new ActionCoordinator(new OperationCoordinator(), () => owner, [adapter]);
+        var plan = (await service.PrepareAsync(ActionId.SystemFiles, new ActionTarget.Files("fixture"), false, default)).Plan!;
+        Assert.Equal(ActionScope.System, plan.Definition.Scope);
+        Assert.True((await service.ExecuteAsync(plan.Id, default)).Succeeded);
+        Assert.Null((await service.PrepareAsync(ActionId.UserFiles, new ActionTarget.Files("fixture"), false, default)).Plan);
+    }
     internal sealed class Platform : IFileCleanupPlatform
     {
         internal readonly Dictionary<string, FileStamp> Nodes = new(StringComparer.OrdinalIgnoreCase);

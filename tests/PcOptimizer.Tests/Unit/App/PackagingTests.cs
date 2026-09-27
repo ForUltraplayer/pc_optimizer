@@ -47,6 +47,6 @@ public sealed class PackagingTests
     public void VersionIsSemantic()
     {
         var version = XDocument.Load(CSPROJ).Descendants("Version").Select(e => e.Value.Trim()).FirstOrDefault();
-        Assert.Matches(@"^\d+\.\d+\.\d+$", version);
+        Assert.Matches(@"^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$", version);
     }
 }

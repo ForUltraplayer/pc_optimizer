@@ -10,6 +10,7 @@ using System.Security.Principal;
 
 // 사용자 패키지
 using PcOptimizer.Core.Abstractions;
+using PcOptimizer.Core.Actions;
 using PcOptimizer.Probes.Platform;
 using PcOptimizer.Probes.Storage;
 
@@ -19,7 +20,7 @@ namespace PcOptimizer.Probes.Actions;
 /// 1차 공식 도구 통합 구현입니다. 자동 설치·승격·임의 명령·직접 파일 삭제는 없습니다.
 /// 앱은 항상 관리자 권한으로 실행되므로 사용자 쓰기 가능 위치의 도구는 실행하지 않습니다(PATH 탐색 결과 포함).
 /// </summary>
-public sealed class SystemCacheToolBackend : ICacheToolBackend
+public sealed class SystemCacheToolBackend : ICacheToolActionBackend
 {
     /// <inheritdoc />
     public Task WaitForDrainAsync() => CacheToolProcess.WaitForDrainAsync(_logger);
@@ -41,6 +42,7 @@ public sealed class SystemCacheToolBackend : ICacheToolBackend
     private readonly Func<CacheTool, IEnumerable<string>> _findExecutables;
     private readonly Func<CacheToolLocation, bool, CancellationToken, Task<CacheProcessResult>> _run;
     private readonly Func<string, string?, CancellationToken, Task<string>> _fingerprint;
+    private readonly Func<CacheToolLocation, IActionExecution, CancellationToken, Task<CacheProcessResult>>? _runAction;
 
     /// <summary>시스템 공급자와 개인정보를 기록하지 않는 로거를 연결합니다.</summary>
     /// <param name="logger">앱 로거(없으면 기록하지 않음).</param>
@@ -51,6 +53,7 @@ public sealed class SystemCacheToolBackend : ICacheToolBackend
                 ProtectedProgramRoot, CurrentSid, FileScanService.ReadBundledPolicy, TimeProvider.System, INSPECTION_BUDGET),
             FindExecutables, (location, clear, ct) => CacheToolProcess.RunAsync(location, clear, ct, logger), FingerprintAsync)
     {
+        _runAction = (location, execution, ct) => CacheToolProcess.RunAsync(location, true, ct, logger, execution);
     }
 
     /// <summary>테스트가 파일 시스템·도구 실행·지문 계산을 가짜로 바꾸는 생성자입니다.</summary>
@@ -155,13 +158,17 @@ public sealed class SystemCacheToolBackend : ICacheToolBackend
     /// 실행 직전 검사(<see cref="CachePathInspector.Inspect"/>)가 도구 보호 위치를 다시 확인하므로 보호 위치 밖이면
     /// <see cref="TOOL_NOT_IN_PROTECTED_LOCATION"/>로 시작하지 않습니다.
     /// </remarks>
-    public async Task<CacheToolExecution> ClearAsync(CacheToolLocation location, CancellationToken ct)
+    public Task<CacheToolExecution> ClearAsync(CacheToolLocation location, CancellationToken ct) => ClearCoreAsync(location, null, ct);
+    /// <summary>공통 조율기의 실제 프로세스 시작 경계를 연결합니다.</summary>
+    public Task<CacheToolExecution> ClearAsync(CacheToolLocation location, IActionExecution execution, CancellationToken ct) => ClearCoreAsync(location, execution, ct);
+    private async Task<CacheToolExecution> ClearCoreAsync(CacheToolLocation location, IActionExecution? execution, CancellationToken ct)
     {
         if (_limitToSystemScope) { return new(false, false, USER_SCOPE_EXCLUDED); }
         var inspection = _inspector.Inspect(location, ct);
         if (!inspection.Allowed) { return new(false, false, inspection.Reason ?? "Blocked"); }
         if (await _fingerprint(location.Executable, location.Script, ct).ConfigureAwait(false) != location.Fingerprint) { return new(false, false, "ToolChanged"); }
-        var result = await _run(location, true, ct).ConfigureAwait(false);
+        if (execution is not null && _runAction is null) { return new(false, false, "Unsupported"); }
+        var result = execution is null ? await _run(location, true, ct).ConfigureAwait(false) : await _runAction!(location, execution, ct).ConfigureAwait(false);
         return new(result.Started, result.Success, result.Code);
     }
 

@@ -177,7 +177,9 @@
             <StackPanel Margin="28,0,28,28">
                 <Border Background="White" CornerRadius="10" Padding="16" Margin="0,0,0,14" Visibility="{Binding HasActionCenter, Converter={StaticResource BoolToVisibility}}">
                     <StackPanel>
-                        <Button Content="조치 기록 · 되돌리기" Click="OpenActionCenter" HorizontalAlignment="Left" AutomationProperties.AutomationId="OpenActionCenter" />
+                        <TextBlock Text="공간을 정리하고 전원 설정을 선택하세요" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,6" />
+                        <TextBlock Text="오래된 임시 파일·공식 도구 캐시 정리와 전원 계획 변경을 한곳에서 확인합니다. 적용 전 대상과 영향을 보여드립니다." TextWrapping="Wrap" Foreground="#53627A" Margin="0,0,0,12" />
+                        <Button Content="개선할 작업 선택 · 결과 · 되돌리기" Click="OpenActionCenter" HorizontalAlignment="Left" AutomationProperties.AutomationId="OpenActionCenter" />
                         <TextBlock Text="{Binding Actions.Overview}" TextWrapping="Wrap" Foreground="#53627A" Margin="0,8,0,0" AutomationProperties.LiveSetting="Polite" />
                     </StackPanel>
                 </Border>

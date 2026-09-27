@@ -14,12 +14,20 @@ namespace PcOptimizer.App.ViewModels;
 /// <summary>앱 코드에서 등록한 대상과 사용자에게 설명할 효과입니다.</summary>
 public sealed record ActionChoice(ActionId Id, ActionTarget Target, string Title, string Benefit);
 
+/// <summary>자동 변경을 제공하지 않는 기능의 이유와 공식 설정 연결입니다.</summary>
+public sealed record ManualActionChoice(string Title, string Reason, string? SettingsUri)
+{
+    /// <summary>공식 설정 연결이 있는 항목만 버튼을 표시합니다.</summary>
+    public bool HasSettings => SettingsUri is not null;
+}
+
 /// <summary>창이 닫혀도 보존하는 공통 조치 화면 모델입니다. Dispose는 실제 작업을 취소하지 않습니다.</summary>
 public sealed partial class ActionCenterViewModel : ObservableObject, IDisposable
 {
     private readonly IActionWorkflow _workflow;
     private readonly IUiDispatcher _dispatcher;
     private readonly Func<Task> _rescan;
+    private readonly Func<string, bool>? _openSettings;
     private readonly SemaphoreSlim _reconcile = new(1, 1);
     private readonly HashSet<Guid> _finished = [];
     private ActionPreviewViewModel? _executing;
@@ -30,11 +38,12 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     private bool _rescanPending;
 
     /// <summary>앱에서 한 번 만들고 같은 실행 관문/조율기를 연결합니다.</summary>
-    public ActionCenterViewModel(IActionWorkflow workflow, IUiDispatcher dispatcher, Func<Task> rescan, IEnumerable<ActionChoice>? choices = null)
+    public ActionCenterViewModel(IActionWorkflow workflow, IUiDispatcher dispatcher, Func<Task> rescan, IEnumerable<ActionChoice>? choices = null, Func<string, bool>? openSettings = null)
     {
         _workflow = workflow;
         _dispatcher = dispatcher;
         _rescan = rescan;
+        _openSettings = openSettings;
         Choices = (choices ?? []).Where(c => workflow.Supports(c.Id, false)).ToArray();
         workflow.Operations.Changed += OnOperationsChanged;
     }
@@ -68,6 +77,12 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     public ObservableCollection<ActionResultViewModel> Results { get; } = [];
     /// <summary>현재 범위와 코드 등록이 허용하는 조치만 표시합니다. 실행 가능 여부는 미리보기에서 다시 검사합니다.</summary>
     public IReadOnlyList<ActionChoice> Choices { get; }
+    /// <summary>자동 지원 미확인 기능은 성공 버튼 대신 이유와 공식 경로를 제공합니다.</summary>
+    public IReadOnlyList<ManualActionChoice> ManualChoices { get; } = [
+        new("시작 앱 줄이기", "로그인할 때 필요 없는 앱을 직접 끌 수 있습니다. 이 버전은 자동 비활성화·복원을 제공하지 않습니다.", SettingsUriPolicy.STARTUP_APPS_SETTINGS_URI),
+        new("화면 주사율 확인", "현재 해상도에서 사용할 주사율을 Windows에서 선택합니다. 자동 시험·15초 복원은 지원 준비 중입니다.", SettingsUriPolicy.DISPLAY_SETTINGS_URI),
+        new("업데이트·배달 최적화 캐시 정리", "Windows 저장소에서 임시 파일 종류를 확인하고 정리하세요. 앱이 업데이트 서비스를 중지하거나 내부 캐시를 직접 삭제하지는 않습니다.", SettingsUriPolicy.STORAGE_SENSE_SETTINGS_URI),
+        new("영상·게임 앱의 캐시", "Adobe·Steam·NVIDIA 폴더의 자동 정리는 사용 중 상태와 경로 검증이 더 필요합니다. 해당 앱의 캐시 관리 기능을 사용해 주세요.", null)];
     /// <summary>실행 확인 영역 표시 여부입니다.</summary>
     public bool HasPreview => Preview is not null;
     /// <summary>결과 표시 여부입니다.</summary>
@@ -87,6 +102,7 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
         ExecuteCommand.NotifyCanExecuteChanged(); RefreshCommand.NotifyCanExecuteChanged();
         RestoreCommand.NotifyCanExecuteChanged(); CancelCommand.NotifyCanExecuteChanged(); DismissPreviewCommand.NotifyCanExecuteChanged();
         PrepareChoiceCommand.NotifyCanExecuteChanged();
+        OpenManualCommand.NotifyCanExecuteChanged();
     }
     private bool CanPrepare() => !_disposed && !IsBlocked;
     private bool CanExecute() => CanPrepare() && Preview is not null;
@@ -97,6 +113,14 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     /// <summary>선택한 카탈로그 대상을 조회합니다. 실행은 별도 확인이 필요합니다.</summary>
     [RelayCommand(CanExecute = nameof(CanPrepareChoice))]
     private Task PrepareChoiceAsync(ActionChoice? choice) => choice is null ? Task.CompletedTask : PrepareAsync(choice.Id, choice.Target);
+    private bool CanOpenManual(ManualActionChoice? choice) => CanPrepare() && _openSettings is not null && choice?.HasSettings == true && ManualChoices.Contains(choice);
+    /// <summary>코드 허용 목록의 공식 설정으로 연결하며 자체 변경 완료로 기록하지 않습니다.</summary>
+    [RelayCommand(CanExecute = nameof(CanOpenManual))]
+    private void OpenManual(ManualActionChoice? choice)
+    {
+        if (!CanOpenManual(choice)) { return; }
+        Status = _openSettings!(choice!.SettingsUri!) ? "Windows 설정에서 조치한 뒤 메인 화면에서 다시 검사해 주세요." : "설정을 열지 못했습니다. Windows 설정에서 해당 항목을 직접 열어 주세요.";
+    }
 
     /// <summary>후속 조치 카드에서 호출하는 미리보기 진입점입니다. 준비만으로 실행하지 않습니다.</summary>
     public async Task PrepareAsync(ActionId id, ActionTarget target, bool restore = false)

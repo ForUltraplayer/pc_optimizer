@@ -20,6 +20,31 @@ namespace PcOptimizer.Tests.Unit.App;
 /// <summary>창을 화면에 띄우거나 키보드 입력을 보내지 않고 WPF 레이아웃/명령을 검사합니다.</summary>
 public sealed class ActionCenterLayoutTests
 {
+    /// <summary>목록 아래에서 선택해도 미리보기/결과가 화면 위에 나타나며 선택 목록에 묻히지 않습니다.</summary>
+    [Fact]
+    public void ChoosingActionScrollsToConfirmation()
+    {
+        RunOnSta(async () =>
+        {
+            var adapter = new ActionCenterTests.Adapter();
+            var workflow = new ActionWorkflow(new OperationCoordinator(), new ActionCenterTests.Store(), () => ActionCenterTests.Session, [adapter], []);
+            using var vm = new ActionCenterViewModel(workflow, new WpfUiDispatcher(Dispatcher.CurrentDispatcher), () => Task.CompletedTask,
+                Enumerable.Range(0, 10).Select(i => new ActionChoice(ActionId.Power, ActionCenterTests.Target, "전원 계획 " + i, "소비 전력과 응답성이 달라질 수 있습니다.")));
+            var window = new ActionCenterWindow(vm);
+            try
+            {
+                Render(window, "action-choices", 1);
+                var scroll = Descendants<ScrollViewer>((FrameworkElement)window.Content).First();
+                scroll.ScrollToEnd(); window.UpdateLayout();
+                Assert.True(scroll.VerticalOffset > 0);
+                await vm.PrepareChoiceCommand.ExecuteAsync(vm.Choices[9]);
+                await Dispatcher.CurrentDispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle);
+                Render(window, "action-selected", 1);
+                Assert.Equal(0, scroll.VerticalOffset); Assert.True(vm.HasPreview);
+            }
+            finally { window.Close(); }
+        });
+    }
     /// <summary>긴 경로가 가로 폭을 넘지 않으며 100/150/200% 렌더에서도 세로 스크롤로 접근합니다.</summary>
     [Theory]
     [InlineData(1.0)]
