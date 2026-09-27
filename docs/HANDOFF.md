@@ -4,6 +4,8 @@
 
 ## 현재 작업 — 구버전 정리·T9-A 업데이트 상태/복구 기반
 
+- 구현 커밋 **`2451878`** (`0baa42c..2451878`, 18파일). 후속 문서 커밋은 이 참조만 기록한다.
+
 - 기준 `0baa42c`. [남은 구현 실행 계획](superpowers/plans/2026-09-27-sp1-remaining-implementation.md): T9-A 상태/서비스 복구 기반 → T9-B Download 실행기 → T10 Steam/그래픽 → 잔여 지원 범위 → T11 UI/UX → T12 종합 검증/배포. 기존 Task 번호는 유지한다.
 - 구버전 패키지·ZIP·해시·publish 25개 경로(바탕화면 preview.2 포함), 파일 논리 합계 1,403,897,294 bytes 정리. preview.6와 현재 소스/빌드·리뷰 증거 보존. 상세 대상은 `artifacts/maintenance/old-packages-20260927.json`.
 - 로컬 업데이트 설치 진행/재시작 필요/서비스 상태 진단과 설명 카드 추가. false를 전체 유휴·삭제 가능으로 판정하지 않는다. 네트워크 업데이트 검색 없음.
