@@ -2,7 +2,7 @@
 
 기준 `master`=`32ab51f`, 작업 브랜치 `codex/sp1-actions`. [계획](plans/2026-09-27-sp1-actions.md)과 [공유 원장](../reviews/REVIEW_LEDGER.md)이 작업 입력이다.
 
-**현재 결과:** [preview.7 통합 구현·검증·미완료 범위](../reviews/2026-09-27-sp1-integrated-completion.md). 구현 → UI/UX → 검증을 진행해 하나의 통합 배포본을 만들었다. 표 아래 기록은 당시 상태이며, 전체 계획 완료를 뜻하지 않는다. 기술 지원 계약이 없는 기능과 평가 PC/VM 항목은 명시적으로 열린 상태다.
+**현재 결과:** [preview.7 통합 구현·검증·미완료 범위](../reviews/2026-09-27-sp1-integrated-completion.md). 2026-09-27 후속(Claude, `e25aa43`·`9bc264a`): [T6 작업 관리자 시작 상태 토글·T10 그래픽 캐시 부분 정리·Resolve 기본 위치](../reviews/2026-09-27-startup-approval-and-graphics-cache.md). Adobe·CapCut 설정 fixture는 이 PC에 앱이 없어 미확보. 기본 1661/1661, Smoke 57/57. 새 ZIP 없음. 구현 → UI/UX → 검증을 진행해 하나의 통합 배포본을 만들었다. 표 아래 기록은 당시 상태이며, 전체 계획 완료를 뜻하지 않는다. 기술 지원 계약이 없는 기능과 평가 PC/VM 항목은 명시적으로 열린 상태다.
 
 2026-09-27 이전 배치: [남은 구현 순서](plans/2026-09-27-sp1-remaining-implementation.md)에 따라 T9-B 이후 Steam 선택 정리·NVIDIA NV_Cache 관측·NVIDIA/Steam 공식 안내/Direct3D Windows 연결을 구현했다. [계약·제한·검증 이월](../reviews/2026-09-27-steam-cleanup-and-graphics-guides.md). 빌드만 확인, 그래픽 직접 삭제·T10 전체 완료를 주장하지 않는다. 구버전 정리와 preview.6 보존 유지.
 
@@ -19,11 +19,11 @@
 | 3 | 원본 저장·실패 복구 | 구현·자체 검증 완료, 실제 서비스/화면 중단은 T12 | 생략 |
 | 4 | 공통 확인·결과·되돌리기 | 구현·WPF 회귀 완료 | 생략 |
 | 5 | 사용자 임시 파일·삭제 엔진 | 구현·대역/소유 파일 native 회귀 완료 | 생략 |
-| 6 | 시작 항목 해제·복원 | HKCU/HKLM32/64 Run + 기본 사용자/공용 .lnk 보관·복원 구현/자체 검증. StartupApproved 토글·실제 로그인 미완료 | 생략 |
+| 6 | 시작 항목 해제·복원 | HKCU/HKLM32/64 Run + 기본 사용자/공용 .lnk 보관·복원 구현/자체 검증. **StartupApproved 토글 구현(`e25aa43`, 이 PC 관측 12바이트 형식 한정)**. 실제 다음 로그인 효과 미검증 | 생략 |
 | 7 | 전원 계획 | 구현·대역/조회 검증, 실제 전원 변경·복원 미검증 | 생략 |
 | 8 | 주사율·15초 확인 | 구현·대역/조회 CDS_TEST, 실제 화면 전환/분리/종료 미검증 | 생략 |
 | 9 | 시스템·DO·업데이트 캐시 | 구현·서비스 실패/취소/복구 대역 완료, 실제 Update 서비스/COM/삭제 VM 검증 미완료 | 생략 |
-| 10 | 앱 캐시·공식 도구 | Adobe 기본/수동·Steam 선택 정리, Resolve/CapCut 검사/수동 위치, NVIDIA 관측·공식 연결. 버전별 자동 탐지 확대·NVIDIA 직접 정리 미구현 | 생략 |
+| 10 | 앱 캐시·공식 도구 | Adobe 기본/수동·Steam 선택 정리, Resolve/CapCut 검사/수동 위치, NVIDIA 관측·공식 연결. **그래픽 캐시 30일 미사용 파일 부분 정리·Resolve 기본 CacheClip 해석 구현(`9bc264a`)**. Adobe·CapCut 버전별 자동 탐지는 fixture 부재로 미구현 | 생략 |
 | 11 | 효과 중심 UI 통합 | 구현·필터/결과 보존·창 수명·좁은 화면 회귀/렌더 확인 완료 | 생략 |
 | 12 | 최종 검증·배포 | 기본1639/Smoke57/ToolSmoke4 통과, preview.7 ZIP 검증 완료. 별도 PC/VM 실제 변경 평가는 미완료 | 생략 |
 

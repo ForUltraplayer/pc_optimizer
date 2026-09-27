@@ -6,7 +6,7 @@
 
 - 실제 저장소: `C:\Users\Administrator\Desktop\pc_optimizer`. 과거 대화의 `Desktop\windows` 경로를 그대로 사용하지 말 것.
 - 브랜치: `codex/sp1-actions`.
-- 인계 작성 직전 HEAD: `be22e22` (구현 커밋 참조 문서). 최신 제품 구현: **`9ab6822`** (`f403a97..9ab6822`, 29파일). 이 인계 변경은 그 뒤의 문서 전용 커밋이다.
+- 최신 제품 구현: **`9bc264a`**(T10 그래픽 캐시·Resolve, Claude) ← `e25aa43`(T6 StartupApproved, Claude) ← `9ab6822`(Codex 통합). 이 인계 변경은 그 뒤의 문서 전용 커밋이다. 상세: [T6·T10 구현 기록](reviews/2026-09-27-startup-approval-and-graphics-cache.md).
 - 작성 착수 시 작업 트리 깨끗함. 이 세션이 실행한 백그라운드 작업·서브에이전트 없음. 실행 중인 사용자 앱을 종료/교체하지 않았다.
 - `feature/p0-skeleton`은 앞서 로컬 master `32ab51f`로 병합됐다. **이번 SP1 브랜치는 master에 병합하지 않았고 원격 게시도 하지 않았다.**
 - 사용자 우선순위: **기능 구현 → UI/UX 개선 → 검증**. 기능 하나마다 프리뷰를 만들고 멈추지 말고 묶어서 진행한다. 기존 도구·Windows 공식 기능의 통합 활용이 제품 방향이다.
@@ -35,13 +35,13 @@
 
 | 기능 | 현재 제공 범위 |
 |---|---|
-| 시작 앱 | HKCU Run·HKLM32/64 Run 등록 해제/원문 복원. 기본 사용자·공용 Startup의 지원 `.lnk`는 Programs 폴더에 보관/복원 |
+| 시작 앱 | HKCU Run·HKLM32/64 Run 등록 해제/원문 복원. 기본 사용자·공용 Startup의 지원 `.lnk`는 Programs 폴더에 보관/복원. 작업 관리자 '사용/사용 안 함'(StartupApproved) 토글·원래 값 복원(Run·Run32·시작 폴더, 관측 12바이트 형식만) |
 | 일반 정리 | 사용자·Windows 임시 파일 7일 기준, 공식 npm·pip·NuGet HTTP 도구 실행 |
 | 업데이트 | DO 비고정 캐시 ID별 처리, 고정 Windows Download 7일 파일·서비스 원본 기록/중지/복구. wuauserv·BITS 모두 Running 등 제한 조건 |
 | Adobe | 기본/직접 선택 Media Cache Files·Peak Files의 90일 `.cfa/.pek`만 정리 |
 | Steam | 직접 선택한 현재 라이브러리 shadercache의 AppID 아래 30일 파일. Program Files 보호 유지, Steam·게임 관측 불완전 시 거절 |
-| Resolve·CapCut | 기본/지원 설정 또는 수동 CacheClip/Cache 위치의 용량 검사. 직접 삭제 없음 |
-| 그래픽 | NVIDIA DX/GL/NV_Cache·Direct3D 관측, 공식 안내/Windows 기능 연결. 직접 삭제 없음 |
+| Resolve·CapCut | 기본/지원 설정 또는 수동 CacheClip/Cache 위치의 용량 검사. Resolve는 `RenderCaching.CacheDir` 키가 없으면 첫 저장소의 CacheClip을 기본으로 해석(20.1 실제 설정 근거). 직접 삭제 없음 |
+| 그래픽 | NVIDIA DX/GL/NV_Cache·Direct3D 관측, 공식 안내/Windows 기능 연결. 캐시별 30일 이상 미사용 파일 부분 정리(사용 중 파일 건너뜀, 설정 불변). 전체 초기화는 공식 절차 안내 |
 | 전원·주사율 | 전원 계획 적용/복원, 같은 해상도 주사율 시험·15초 유지 확인/복구 기록. 실제 변경 평가는 남음 |
 | UI/UX | 공간 확보/자동 실행/전원 효과별 진입·필터, 확인/결과 우선 배치, 필터 변경 시 계획·결과 보존, 수동 위치 펼침, 빈 목록 사유 |
 
@@ -52,13 +52,13 @@
 | 항목 | 마지막 실제 결과 |
 |---|---|
 | Release 솔루션 빌드 | 경고 0 / 오류 0 |
-| 기본 | **1639/1639** |
+| 기본 | **1661/1661** |
 | Smoke | **57/57** |
-| ToolSmoke | **4/4**, 소유 임시 캐시에 고정한 npm·pip·NuGet |
+| ToolSmoke | **4/4**(Codex 마지막 실행, 이번 배치에서 재실행 안 함), 소유 임시 캐시에 고정한 npm·pip·NuGet |
 | UI | WPF 100/150/200% 오프스크린 회귀, 메인/좁은 창 PNG 시각 확인 |
 | Online | 미실행. 온라인 수집 코드가 바뀌지 않아 재실행하지 않음 |
 
-증거: `artifacts/sp1-completion/sp1-final-basic.trx`, `sp1-final-smoke.trx`, `sp1-final-toolsmoke.trx`, `ui/`. 인계 문서 작성 시에는 테스트를 다시 실행하지 않았다.
+증거: 기본·Smoke는 2026-09-27 T6·T10 배치 뒤 콘솔 실행 결과(`reviews/2026-09-27-startup-approval-and-graphics-cache.md`), ToolSmoke·UI는 `artifacts/sp1-completion/`의 Codex 실행 결과.
 
 - SDK: `C:\Program Files\dotnet\dotnet.exe` 10.0.401. PowerShell 사용.
 - ToolSmoke 변수: `PCOPTIMIZER_TEST_NODE=C:\Program Files\nodejs\node.exe`, `PCOPTIMIZER_TEST_PYTHON=C:\ProgramData\Anaconda3\python.exe`, `PCOPTIMIZER_TEST_DOTNET=C:\Program Files\dotnet\dotnet.exe`.
@@ -70,9 +70,9 @@
 
 **미지원 기능은 영구 제외로 승인된 것이 아니다.** 근거가 없어서 추측 구현하지 않은 상태다. 아래 순서로 지원 계약과 fixture를 확보한 뒤 구현 → UI → 검증한다.
 
-1. **T10 앱 설정 자동 탐지 확대**: 설치 버전/공식 설명/민감 값을 제거한 실제 설정 fixture로 Adobe·CapCut 형식과 Resolve 프로젝트별 재정의 위치를 확인한다. 경로 필드만 제한적으로 읽고 파일 부재와 읽기 실패·형식 불명을 구분한다. 현재 수동 위치 선택을 자동 탐지라고 표시하지 않는다. 현재 PC에 해당 버전/자료가 없으면 그 조건을 기록하고 다른 독립 작업을 진행한다.
-2. **T6 StartupApproved 토글**: 전체 값 형식과 원복·미등록 값 의미를 검증할 계약/평가 OS가 먼저 필요하다. 첫 바이트 0x02/0x03만 근거로 쓰지 않는다. 현재 Run/기본 폴더 동작을 유지하고 같은 이름의 출처를 섞지 않는다.
-3. **T10 NVIDIA 직접 정리**: 공식 절차의 설정·재부팅·그래픽 작성자 유휴/재개 계약을 확인한 뒤 별도 공급자로 구현할 수 있는지 판단한다. 현재 공식 안내를 임의 재귀 삭제로 바꾸지 않는다. Steam 설정 읽기용 Program Files 예외를 삭제에 재사용하지 않는다.
+1. **T10 앱 설정 자동 탐지 확대**: Resolve 기본 위치는 해결(20.1 실제 설정). 프로젝트별 재정의는 DB 안이라 텍스트로 읽을 수 없어 범위 밖. **Adobe·CapCut은 이 PC에 설치돼 있지 않아 fixture 미확보(2026-09-27 확인)** — 설치된 PC의 설정 파일(민감 값 제거)을 받으면 진행한다. 현재 수동 위치 선택을 자동 탐지라고 표시하지 않는다.
+2. **T6 StartupApproved 토글**: 구현 완료(`e25aa43`). 이 PC 26200에서 관측한 12바이트 형식(0x02+0 / 0x03+FILETIME)만 쓰고 다른 형식은 거절한다. 남은 것은 별도 평가 PC에서 다음 로그인 효과·작업 관리자 표시 동기화 확인.
+3. **T10 NVIDIA 직접 정리**: 30일 미사용 파일 부분 정리로 구현(`9bc264a`, 기존 파일 엔진·독점 핸들·보호 경계 재사용, 설정 불변). 전체 초기화(캐시 끄기·재부팅)는 공식 안내로 유지. 남은 것은 게임/드라이버 실행 중 실기 거동 확인.
 4. **T8/T9/T12 평가 Windows 11/VM**: UAC 승인/거절·다른 계정 SystemOnly·비승격 브라우저, 실제 다음 로그인, 전원 변경/복원, 화면 유지/시간 초과/분리/종료, Update COM/BITS ABI·다운로드 중 거절·서비스 중간 실패/복구·다음 실행 회복, 게임/편집 재개, .NET 없는 PC·SmartScreen·물리 DPI/키보드를 시험한다. 시험별 원상 복구와 실제 관측 근거를 남긴다. 별도 평가 환경이 확보되지 않아 아직 수행하지 않았다.
 5. 지원 범위별 증거를 원장/Task 표에 반영한 뒤 통합 배포를 갱신한다. 대역 서비스 시험을 실제 서비스 복구 검증으로, 렌더 시험을 실제 DPI/키보드 검증으로, 파일 지문 보존을 다음 로그인 효과 검증으로 대신하지 않는다. 원격 게시/브랜치 병합을 이번 인계 작성 요청에 포함시키지 않는다.
 
