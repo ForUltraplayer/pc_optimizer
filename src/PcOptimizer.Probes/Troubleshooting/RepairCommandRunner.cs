@@ -39,6 +39,8 @@ public sealed class RepairCommandRunner
     public const string CODE_START_FAILED = "StartFailed";
     /// <summary>System32에 실행 파일이 없음.</summary>
     public const string CODE_EXECUTABLE_MISSING = "ExecutableMissing";
+    /// <summary>설치 미디어 원본이 필요한 명령인데 검증된 원본이 없음.</summary>
+    public const string CODE_SOURCE_REQUIRED = "SourceRequired";
     /// <summary>다른 명령이 실행 중.</summary>
     public const string CODE_BUSY = "Busy";
     /// <summary>출력 보관 상한(문자).</summary>
@@ -66,28 +68,35 @@ public sealed class RepairCommandRunner
     /// 셸 없이 실행할 시작 정보를 만듭니다(프로세스는 시작하지 않음). 실행 파일은 System32 절대 경로, 작업 폴더는 System32,
     /// 코드 주입이 가능한 환경 변수는 <see cref="CacheToolProcess"/>와 같은 규칙으로 지웁니다.
     /// </summary>
-    internal ProcessStartInfo CreateStartInfo(RepairCommand command)
+    internal ProcessStartInfo CreateStartInfo(RepairCommand command, string? source = null)
     {
+        if (command.RequiresSource && string.IsNullOrWhiteSpace(source)) { throw new ArgumentException("설치 미디어 원본이 필요한 명령입니다.", nameof(source)); }
         var start = new ProcessStartInfo(Path.Combine(_systemDirectory, command.Executable))
         {
             UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true, WorkingDirectory = _systemDirectory,
         };
         foreach (var key in start.Environment.Keys.Where(CacheToolProcess.IsStrippedVariable).ToArray()) { start.Environment.Remove(key); }
-        foreach (var argument in command.Arguments) { start.ArgumentList.Add(argument.Replace(RepairCommandCatalog.SYSTEM_DRIVE_TOKEN, _systemDrive, StringComparison.Ordinal)); }
+        foreach (var argument in command.Arguments)
+        {
+            var value = argument.Replace(RepairCommandCatalog.SYSTEM_DRIVE_TOKEN, _systemDrive, StringComparison.Ordinal);
+            if (source is not null) { value = value.Replace(RepairCommandCatalog.SOURCE_TOKEN, source, StringComparison.Ordinal); }
+            start.ArgumentList.Add(value);
+        }
         return start;
     }
 
     /// <summary>명령을 실행하고 출력 줄을 <paramref name="progress"/>로 전달합니다. 예외를 던지지 않습니다.</summary>
-    public async Task<RepairCommandResult> RunAsync(RepairCommand command, IProgress<string>? progress, CancellationToken ct)
+    public async Task<RepairCommandResult> RunAsync(RepairCommand command, IProgress<string>? progress, CancellationToken ct, string? source = null)
     {
         ArgumentNullException.ThrowIfNull(command);
+        if (command.RequiresSource && string.IsNullOrWhiteSpace(source)) { return new(command.Id, false, null, CODE_SOURCE_REQUIRED, string.Empty, command.RebootRequired); }
         if (!await Gate.WaitAsync(0, CancellationToken.None).ConfigureAwait(false)) { return new(command.Id, false, null, CODE_BUSY, string.Empty, command.RebootRequired); }
         Process? process = null;
         var started = false;
         var output = new OutputCollector(progress);
         try
         {
-            var start = CreateStartInfo(command);
+            var start = CreateStartInfo(command, source);
             if (!File.Exists(start.FileName) || !SystemCacheToolBackend.IsPlainPath(start.FileName, directory: false))
             { return new(command.Id, false, null, CODE_EXECUTABLE_MISSING, string.Empty, command.RebootRequired); }
             process = new Process { StartInfo = start };

@@ -23,6 +23,8 @@ public sealed class TroubleshootingService
     public const uint RESTORE_SERVICE_DISABLED = 1058;
     /// <summary>시스템 보호 꺼짐 결과 코드.</summary>
     public const string CODE_PROTECTION_DISABLED = "ProtectionDisabled";
+    /// <summary>고른 폴더가 Windows 설치 미디어가 아님.</summary>
+    public const string CODE_SOURCE_INVALID = "SourceInvalid";
     private const uint RESTORE_TYPE_MODIFY_SETTINGS = 12;
     private const uint RESTORE_EVENT_BEGIN_SYSTEM_CHANGE = 100;
     private static readonly TimeSpan RESTORE_TIMEOUT = TimeSpan.FromMinutes(3);
@@ -46,15 +48,21 @@ public sealed class TroubleshootingService
         _runner = runner; _createRestorePoint = createRestorePoint; _startProcess = startProcess; _systemDirectory = systemDirectory;
     }
 
-    /// <summary>카탈로그의 직접 실행 명령 ID를 실행합니다. 검사·조치가 진행 중이면 Busy로 거절합니다.</summary>
-    public async Task<RepairCommandResult> RunAsync(string commandId, IProgress<string>? progress, CancellationToken ct)
+    /// <summary>카탈로그의 직접 실행 명령 ID를 실행합니다. 검사·조치가 진행 중이면 Busy로 거절합니다. 설치 미디어 원본이 필요한 명령은 <paramref name="sourceFolder"/>를 검증해 /Source 인자로 바꿉니다.</summary>
+    public async Task<RepairCommandResult> RunAsync(string commandId, IProgress<string>? progress, CancellationToken ct, string? sourceFolder = null)
     {
         if (!RepairCommandCatalog.IsKnown(commandId)) { return new(commandId, false, null, "Unsupported", string.Empty, false); }
         using var lease = _operations.TryAcquire(OperationKind.Apply);
         if (lease is null) { return new(commandId, false, null, RepairCommandRunner.CODE_BUSY, string.Empty, false); }
         if (commandId == RepairCommandCatalog.RESTORE_POINT) { return await CreateRestorePointAsync(progress, ct).ConfigureAwait(false); }
         var command = RepairCommandCatalog.Find(commandId)!;
-        return await _runner.RunAsync(command, progress, ct).ConfigureAwait(false);
+        string? source = null;
+        if (command.RequiresSource)
+        {
+            if (!InstallMediaSource.TryResolve(sourceFolder, File.Exists, out source)) { return new(commandId, false, null, CODE_SOURCE_INVALID, string.Empty, false); }
+            progress?.Report("설치 미디어의 " + (source.StartsWith("WIM:", StringComparison.Ordinal) ? InstallMediaSource.WIM_FILE : InstallMediaSource.ESD_FILE) + "을(를) 원본으로 씁니다. Windows Update에는 접속하지 않습니다.");
+        }
+        return await _runner.RunAsync(command, progress, ct, source).ConfigureAwait(false);
     }
 
     /// <summary>

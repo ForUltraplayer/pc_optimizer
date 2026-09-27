@@ -76,7 +76,9 @@ public sealed class TroubleshootingTests
         {
             foreach (var command in RepairCommandCatalog.Commands)
             {
-                var start = runner.CreateStartInfo(command);
+                var start = runner.CreateStartInfo(command, command.RequiresSource ? @"WIM:E:\sources\install.wim:1" : null);
+                Assert.DoesNotContain(start.ArgumentList, a => a.Contains(RepairCommandCatalog.SOURCE_TOKEN, StringComparison.Ordinal));
+                if (command.RequiresSource) { Assert.Contains(@"/Source:WIM:E:\sources\install.wim:1", start.ArgumentList); Assert.Contains("/LimitAccess", start.ArgumentList); Assert.Throws<ArgumentException>(() => runner.CreateStartInfo(command)); }
                 Assert.Equal(Path.Combine(@"C:\Windows\System32", command.Executable), start.FileName);
                 Assert.False(start.UseShellExecute); Assert.True(start.RedirectStandardOutput); Assert.Equal(@"C:\Windows\System32", start.WorkingDirectory);
                 Assert.DoesNotContain(RepairCommandCatalog.SYSTEM_DRIVE_TOKEN, start.ArgumentList);
@@ -135,6 +137,48 @@ public sealed class TroubleshootingTests
         vm.SelectSymptomCommand.Execute(vm.Symptoms.Single(s => s.Id == TroubleshootingViewModel.ALL_TOOLS_ID));
         Assert.Equal(Catalog.Tools.Count, vm.Cards.Count); Assert.All(vm.Cards, c => Assert.Equal(c.Tool.Category, c.OrderText));
         var card = vm.Cards[0]; Assert.False(card.ShowSteps); card.ToggleStepsCommand.Execute(null); Assert.True(card.ShowSteps); Assert.StartsWith("1. ", card.Steps[0]);
+    }
+
+    /// <summary>설치 미디어 폴더는 sources\install.wim(esd)이 있을 때만 /Source 값으로 바뀌고, 상대 경로·UNC·와일드카드는 거절합니다.</summary>
+    [Theory]
+    [InlineData(@"E:\", @"E:\sources\install.wim", @"WIM:E:\sources\install.wim:1")]
+    [InlineData(@"E:\sources", @"E:\sources\install.esd", @"ESD:E:\sources\install.esd:1")]
+    [InlineData(@"D:\Win11", @"D:\Win11\sources\install.esd", @"ESD:D:\Win11\sources\install.esd:1")]
+    public void InstallMediaResolvesImageFile(string folder, string existing, string expected)
+    {
+        Assert.True(InstallMediaSource.TryResolve(folder, path => path.Equals(existing, StringComparison.OrdinalIgnoreCase), out var source));
+        Assert.Equal(expected, source);
+        Assert.False(InstallMediaSource.TryResolve(folder, _ => false, out _));
+        Assert.False(InstallMediaSource.TryResolve(@"\server\share", _ => true, out _));
+        Assert.False(InstallMediaSource.TryResolve("sources", _ => true, out _));
+        Assert.False(InstallMediaSource.TryResolve(@"E:*b", _ => true, out _));
+    }
+
+    /// <summary>원본이 필요한 명령은 폴더 없이는 실행하지 않고, 잘못된 폴더는 SourceInvalid로 거절합니다.</summary>
+    [Fact]
+    public async Task SourceCommandRefusesWithoutValidFolder()
+    {
+        var service = new TroubleshootingService(new OperationCoordinator(), null, new RepairCommandRunner(null, @"C:\Windows\System32", "C:"), () => 0, _ => true, Environment.GetFolderPath(Environment.SpecialFolder.System));
+        Assert.Equal(TroubleshootingService.CODE_SOURCE_INVALID, (await service.RunAsync(RepairCommandCatalog.DISM_RESTORE_HEALTH_SOURCE, null, default, null)).Code);
+        Assert.Equal(TroubleshootingService.CODE_SOURCE_INVALID, (await service.RunAsync(RepairCommandCatalog.DISM_RESTORE_HEALTH_SOURCE, null, default, Path.GetTempPath())).Code);
+        var runner = new RepairCommandRunner(null, @"C:\Windows\System32", "C:");
+        Assert.Equal(RepairCommandRunner.CODE_SOURCE_REQUIRED, (await runner.RunAsync(RepairCommandCatalog.Find(RepairCommandCatalog.DISM_RESTORE_HEALTH_SOURCE)!, null, default)).Code);
+    }
+
+    /// <summary>알려진 DISM 종료 코드는 한국어 안내로 바뀌고, 유틸리티 탭은 외부 도구만 분류별로 묶습니다.</summary>
+    [Fact]
+    public void ExitCodesAreExplainedAndUtilityGroupsHoldExternalToolsOnly()
+    {
+        Assert.Contains("0x800f0915", TroubleshootingViewModel.ExplainExitCode(unchecked((int)0x800F0915)));
+        Assert.Contains("설치 미디어", TroubleshootingViewModel.ExplainExitCode(unchecked((int)0x800F0954)));
+        Assert.Null(TroubleshootingViewModel.ExplainExitCode(1));
+        var service = new TroubleshootingService(new OperationCoordinator(), null, new RepairCommandRunner(null, @"C:\Windows\System32", "C:"), () => 0, _ => true, Environment.GetFolderPath(Environment.SpecialFolder.System));
+        using var vm = new TroubleshootingViewModel(Catalog, service, new ImmediateUiDispatcher(), _ => true, _ => true, Links);
+        Assert.True(vm.UtilityGroups.Count >= 5);
+        Assert.All(vm.UtilityGroups.SelectMany(g => g.Cards), c => Assert.Equal(ToolMode.ExternalGuide, c.Tool.Mode));
+        Assert.Equal(Catalog.Tools.Count(t => t.Mode == ToolMode.ExternalGuide), vm.UtilityGroups.Sum(g => g.Cards.Count));
+        var sourceCard = vm.Symptoms.Select(sym => { vm.SelectSymptomCommand.Execute(sym); return vm.Cards.FirstOrDefault(c => c.Tool.Command == RepairCommandCatalog.DISM_RESTORE_HEALTH_SOURCE); }).First(c => c is not null)!;
+        Assert.True(sourceCard.NeedsSourceFolder); Assert.Contains("설치 미디어", sourceCard.ActionText);
     }
 
     private sealed class SynchronousProgress(List<string> lines) : IProgress<string>

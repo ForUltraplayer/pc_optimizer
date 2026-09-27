@@ -129,7 +129,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>좌측 내비게이션의 현재 페이지입니다. 사양·전체 결과 표시 상태와 서로 맞춥니다.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsRecommendedPage), nameof(IsAllResultsPage), nameof(IsTroubleshootingPage), nameof(IsAdvancedPage), nameof(IsActionsPage), nameof(IsSettingsPage), nameof(PageTitle), nameof(IsResultsVisible))]
+    [NotifyPropertyChangedFor(nameof(IsRecommendedPage), nameof(IsAllResultsPage), nameof(IsTroubleshootingPage), nameof(IsUtilitiesPage), nameof(IsAdvancedPage), nameof(IsActionsPage), nameof(IsSettingsPage), nameof(PageTitle), nameof(IsResultsVisible))]
     private MainPage _currentPage = MainPage.Recommended;
     partial void OnCurrentPageChanged(MainPage value)
     {
@@ -144,6 +144,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool IsAllResultsPage => CurrentPage == MainPage.AllResults;
     /// <summary>문제 해결 페이지인지.</summary>
     public bool IsTroubleshootingPage => CurrentPage == MainPage.Troubleshooting;
+    /// <summary>유틸리티 페이지인지.</summary>
+    public bool IsUtilitiesPage => CurrentPage == MainPage.Utilities;
     /// <summary>고급 페이지인지.</summary>
     public bool IsAdvancedPage => CurrentPage == MainPage.Advanced;
     /// <summary>조치·되돌리기 페이지인지.</summary>
@@ -153,7 +155,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>머리글 페이지 제목입니다.</summary>
     public string PageTitle => CurrentPage switch
     {
-        MainPage.Recommended => "추천 조치", MainPage.AllResults => "전체 결과", MainPage.Troubleshooting => "문제 해결", MainPage.Spec => "내 PC 사양",
+        MainPage.Recommended => "추천 조치", MainPage.AllResults => "전체 결과", MainPage.Troubleshooting => "문제 해결", MainPage.Utilities => "유틸리티", MainPage.Spec => "내 PC 사양",
         MainPage.Advanced => "고급", MainPage.Actions => "조치 실행 · 되돌리기", _ => "설정",
     };
     /// <summary>좌측 내비게이션 항목을 선택합니다.</summary>
@@ -662,4 +664,4 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 }
 
 /// <summary>메인 창 좌측 내비게이션 페이지입니다(사용자 확정 배치안 7개).</summary>
-public enum MainPage { Recommended, AllResults, Troubleshooting, Spec, Advanced, Actions, Settings }
+public enum MainPage { Recommended, AllResults, Troubleshooting, Utilities, Spec, Advanced, Actions, Settings }

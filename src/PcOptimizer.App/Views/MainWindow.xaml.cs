@@ -37,6 +37,7 @@ public partial class MainWindow : FluentWindow
         _displayTrials = displayTrials;
         _troubleshooting = troubleshooting;
         TroubleshootingView.DataContext = troubleshooting;
+        UtilitiesView.DataContext = troubleshooting;
         TroubleshootingView.Visibility = troubleshooting is null ? Visibility.Collapsed : Visibility.Visible;
         TroubleshootingUnavailableNote.Visibility = troubleshooting is null ? Visibility.Visible : Visibility.Collapsed;
         DriverGuideView.DataContext = driverGuide;

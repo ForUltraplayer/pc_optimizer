@@ -12,7 +12,8 @@ namespace PcOptimizer.Core.Troubleshooting;
 /// <param name="Timeout">실행 시간 상한.</param>
 /// <param name="RebootRequired">완료 뒤 다시 시작이 필요한지.</param>
 /// <param name="SuccessExitCodes">성공으로 보는 종료 코드.</param>
-public sealed record RepairCommand(string Id, string Executable, IReadOnlyList<string> Arguments, TimeSpan Timeout, bool RebootRequired, IReadOnlyList<int> SuccessExitCodes);
+/// <param name="RequiresSource">사용자가 고른 설치 미디어 폴더(<see cref="InstallMediaSource"/>)가 있어야 실행되는지. 인자의 <see cref="RepairCommandCatalog.SOURCE_TOKEN"/>이 그 값으로 바뀐다.</param>
+public sealed record RepairCommand(string Id, string Executable, IReadOnlyList<string> Arguments, TimeSpan Timeout, bool RebootRequired, IReadOnlyList<int> SuccessExitCodes, bool RequiresSource = false);
 
 /// <summary>Windows 내장 명령의 닫힌 목록입니다.</summary>
 public static class RepairCommandCatalog
@@ -21,8 +22,12 @@ public static class RepairCommandCatalog
     public const string SYSTEM_DRIVE_TOKEN = "{SystemDrive}";
     /// <summary>시스템 복원 지점 생성은 프로세스가 아니라 WMI 호출로 처리하는 특수 명령입니다.</summary>
     public const string RESTORE_POINT = "restore-point";
-    /// <summary>DISM 구성 요소 저장소 복구.</summary>
+    /// <summary>인자 안에서 검증된 /Source 값(WIM:…:1 / ESD:…:1)으로 치환되는 토큰입니다.</summary>
+    public const string SOURCE_TOKEN = "{Source}";
+    /// <summary>DISM 구성 요소 저장소 복구(Windows Update 원본).</summary>
     public const string DISM_RESTORE_HEALTH = "dism-restorehealth";
+    /// <summary>DISM 구성 요소 저장소 복구(설치 미디어 원본, Windows Update 접근 없음).</summary>
+    public const string DISM_RESTORE_HEALTH_SOURCE = "dism-restorehealth-source";
     /// <summary>시스템 파일 검사.</summary>
     public const string SFC_SCANNOW = "sfc-scannow";
     /// <summary>시스템 드라이브 온라인 검사(고치지 않음).</summary>
@@ -43,6 +48,7 @@ public static class RepairCommandCatalog
     public static readonly IReadOnlyList<RepairCommand> Commands =
     [
         new(DISM_RESTORE_HEALTH, "dism.exe", ["/Online", "/Cleanup-Image", "/RestoreHealth"], LONG_TIMEOUT, false, ZERO),
+        new(DISM_RESTORE_HEALTH_SOURCE, "dism.exe", ["/Online", "/Cleanup-Image", "/RestoreHealth", "/Source:" + SOURCE_TOKEN, "/LimitAccess"], LONG_TIMEOUT, false, ZERO, true),
         new(SFC_SCANNOW, "sfc.exe", ["/scannow"], MEDIUM_TIMEOUT, false, ZERO),
         new(CHKDSK_SCAN, "chkdsk.exe", [SYSTEM_DRIVE_TOKEN, "/scan"], MEDIUM_TIMEOUT, false, ZERO),
         new(CHKDSK_SCHEDULE, "chkntfs.exe", ["/C", SYSTEM_DRIVE_TOKEN], SHORT_TIMEOUT, true, ZERO),

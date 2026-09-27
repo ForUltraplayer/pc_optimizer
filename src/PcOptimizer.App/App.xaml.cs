@@ -193,7 +193,8 @@ public partial class App : Application
         {
             var troubleshootingLinks = new LinkPolicy(vendorLinks.Catalog, logger);
             troubleshooting = new TroubleshootingViewModel(toolCatalog, new TroubleshootingService(scanService.Operations, logger), dispatcher,
-                url => troubleshootingLinks.TryOpen(url) == LinkOpenResult.Opened, new SettingsUriPolicy(logger).TryOpen, vendorLinks.Catalog, logger);
+                url => troubleshootingLinks.TryOpen(url) == LinkOpenResult.Opened, new SettingsUriPolicy(logger).TryOpen, vendorLinks.Catalog, logger,
+                () => { var picker = new Microsoft.Win32.OpenFolderDialog { Title = "Windows 설치 미디어 폴더(ISO를 마운트한 드라이브 또는 설치 USB의 루트)를 선택하세요", Multiselect = false }; return picker.ShowDialog() == true ? picker.FolderName : null; });
         }
         else { logger.Warn(LOG_CATEGORY, $"TroubleshootingCatalogUnavailable errors={troubleshootingCatalog.Errors.Count}"); }
         // 드라이버 안내: 검사 결과가 바뀔 때마다 제조사·모델·설치 드라이버를 다시 채운다. 링크는 공식 표 허용 목록만 연다.
