@@ -688,6 +688,43 @@ public sealed class MainWindowLayoutTests
             finally { window.Close(); }
         });
     }
+    /// <summary>전체 결과에서 두 영상 앱의 정보 카드와 정리 안내 버튼을 실제 XAML로 연결합니다.</summary>
+    [Fact]
+    public void VideoEditorCardsExposeCacheGuidesInAllResults()
+    {
+        RunOnSta(() =>
+        {
+            var vm = CreateScannedViewModel(rule: new VideoCacheFixtureRule());
+            var window = new MainWindow(vm);
+            try
+            {
+                var root = (FrameworkElement)window.Content; root.Measure(new Size(1100, 900)); root.Arrange(new Rect(0, 0, 1100, 900)); root.UpdateLayout();
+                var buttons = Descendants<Button>(root).Where(b => b.Content as string == "캐시 위치·정리 방법 보기"
+                    && b.DataContext is FindingCardViewModel c && c.Finding.Id.StartsWith("video-editor-cache:", StringComparison.Ordinal)).ToArray();
+                Assert.Equal(2, buttons.Length); Assert.All(buttons, b => Assert.Equal(Visibility.Visible, b.Visibility));
+                Assert.Equal(0, vm.DoNowCount);
+                foreach (var button in buttons) { button.Command.Execute(button.CommandParameter); }
+                root.UpdateLayout();
+                Assert.All(buttons, b => Assert.True(((FindingCardViewModel)b.DataContext).IsDetailsVisible));
+            }
+            finally { window.Close(); }
+        });
+    }
+    private sealed class VideoCacheFixtureRule : IRule
+    {
+        public string Id => "fixture.video-caches";
+        public IReadOnlyList<Finding> Evaluate(ScanSnapshot snapshot)
+        {
+            var now = DateTimeOffset.UtcNow;
+            var measurements = new[] { "davinci", "capcut" }.SelectMany(app => new Measurement[]
+            {
+                new(PcOptimizer.Core.Rules.VideoEditorCacheRule.Field(app, "state"), new TextValue("Observed"), null, "fixture", now, MeasurementQuality.Observed),
+                new(PcOptimizer.Core.Rules.VideoEditorCacheRule.Field(app, "bytes"), new IntegerValue(1024 * 1024 * 1024), "bytes", "fixture", now, MeasurementQuality.Observed),
+            }).ToArray();
+            return new PcOptimizer.Core.Rules.VideoEditorCacheRule().Evaluate(new ScanSnapshot(Guid.NewGuid(),
+                [new(PcOptimizer.Core.Rules.AppCacheProbeContract.PROBE_ID, ProbeStatus.Success, measurements, [], now, TimeSpan.Zero, new UserContext("fixture", false))]));
+        }
+    }
     private sealed class AdobeActionRule : IRule
     {
         public string Id => "fixture.adobe-action";

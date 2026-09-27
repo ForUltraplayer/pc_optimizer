@@ -49,9 +49,11 @@ public sealed class ResolvedProtection
         ArgumentNullException.ThrowIfNull(roots);
         _paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var kept = new List<ProtectedRoot>();
+        var origins = new List<ProtectedRoot>();
         foreach (var root in roots)
         {
             var normalized = PathScope.Normalize(root.Path);
+            origins.Add(root with { Path = normalized });
             if (_paths.Add(normalized))
             {
                 kept.Add(root with { Path = normalized });
@@ -59,11 +61,14 @@ public sealed class ResolvedProtection
         }
 
         Roots = kept.AsReadOnly();
+        SourceRoots = origins.AsReadOnly();
         UnresolvedCount = unresolvedCount;
     }
 
     /// <summary>보호 루트(정책 순서, 중복 제거).</summary>
     public IReadOnlyList<ProtectedRoot> Roots { get; }
+    /// <summary>같은 경로의 Known Folder·클라우드 등 보호 근거를 모두 보존합니다. 제한된 읽기 예외 판단에 사용합니다.</summary>
+    public IReadOnlyList<ProtectedRoot> SourceRoots { get; }
 
     /// <summary>해석하지 못한 정책 항목 수(예: 설치되지 않은 동기화 앱, 없는 환경 변수).</summary>
     public int UnresolvedCount { get; }

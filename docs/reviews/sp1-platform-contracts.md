@@ -42,6 +42,10 @@
 
 기본 Common 하위 Media Cache Files의 `.cfa`/`.pek`, Peak Files의 `.pek`에 대해 90일 경과·Full 현재 프로필·보호/링크·파일 집합·알려진 앱 프로세스 관문을 구현했다. DB/프로젝트/렌더 및 사용자 지정 위치는 포함하지 않는다. [공식 근거·실행 계약·검증·경합 한계](2026-09-27-sp1-adobe-cache-implementation.md)를 읽고 이어갈 것. 프로세스 부재 관측을 OS의 작성자 배타성 보장으로 표현하지 않는다. Steam/NVIDIA·사용자 지정 앱 위치는 아직 이월이다.
 
+## 영상 편집 캐시 진단 추가 / preview.5
+
+사용자 요청으로 DaVinci Resolve·CapCut 읽기 검사를 추가했다. [계약과 검증](2026-09-27-video-editor-cache-inspection.md). Resolve의 작은 config.dat에서 CacheClip 위치만 해석하는 승격 읽기 예외와, Videos 바로 아래 CacheClip만 메타데이터 관측하는 보호 예외는 이 전용 inspector에 한정한다. 겹친 클라우드/문서/시스템 보호는 유지하며 공통 scanner·실행기 보호를 바꾸지 않는다. CapCut은 기본 Cache만 확인한다. 두 앱의 프로젝트 DB/사용자 지정 위치 전체 및 자동 삭제 계약은 아직 없다.
+
 ## 이월 책임표
 
 | 항목 | 담당 | 완료 조건 |

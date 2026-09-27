@@ -59,6 +59,7 @@ public partial class App : Application
         // 앱 캐시 규칙은 실행 모드와 관계없이 Probes 어셈블리에 포함된 리소스만 읽는다(RuleCatalogLoader.CreateEmbedded, 출력 폴더에는 규칙 파일이
         // 없고 파일 시스템에서 읽지도 않음). 포함 sources.json과 SHA-256이 맞을 때만 쓰며 다운로드·사용자 규칙 경로는 없다. 관리자 권한으로 실행 중인
         // 검사(매니페스트상 항상)에서는 사용자 쓰기 가능한 앱 설정 경로(npm·pip·NuGet·Steam)를 적용하지 않고 기본 위치만 본다(AppCacheProbe, ScanContext.IsElevated 기준).
+        // Resolve 전용 읽기 검사는 별도 예외: 작은 config.dat의 캐시 위치만 해석하며 프로필·보호·링크 경계를 확인하고 실행 대상에는 연결하지 않는다.
         var bundledRules = RuleCatalogLoader.CreateEmbedded();
 
         // 공식 링크 표(vendor-links.json)도 Probes 어셈블리 포함 리소스만 읽는다. 규칙(링크 생성)과 링크 열기 정책이 같은 표를 쓴다.
