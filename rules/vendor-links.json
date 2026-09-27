@@ -205,7 +205,7 @@
       "kind": "tool",
       "key": "troubleshooting",
       "label": "Display Driver Uninstaller(DDU) 공식 다운로드",
-      "url": "https://www.wagnardsoft.com/display-driver-uninstaller-ddu-",
+      "url": "https://www.wagnardsoft.com/display-driver-uninstaller-ddu",
       "officialDomains": ["wagnardsoft.com"]
     },
     {
@@ -261,7 +261,7 @@
       "kind": "tool",
       "key": "troubleshooting",
       "label": "OCCT 공식 다운로드(OCBASE)",
-      "url": "https://www.ocbase.com/download",
+      "url": "https://www.ocbase.com/download-personal",
       "officialDomains": ["ocbase.com"]
     },
     {
