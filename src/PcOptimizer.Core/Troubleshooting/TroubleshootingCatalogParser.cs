@@ -21,6 +21,8 @@ public static class TroubleshootingCatalogParser
     public const int MAX_STEPS = 12;
     /// <summary>도구·증상 개수 상한.</summary>
     public const int MAX_ITEMS = 200;
+    /// <summary>도구당 보조 링크 상한.</summary>
+    public const int MAX_EXTRA_LINKS = 3;
     private const int MAX_ID_LENGTH = 64;
 
     private static readonly Dictionary<string, ToolMode> MODES = new(StringComparer.Ordinal)
@@ -93,6 +95,7 @@ public static class TroubleshootingCatalogParser
         var reboot = element.TryGetProperty("rebootRequired", out var rebootElement) && rebootElement.ValueKind is JsonValueKind.True or JsonValueKind.False
             ? rebootElement.GetBoolean() : Missing<bool>(prefix + ".rebootRequired", errors);
         var steps = Steps(element, prefix, errors);
+        var extraLinks = ExtraLinks(element, prefix, errors, linkExists);
         if (modeText is null || !MODES.TryGetValue(modeText, out var mode)) { errors.Add(prefix + ".mode:unknown"); return null; }
         if (safetyText is null || !SAFETY.TryGetValue(safetyText, out var safety)) { errors.Add(prefix + ".safety:unknown"); return null; }
         var references = new[] { command, openTarget, linkId }.Count(v => v is not null);
@@ -104,8 +107,8 @@ public static class TroubleshootingCatalogParser
             case ToolMode.ExternalGuide when linkId is null || !linkExists(linkId): errors.Add(prefix + ".linkId:unknown"); break;
         }
         if (mode == ToolMode.ExternalGuide && safety == SafetyLevel.Irreversible && warning is null) { errors.Add(prefix + ".warning:requiredForIrreversible"); }
-        if (id is null || category is null || name is null || when is null || what is null || caution is null || steps is null) { return null; }
-        return new(id, category, name, when, what, caution, mode, safety, steps, warning, command, openTarget, linkId, reboot);
+        if (id is null || category is null || name is null || when is null || what is null || caution is null || steps is null || extraLinks is null) { return null; }
+        return new(id, category, name, when, what, caution, mode, safety, steps, warning, command, openTarget, linkId, reboot, extraLinks);
     }
 
     private static Symptom? ParseSymptom(JsonElement element, int index, List<string> errors, HashSet<string> toolIds)
@@ -130,6 +133,25 @@ public static class TroubleshootingCatalogParser
         }
         if (steps.Select(s => s.ToolId).Distinct(StringComparer.Ordinal).Count() != steps.Count) { errors.Add(prefix + ".steps:duplicateTool"); }
         return id is null || title is null || summary is null ? null : new(id, title, summary, steps);
+    }
+
+    private static IReadOnlyList<ExtraLink>? ExtraLinks(JsonElement element, string prefix, List<string> errors, Func<string, bool> linkExists)
+    {
+        if (!element.TryGetProperty("extraLinks", out var links)) { return []; }
+        if (links.ValueKind != JsonValueKind.Array || links.GetArrayLength() > MAX_EXTRA_LINKS) { errors.Add(prefix + ".extraLinks:invalid"); return null; }
+        var list = new List<ExtraLink>();
+        var index = 0;
+        foreach (var link in links.EnumerateArray())
+        {
+            var linkPrefix = $"{prefix}.extraLinks[{index++}]";
+            if (link.ValueKind != JsonValueKind.Object) { errors.Add(linkPrefix + ":notObject"); return null; }
+            var linkId = Id(link, "linkId", linkPrefix, errors);
+            var label = Line(link, "label", linkPrefix, errors, MAX_LINE_LENGTH);
+            if (linkId is not null && !linkExists(linkId)) { errors.Add(linkPrefix + ".linkId:unknown"); return null; }
+            if (linkId is null || label is null) { return null; }
+            list.Add(new(linkId, label));
+        }
+        return list;
     }
 
     private static IReadOnlyList<string>? Steps(JsonElement element, string prefix, List<string> errors)

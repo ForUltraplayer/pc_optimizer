@@ -19,6 +19,18 @@ namespace PcOptimizer.App.ViewModels;
 /// <summary>유틸리티 탭의 분류 한 묶음입니다.</summary>
 public sealed record UtilityGroup(string Category, IReadOnlyList<ToolCardViewModel> Cards);
 
+/// <summary>도구 카드의 보조 링크 버튼입니다(공식 배포처가 아닌 안내 페이지 등).</summary>
+public sealed partial class ExtraLinkViewModel(ToolCardViewModel owner, ExtraLink link) : ObservableObject
+{
+    /// <summary>버튼 문구.</summary>
+    public string Label => link.Label;
+    /// <summary>링크 표 항목 ID.</summary>
+    public string LinkId => link.LinkId;
+    /// <summary>링크를 엽니다(허용 목록만).</summary>
+    [RelayCommand]
+    private void Open() => owner.OpenExtra(this);
+}
+
 /// <summary>증상 목록 항목입니다. "all"은 모든 도구를 분류별로 보여 줍니다. 선택 상태는 칩 강조에 씁니다.</summary>
 public sealed partial class SymptomItem(string id, string title, string summary) : ObservableObject
 {
@@ -41,7 +53,13 @@ public sealed partial class ToolCardViewModel : ObservableObject
     {
         _owner = owner; Tool = tool; Note = note; Order = order;
         Steps = tool.Steps.Select((s, i) => $"{i + 1}. {s}").ToArray();
+        ExtraLinks = tool.ExtraLinks.Select(l => new ExtraLinkViewModel(this, l)).ToArray();
     }
+    /// <summary>보조 링크 버튼들입니다.</summary>
+    public IReadOnlyList<ExtraLinkViewModel> ExtraLinks { get; }
+    /// <summary>보조 링크가 있는지.</summary>
+    public bool HasExtraLinks => ExtraLinks.Count > 0;
+    internal void OpenExtra(ExtraLinkViewModel link) => _owner.OpenLink(link.LinkId, link.Label);
     /// <summary>도구 정의입니다.</summary>
     public TroubleshootingTool Tool { get; }
     /// <summary>증상 절차에서의 순서(모든 도구 보기는 0).</summary>
@@ -188,6 +206,13 @@ public sealed partial class TroubleshootingViewModel : ObservableObject, IDispos
     /// <summary>재부팅 안내 표시 여부입니다.</summary>
     [ObservableProperty]
     private bool _showRebootNote;
+
+    /// <summary>링크 표 항목 ID로 링크를 엽니다(보조 링크용).</summary>
+    internal void OpenLink(string linkId, string label)
+    {
+        var url = _links?.Entries.FirstOrDefault(e => e.Id == linkId)?.Url;
+        Status = url is not null && _openLink(url) ? $"{label}을(를) 브라우저로 열었어요. 파일은 직접 받으세요." : "링크를 열지 못했어요. 링크 표를 확인하세요.";
+    }
 
     internal async Task ActAsync(ToolCardViewModel card)
     {

@@ -277,13 +277,20 @@
       "warning": "설치 USB로 새로 설치하면 C: 드라이브가 지워집니다. 백업이 먼저입니다.",
       "steps": [
         "Microsoft 공식 페이지에서 'Windows 11 디스크 이미지(ISO) 다운로드'로 ISO를 받습니다.",
+        "한국어 안내가 필요하면 '홍차의 꿈 블로그' 버튼으로 Rufus 글 모음을 엽니다. 파일은 그 글의 링크나 공식 사이트에서 받고, 출처를 확인하세요.",
         "Rufus 공식 사이트에서 최신 버전(Portable 가능)을 받아 실행합니다.",
         "장치: USB 선택 → 선택 버튼으로 ISO 지정 → 파티션 방식 GPT, 대상 시스템 UEFI 확인 → 시작.",
         "나오는 옵션 창에서 필요한 항목(예: TPM·4GB 램 요구 사항 제거)을 고르고 확인합니다.",
         "완료 후 위 'Windows 11 설치 USB 만들기'의 4~6번 절차로 설치합니다.",
         "도구 화면이 바뀌면 위 위치가 다를 수 있습니다."
       ],
-      "rebootRequired": true
+      "rebootRequired": true,
+      "extraLinks": [
+        {
+          "linkId": "rufus-guide-tea",
+          "label": "홍차의 꿈 블로그(한국어 안내)"
+        }
+      ]
     },
     {
       "id": "hwinfo64",

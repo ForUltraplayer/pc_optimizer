@@ -35,6 +35,7 @@ public enum ToolMode
 /// <param name="OpenTarget">내장 도구 ID(<see cref="BuiltInToolCatalog"/>).</param>
 /// <param name="LinkId">외부 도구의 공식 링크 항목 ID(vendor-links.json).</param>
 /// <param name="RebootRequired">완료 후 다시 시작이 필요한지.</param>
+/// <param name="ExtraLinks">보조 링크(예: 한국어 안내 블로그). 공식 링크 표의 항목 ID와 버튼 문구. 공식 배포처가 아니라는 뜻으로 별도 버튼에 둔다.</param>
 public sealed record TroubleshootingTool(
     string Id,
     string Category,
@@ -49,7 +50,13 @@ public sealed record TroubleshootingTool(
     string? Command,
     string? OpenTarget,
     string? LinkId,
-    bool RebootRequired);
+    bool RebootRequired,
+    IReadOnlyList<ExtraLink> ExtraLinks);
+
+/// <summary>도구 카드의 보조 링크입니다.</summary>
+/// <param name="LinkId">공식 링크 표 항목 ID.</param>
+/// <param name="Label">버튼 문구.</param>
+public sealed record ExtraLink(string LinkId, string Label);
 
 /// <summary>증상 절차의 한 단계입니다.</summary>
 /// <param name="ToolId">도구 ID.</param>
