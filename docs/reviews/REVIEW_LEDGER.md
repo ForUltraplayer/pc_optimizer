@@ -710,3 +710,11 @@
 
 - 사용자 요청으로 `docs/HANDOFF.md` 상단을 재개 경로/브랜치·커밋·작업 원칙·배포본·검증 증거·남은 작업의 순서와 조건·코드 진입점으로 재작성했다. 과거 이력은 보존하고 옛 ‘현재 작업’ 제목을 이전 기록으로 바로잡았다.
 - 기준 `be22e22`, 제품 구현 `9ab6822`. 문서만 변경했다. 기존 검증 수치를 마지막 실행 결과로 명시했으며 테스트를 다시 실행하거나 미완료 기능/평가를 완료로 바꾸지 않았다. 신규 독립 리뷰·사용자 PC 조치·배포본 변경 없음.
+
+## 2026-09-27 T6 StartupApproved 토글 · T10 그래픽 캐시 부분 정리 · Resolve 기본 위치 (Claude)
+
+- 구현 커밋 **`e25aa43`**(T6), **`9bc264a`**(T10·Resolve). [구현 기록·근거·한계](reviews/2026-09-27-startup-approval-and-graphics-cache.md). 사용자 지시로 독립 리뷰·서브에이전트 없음. 이 기록은 구현자 자체 검증이며 독립 승인이 아니다.
+- T6: 이 PC(26200) StartupApproved 33개 값 전부 12바이트 관측(활성 0x02+0, 비활성 0x03+FILETIME). 그 형식만 쓰고 그 밖은 거절. 새 ActionId `StartupApproval`/`MachineStartupApproval`, 출처 `*.approved*`, 복구 키 `*-approved-v1:`. 조율기·코덱·복원·화면 연결. 실제 다음 로그인 효과 미검증.
+- T10: `GraphicsShaderCache`(DXCache·GLCache·NV_Cache·D3DSCache, 30일 미사용 파일만, 기존 파일 엔진). REV-008 경로/링크 보호·REV-013 실행 결과 분리·REV-016 SystemOnly 거절은 기존 `FileCleanupAdapter` 경계를 그대로 사용. 공식 전체 초기화와 구분해 문구 정정.
+- Resolve: 20.1 실제 `config.dat`에 `RenderCaching.CacheDir` 없음 → 첫 저장소 `CacheClip` 기본값으로 해석(이전에는 Invalid). Adobe·CapCut은 미설치로 fixture 없음.
+- 검증: Release 0/0, 기본 1661/1661, Smoke 57/57. Online·ToolSmoke·앱 GUI·실기 로그인/게임 시험은 하지 않았다. 새 ZIP/버전 변경·master 병합·원격 게시 없음.
