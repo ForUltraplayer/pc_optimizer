@@ -44,6 +44,16 @@ public partial class MainWindow : FluentWindow
         DisplayEvaluationButton.Visibility = displayTrials is null ? Visibility.Collapsed : Visibility.Visible;
         ActionCenterView.Visibility = viewModel.HasActionCenter ? Visibility.Visible : Visibility.Collapsed;
         DataContext = viewModel;
+        // 페이지를 바꾸거나 조치 확인·결과가 생기면 본문 스크롤을 맨 위로 올려 새 내용이 묻히지 않게 한다.
+        viewModel.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(MainViewModel.CurrentPage)) { Dispatcher.InvokeAsync(MainScroll.ScrollToTop, System.Windows.Threading.DispatcherPriority.Loaded); } };
+        if (viewModel.Actions is { } actionCenter)
+        {
+            actionCenter.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName is nameof(ActionCenterViewModel.Preview) or nameof(ActionCenterViewModel.Result) && viewModel.CurrentPage == MainPage.Actions)
+                { Dispatcher.InvokeAsync(MainScroll.ScrollToTop, System.Windows.Threading.DispatcherPriority.Loaded); }
+            };
+        }
         Loaded += async (_, _) =>
         {
             StartScanButton.Focus();
