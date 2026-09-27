@@ -37,6 +37,16 @@ public sealed class VideoEditorCacheTests
         ProbeStatus.Success, measurements, [], Now, TimeSpan.Zero, new UserContext("anon", false))]);
     private static string Config(string root) => $"Site.Count = 1\nSite.1.FS.1.Type = IOFileSys\nSite.1.FS.1.Root = {root}\nRenderCaching.CacheDir = CacheClip\nPrivateToken = secret-do-not-collect";
 
+    /// <summary>Resolve 20.1 기본 설정(이 PC 관측)처럼 RenderCaching.CacheDir 키가 없으면 첫 미디어 저장소의 CacheClip을 기본 위치로 봅니다.</summary>
+    [Fact]
+    public void 캐시_키가_없으면_첫_저장소의_CacheClip을_기본값으로_본다()
+    {
+        var text = string.Join('\n', ["Site.Count = 1", "Site.1.FS.Count = 2", "Site.1.FS.1.Type = IOFileSys", @"Site.1.FS.1.Root = D:\Render", "Site.1.FS.2.Type = IOFileSys", "Site.1.FS.2.Root = ResolveVirtual"]);
+        var reading = DaVinciCacheConfigReader.Parse(text);
+        Assert.Equal(AppConfigReadState.Configured, reading.State);
+        Assert.Equal([@"D:\Render\CacheClip"], reading.Paths);
+        Assert.Equal(AppConfigReadState.Invalid, DaVinciCacheConfigReader.Parse(string.Join('\n', ["Site.Count = 1", "Site.1.FS.1.Type = IOFileSys"])).State);
+    }
     /// <summary>설정에서 저장소 전체가 아닌 CacheClip 하나만 반환하고 관련 없는 값은 버립니다.</summary>
     [Fact]
     public void 설정_이동_경로만_반환하고_비밀값을_버린다()

@@ -35,6 +35,9 @@ public sealed class FileCleanupAdapter : IActionAdapter
     /// <summary>선택한 Steam 라이브러리를 설정과 다시 대조하는 전용 카탈로그입니다.</summary>
     public static FileCleanupAdapter ForSteamCache(Func<ActionSession> session, SteamCacheLocationCatalog locations)
         => new(locations.Resolve, session, new NativeFileCleanupPlatform(), definition: new(ActionId.SteamShaderCache, ActionScope.CurrentUser));
+    /// <summary>현재 사용자 LocalAppData의 NVIDIA·Direct3D 셰이더 캐시에서 30일 이상 쓰이지 않은 파일만 처리합니다.</summary>
+    public static FileCleanupAdapter ForGraphicsCache(Func<ActionSession> session)
+        => new(GraphicsCacheTargets.Resolve, session, new NativeFileCleanupPlatform(), definition: new(ActionId.GraphicsShaderCache, ActionScope.CurrentUser));
     /// <inheritdoc />
     public ActionDefinition Definition => _definition;
     /// <inheritdoc />

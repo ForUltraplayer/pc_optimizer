@@ -31,7 +31,7 @@ public sealed class ActionCoordinator
         foreach (var definition in _adapters.Values.Select(a => a.Definition))
         {
             if (!Enum.IsDefined(definition.Id) || !Enum.IsDefined(definition.Scope)
-                || (definition.Id is ActionId.Startup or ActionId.Power or ActionId.Display or ActionId.UserFiles or ActionId.AppFiles or ActionId.OfficialCache or ActionId.SteamShaderCache or ActionId.StartupFolder or ActionId.StartupApproval && definition.Scope != ActionScope.CurrentUser)
+                || (definition.Id is ActionId.Startup or ActionId.Power or ActionId.Display or ActionId.UserFiles or ActionId.AppFiles or ActionId.OfficialCache or ActionId.SteamShaderCache or ActionId.StartupFolder or ActionId.StartupApproval or ActionId.GraphicsShaderCache && definition.Scope != ActionScope.CurrentUser)
                 || (definition.Id is ActionId.MachineStartup or ActionId.UpdateServices or ActionId.WindowsUpdateCache or ActionId.CommonStartupFolder or ActionId.MachineStartupApproval && definition.Scope != ActionScope.System))
             { throw new ArgumentException("조치 정의의 사용자 범위가 올바르지 않습니다.", nameof(adapters)); }
         }
@@ -169,7 +169,7 @@ public sealed class ActionCoordinator
     private static bool Matches(ActionId id, ActionTarget target) => (id, target) switch
     {
         (_, ActionTarget.Restore t) => t.RecordId != Guid.Empty,
-        (ActionId.UserFiles or ActionId.SystemFiles or ActionId.AppFiles or ActionId.WindowsUpdateCache or ActionId.SteamShaderCache, ActionTarget.Files) => true,
+        (ActionId.UserFiles or ActionId.SystemFiles or ActionId.AppFiles or ActionId.WindowsUpdateCache or ActionId.SteamShaderCache or ActionId.GraphicsShaderCache, ActionTarget.Files) => true,
         (ActionId.Startup or ActionId.MachineStartup or ActionId.StartupFolder or ActionId.CommonStartupFolder or ActionId.StartupApproval or ActionId.MachineStartupApproval, ActionTarget.Startup) => true,
         (ActionId.Power, ActionTarget.Power) => true,
         (ActionId.Display, ActionTarget.Display) => true,

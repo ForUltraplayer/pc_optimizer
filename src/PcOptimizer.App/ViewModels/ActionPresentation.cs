@@ -165,13 +165,13 @@ public sealed record RollbackItemViewModel(Guid Id, ActionId ActionId, string Ti
 
 internal static class ActionText
 {
-    internal static bool IsSpaceAction(ActionId id) => id is ActionId.UserFiles or ActionId.SystemFiles or ActionId.AppFiles or ActionId.OfficialCache or ActionId.DeliveryOptimization or ActionId.WindowsUpdateCache or ActionId.SteamShaderCache;
+    internal static bool IsSpaceAction(ActionId id) => id is ActionId.UserFiles or ActionId.SystemFiles or ActionId.AppFiles or ActionId.OfficialCache or ActionId.DeliveryOptimization or ActionId.WindowsUpdateCache or ActionId.SteamShaderCache or ActionId.GraphicsShaderCache;
     internal static string Name(ActionId id) => id switch
     {
         ActionId.UserFiles => "사용자 임시 파일 정리", ActionId.SystemFiles => "Windows 캐시 정리", ActionId.AppFiles => "앱 캐시 정리",
         ActionId.StartupFolder => "시작 바로가기 보관", ActionId.CommonStartupFolder => "공용 시작 바로가기 보관", ActionId.Startup => "자동 실행 등록 해제", ActionId.MachineStartup => "모든 사용자 자동 실행 등록 해제", ActionId.Power => "전원 계획 변경", ActionId.Display => "화면 주사율 변경",
         ActionId.OfficialCache => "공식 도구 캐시 정리", ActionId.DeliveryOptimization => "배달 최적화 캐시 정리", ActionId.UpdateServices => "업데이트 서비스 원상복구", ActionId.WindowsUpdateCache => "Windows 업데이트 다운로드 캐시 정리", ActionId.SteamShaderCache => "Steam 셰이더 캐시 정리",
-        ActionId.StartupApproval => "작업 관리자 시작 상태 전환", ActionId.MachineStartupApproval => "모든 사용자 작업 관리자 시작 상태 전환", _ => "지원하지 않는 조치",
+        ActionId.StartupApproval => "작업 관리자 시작 상태 전환", ActionId.MachineStartupApproval => "모든 사용자 작업 관리자 시작 상태 전환", ActionId.GraphicsShaderCache => "그래픽 셰이더 캐시 정리", _ => "지원하지 않는 조치",
     };
     internal static string Bytes(decimal bytes)
     {

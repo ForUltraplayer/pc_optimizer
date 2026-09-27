@@ -1,7 +1,7 @@
 /**
  * @file    : DaVinciCacheConfigReader.cs
  * @author  : rudals252
- * @brief   : Resolve의 작은 텍스트 설정에서 CacheClip 위치만 읽고 프로젝트·미디어 저장소 전체는 반환하지 않음
+ * @brief   : Resolve의 작은 텍스트 설정에서 CacheClip 위치만 읽고(키가 없으면 첫 미디어 저장소의 CacheClip 기본값) 프로젝트·미디어 저장소 전체는 반환하지 않음
  */
 using PcOptimizer.Core.Cleaning;
 using PcOptimizer.Probes.Platform;
@@ -13,6 +13,7 @@ internal sealed class DaVinciCacheConfigReader(IPathEnvironment environment, IDi
 {
     internal const string RelativeConfig = @"AppData\Roaming\Blackmagic Design\DaVinci Resolve\Preferences\config.dat";
     internal const int MaxBytes = 64 * 1024;
+    internal const string DefaultCacheDir = "CacheClip";
     internal AppConfigReading Read()
     {
         var profile = environment.GetUserProfilePath();
@@ -33,9 +34,10 @@ internal sealed class DaVinciCacheConfigReader(IPathEnvironment environment, IDi
             var key = line[..equals].Trim();
             if (keys.Contains(key) && !values.TryAdd(key, line[(equals + 1)..].Trim())) { return Invalid(); }
         }
-        if (!values.TryGetValue("RenderCaching.CacheDir", out var cache)) { return Invalid(); }
+        // Resolve 20.1(이 PC 관측)은 기본 설정에서 RenderCaching.CacheDir 키를 쓰지 않는다. 키가 없으면 첫 미디어 저장소의 CacheClip이 기본 위치다.
+        var cache = values.GetValueOrDefault("RenderCaching.CacheDir", DefaultCacheDir);
         string? path;
-        if (cache == "CacheClip")
+        if (cache == DefaultCacheDir)
         {
             if (values.GetValueOrDefault("Site.Count") != "1" || values.GetValueOrDefault("Site.1.FS.1.Type") != "IOFileSys"
                 || ConfigPathValue.Parse(values.GetValueOrDefault("Site.1.FS.1.Root")) is not { } storage) { return Invalid(); }
