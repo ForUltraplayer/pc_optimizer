@@ -22,15 +22,15 @@
 | REV-007 | P2 | 수정됨·재검증 대기 | P5 앱 설정 읽기 | 읽기 실패 보존 및 기본 캐시 미탐지 시 최종 사유 카드 회귀 통과 |
 | REV-008 | P1 | 검증 완료 | P7 정리 실행기 | 8.3 별칭 정규화(CanonicalPath) 및 별칭 fixture 거절 테스트 독립 확인 |
 | REV-009 | P2 | 검증 완료 | P7 정리 실행기 | CachePathInspector 주입·관문 7종 테스트 독립 확인(ProfileList SID 분기·루프 내 ProtectedOrLinkedChild는 간접 커버) |
-| REV-010 | P2 | 수정됨·재검증 대기 | P7 정리 실행기 | SP4 Task 13 `3d286be`: Kill(entireProcessTree)의 AggregateException을 Flatten해 내부가 모두 InvalidOperation/Win32(바깥은 +Timeout)이면 KillFailed/ProcessStillRunning 경로, 그 밖은 전파 |
+| REV-010 | P2 | 검증 완료(잔여 예외 경로) | P7 정리 실행기 | SP4 Task 13 `3d286be`: Kill(entireProcessTree)의 AggregateException을 Flatten해 내부가 모두 InvalidOperation/Win32(바깥은 +Timeout)이면 KillFailed/ProcessStillRunning 경로, 그 밖은 전파 |
 | REV-011 | P2 | 검증 완료 | UI 커밋 | 헤더 6파일·공개 멤버 한글 주석·테스트 summary 독립 확인 |
 | REV-012 | P3 | 검증 완료 | P7 정리 실행기 | 인자 2개 제거로 스펙 문구와 일치, 고정 인자 테스트 일치, NuGet --list 파싱 ko/ja/en 무관 확인 |
 | REV-013 | P2 | 검증 완료 | UI 정리 결과 | Started 플래그로 미실행 코드 분리·Outcome 미생성·메인 화면 미잔존 독립 확인 |
-| REV-014 | P2 | 수정됨·재검증 대기 | UI 개요 | SP4 Task 5: 드라이버 타일 제거, 온라인 완료 판정에서 로컬 Driver CannotVerify 제외(온라인 공급자·NVIDIA 비교 규칙만), 온라인 상태는 옵션 영역 `LastOnlineCheckText`만 |
-| REV-015 | 제품 범위 | 수정됨·재검증 대기 | 개요 화면 | SP4 Task 5: 제안 1·2항(요약 타일 '바로 할 수 있는 것/직접 해야 하는 것', 0이면 숨김, 정리 창은 보호 위치 도구 있을 때만) 구현. 3·4항은 후속 단계 |
-| REV-016 | P1(Task 10 선행) | 수정됨·재검증 대기 | Task 9→10 사용자 범위 | SP4 Task 10 `0c80a8b`: UI `CanOpenCacheTools`에 !IsSystemOnly, `SystemCacheToolBackend(limitToSystemScope)`가 Locate·Inspect·Clear를 관측 전 `UserScopeExcluded`로 거절. 승격 거절 제거는 이후 `34670c5` |
-| REV-017 | P2 | 수정됨·재검증 대기 | SP4 사양 수집 | SP4 Task 13 `3d286be`: 살아 있는 사양 프로브 Task를 probeId별 보관·재호출 차단, `Spec.IsDraining`으로 검사·정리 차단, 검사 종료 중(HasDrainingNote)엔 사양 새로 고침 차단. 최종 리뷰 후속 `ec3547e`: 프로브를 Task.Run으로 시작(이전에는 동기 실제 프로브에 추적이 적용되지 않았음) |
-| REV-018 | P2 | 수정됨·재검증 대기 | SP4 실행 상호 배제 | SP4 Task 10 `0c80a8b`: `CanOpenCacheTools`에 !Spec.IsLoading, IsLoading 변경 시 CanOpenCacheTools 알림. SP4 Task 13 `3d286be`: `CanOpenCacheTools`·`CanStartScan`에 `!Spec.IsDraining` 관문·변경 알림 추가 |
+| REV-014 | P2 | 검증 완료(SP4 표시) | UI 개요 | SP4 Task 5: 드라이버 타일 제거, 온라인 완료 판정에서 로컬 Driver CannotVerify 제외(온라인 공급자·NVIDIA 비교 규칙만), 온라인 상태는 옵션 영역 `LastOnlineCheckText`만 |
+| REV-015 | 제품 범위 | 검증 완료(SP4 1·2항) | 개요 화면 | SP4 Task 5: 제안 1·2항(요약 타일 '바로 할 수 있는 것/직접 해야 하는 것', 0이면 숨김, 정리 창은 보호 위치 도구 있을 때만) 구현. 3·4항은 후속 단계 |
+| REV-016 | P1(Task 10 선행) | 검증 완료(UI·backend) | Task 9→10 사용자 범위 | SP4 Task 10 `0c80a8b`: UI `CanOpenCacheTools`에 !IsSystemOnly, `SystemCacheToolBackend(limitToSystemScope)`가 Locate·Inspect·Clear를 관측 전 `UserScopeExcluded`로 거절. 승격 거절 제거는 이후 `34670c5` |
+| REV-017 | P2 | 검증 완료(현재 UI 경로) | SP4 사양 수집 | SP4 Task 13 `3d286be`: 살아 있는 사양 프로브 Task를 probeId별 보관·재호출 차단, `Spec.IsDraining`으로 검사·정리 차단, 검사 종료 중(HasDrainingNote)엔 사양 새로 고침 차단. 최종 리뷰 후속 `ec3547e`: 프로브를 Task.Run으로 시작(이전에는 동기 실제 프로브에 추적이 적용되지 않았음) |
+| REV-018 | P2 | 검증 완료(UI 경계) | SP4 실행 상호 배제 | SP4 Task 10 `0c80a8b`: `CanOpenCacheTools`에 !Spec.IsLoading, IsLoading 변경 시 CanOpenCacheTools 알림. SP4 Task 13 `3d286be`: `CanOpenCacheTools`·`CanStartScan`에 `!Spec.IsDraining` 관문·변경 알림 추가 |
 
 ## REV-001 — 보호 경로와 스캔 경로의 검증 정책을 분리
 
@@ -508,3 +508,15 @@
   - `dotnet test PcOptimizer.sln --configuration Release --no-build --filter "Category=Smoke"` — 통과 22, 실패 0.
   - Online/ToolSmoke와 앱 GUI 실행은 하지 않았다. 실제 브라우저가 비승격으로 열리는지, 링크 실패 안내 글상자의 모양은 실기 확인하지 못했다.
 - 관련 REV: REV-017 상태 유지 `수정됨·재검증 대기`(위 절 기록). REV-015(요약 타일)는 검사 전 숨김이 추가됐을 뿐 상태 변경 없음. `검증 완료`는 독립 검토자만 기록한다.
+
+## 2026-09-27 SP4 최종 독립 재검증 (Codex)
+
+- 기준 `0fa2bf5`(마지막 제품 코드 `ec3547e`). 보고서: [SP4 최종 독립 재검증](2026-09-27-sp4-final-revalidation.md). 새 병합 차단 코드 결함은 검토 범위에서 발견하지 않았다. 병합·게시·개인 캐시 정리 없음.
+- 고정 git archive 복사본: Release 경고 0/오류 0, 기본 **1279/1279**, Smoke **22/22**, ToolSmoke **1/1**. 이전 `Sp4Task9ReviewTests.cs` 원문을 추가해 재현 **4/4 통과**. 명령·TRX 위치·복원 제한·ZIP SHA-256은 보고서에 기록했다.
+- REV-010: `3d286be`의 AggregateException 처리와 정식 실패·로그·늦은 종료 복구 회귀, 원본 AggregateKillFailureMustNotEscapeGuard를 확인해 잔여 예외 경로 `검증 완료`. 실제 죽일 수 없는 프로세스는 만들지 않았다.
+- REV-014: SP4 Task 5의 타일 제거·온라인 완료 판정 분리와 요청만으로 완료 표시하지 않는 회귀를 확인해 `검증 완료(SP4 표시)`. 실제 Online은 이번 미실행.
+- REV-015: 채택된 1·2항과 `ec3547e`의 검사 전 타일 숨김을 소스·레이아웃 회귀로 확인해 `검증 완료(SP4 1·2항)`. 제안 3·4항과 실제 초보자 사용성은 후속 범위 유지.
+- REV-016: `0c80a8b`·`34670c5`의 UI→창→backend 범위 전달, 3종 Locate/Inspect/Clear의 관측 전 거절과 Full 허용을 확인. 원본 SystemOnlyMustNotOfferUserCacheActions 통과. `검증 완료(UI·backend)`이며 실제 표준 계정 UAC는 수동 대기.
+- REV-017: `3d286be`·`be6e99a`·`ec3547e`의 Task.Run·실제 Task 추적·양방향 UI 차단·늦은 종료 복구·동기 BlockingProbe 테스트를 확인. 원본 TimedOutSpecMustNotReenterLiveSharedProbe 통과. `검증 완료(현재 UI 경로)`. 서비스 직접 동시 호출의 공통 직렬화는 이전 이월 그대로이며 완료 주장에 포함하지 않는다.
+- REV-018: `0c80a8b`·`3d286be`의 IsLoading/IsDraining 정리 진입 조건과 알림 회귀, 원본 SpecLoadingMustBlockCacheActions 통과. `검증 완료(UI 경계)`.
+- 남은 검증: 실제 브라우저 토큰·UAC/다른 계정·.NET 없는 PC·DPI·SmartScreen. explorer 셸 미실행/쉼표 URL, 제3자 고지 원문, 도구별 실행 가능 판정, 서비스 공통 직렬화, lock 그래프 등 기존 minor는 해결로 바꾸지 않는다. 추가 설계·SP1 브리프 작성 전에 이 절과 보고서의 인계 항목을 읽을 것.
