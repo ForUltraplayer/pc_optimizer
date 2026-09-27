@@ -76,6 +76,12 @@ public sealed class RestoreCoordinator
                         "이 앱이 정리 전에 실행 중으로 기록한 서비스만 다시 시작합니다. 시작 유형은 바꾸지 않으며 삭제된 파일은 복원하지 않습니다.",
                         new(label, "이미 실행 중이면 다시 시작하지 않습니다. 서비스가 전환 중이거나 복구하지 못하면 기록을 남깁니다.", RequiresRestart: false));
                 }
+                if (record.ActionId is ActionId.StartupApproval or ActionId.MachineStartupApproval && StartupRegistration.Name(record.TargetKey) is { } approvalName)
+                {
+                    var approvalLabel = StartupRegistration.Label(StartupRegistration.SourceOfKey(record.TargetKey)!);
+                    return new(target, $"'{approvalName}'의 작업 관리자 시작 상태 되돌리기 · {approvalLabel}", "이 앱이 바꾸기 전의 StartupApproved 값(또는 값 없음)으로 되돌립니다. Run 등록과 파일은 건드리지 않으며 앱을 지금 실행하지 않습니다.",
+                        new(approvalName + " · " + approvalLabel, "현재 값이 이 앱이 적용한 값과 같을 때만 되돌립니다. 작업 관리자나 다른 앱이 바꾼 값은 덮어쓰지 않습니다.", RequiresRestart: false));
+                }
                 if (record.ActionId is ActionId.Startup or ActionId.MachineStartup or ActionId.StartupFolder or ActionId.CommonStartupFolder && StartupRegistration.Name(record.TargetKey) is { } name)
                 {
                     var scopeLabel = StartupRegistration.Label(StartupRegistration.SourceOfKey(record.TargetKey)!);

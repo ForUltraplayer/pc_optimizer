@@ -126,19 +126,21 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     /// <summary>검사 결과의 현재 사용자 등록만 갱신하고 오래된 선택 대상을 남기지 않습니다.</summary>
     public void UpdateStartupChoices(PcOptimizer.Core.Models.ScanSnapshot snapshot, bool fullScope)
     {
-        var fixedChoices = Choices.Where(c => c.Id is not (ActionId.Startup or ActionId.MachineStartup or ActionId.StartupFolder or ActionId.CommonStartupFolder));
+        var fixedChoices = Choices.Where(c => c.Id is not (ActionId.Startup or ActionId.MachineStartup or ActionId.StartupFolder or ActionId.CommonStartupFolder or ActionId.StartupApproval or ActionId.MachineStartupApproval));
         var targets = StartupSelection.Targets(snapshot).Where(t => StartupRegistration.IsMachine(t.SourceKey)
             ? _workflow.Supports(StartupRegistration.ActionFor(t.SourceKey), false) : fullScope && _workflow.Supports(StartupRegistration.ActionFor(t.SourceKey), false));
-        Choices = fixedChoices.Concat(targets.Select(t => new ActionChoice(
-            StartupRegistration.ActionFor(t.SourceKey),
-            t, $"자동 실행 등록 해제 · {t.ValueName} · {StartupRegistration.Label(t.SourceKey)}",
-            (StartupRegistration.IsMachine(t.SourceKey) ? "이 PC의 모든 사용자에게 영향을 줍니다. " : "") +
-            "다음 로그인부터 이 등록으로 시작하지 않게 합니다. 필요한 앱인지 직접 선택하세요. 프로그램 삭제·앱 종료는 하지 않으며 원래 등록을 되돌릴 수 있습니다."))).ToArray();
+        Choices = fixedChoices.Concat(targets.Select(t => StartupRegistration.IsApproval(t.SourceKey)
+            ? new ActionChoice(StartupRegistration.ActionFor(t.SourceKey), t, $"작업 관리자 시작 상태 전환 · {t.ValueName} · {StartupRegistration.Label(t.SourceKey)}",
+                (StartupRegistration.IsMachine(t.SourceKey) ? "이 PC의 모든 사용자에게 영향을 줍니다. " : "") +
+                "작업 관리자의 시작 앱 '사용/사용 안 함'과 같은 값을 씁니다. 등록과 파일은 그대로 두며 현재 상태의 반대로 바꿉니다. 확인 화면에서 어느 쪽으로 바뀌는지 보여 줍니다.")
+            : new ActionChoice(StartupRegistration.ActionFor(t.SourceKey), t, $"자동 실행 등록 해제 · {t.ValueName} · {StartupRegistration.Label(t.SourceKey)}",
+                (StartupRegistration.IsMachine(t.SourceKey) ? "이 PC의 모든 사용자에게 영향을 줍니다. " : "") +
+                "다음 로그인부터 이 등록으로 시작하지 않게 합니다. 필요한 앱인지 직접 선택하세요. 프로그램 삭제·앱 종료는 하지 않으며 원래 등록을 되돌릴 수 있습니다."))).ToArray();
         OnPropertyChanged(nameof(Choices)); OnPropertyChanged(nameof(ChoiceGroups)); OnPropertyChanged(nameof(ChoiceNotice)); PrepareChoiceCommand.NotifyCanExecuteChanged();
     }
     /// <summary>자동 지원 미확인 기능은 성공 버튼 대신 이유와 공식 경로를 제공합니다.</summary>
     public IReadOnlyList<ManualActionChoice> ManualChoices { get; } = [
-        new("그 밖의 시작 앱 관리", "현재 사용자·모든 사용자 Run 등록은 검사 후 위 목록에서 해제·복원할 수 있습니다. 기본 시작 폴더의 바로가기도 보관·복원할 수 있습니다. 작업 관리자 토글과 미지원 항목은 Windows 설정에서 관리하세요.", SettingsUriPolicy.STARTUP_APPS_SETTINGS_URI),
+        new("그 밖의 시작 앱 관리", "현재 사용자·모든 사용자 Run 등록은 검사 후 위 목록에서 해제·복원하거나 작업 관리자 상태를 전환할 수 있습니다. 기본 시작 폴더의 바로가기도 보관·복원할 수 있습니다. RunOnce·서비스·예약 작업 등 미지원 항목은 Windows 설정에서 관리하세요.", SettingsUriPolicy.STARTUP_APPS_SETTINGS_URI),
         new("Windows에서 주사율 설정", "앱의 주사율 시험이 지원되지 않는 화면은 Windows 디스플레이 설정에서 직접 확인하세요.", SettingsUriPolicy.DISPLAY_SETTINGS_URI),
         new("그 밖의 Windows 업데이트 파일 정리", "배달 최적화·업데이트 다운로드 캐시는 위 목록에서 조건을 확인할 수 있습니다. 이전 Windows 설치와 구성 요소 저장소는 Windows 저장소에서 확인하세요.", SettingsUriPolicy.STORAGE_SENSE_SETTINGS_URI),
         new("Steam 다운로드 캐시", "위의 라이브러리 셰이더 캐시와 다른 기능입니다. 다운로드 문제가 있을 때 Steam 자체 정리 절차를 확인하세요. 다시 로그인해야 할 수 있습니다.", null, CacheSupportLinks.SteamDownload),
@@ -388,8 +390,8 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
                 var completed = r.State is RollbackState.Restored or RollbackState.Unchanged;
                 var state = r.NeedsRecovery ? "중단된 작업 — 현재 상태 확인 필요" : completed ? "복구 완료" : "적용됨";
                 var responsibility = r.Purpose == RollbackPurpose.UserUndo ? "사용자 되돌리기" : "임시 변경 복구";
-                var label = r.ActionId is ActionId.Startup or ActionId.MachineStartup or ActionId.StartupFolder or ActionId.CommonStartupFolder && StartupRegistration.Name(r.TargetKey) is { } name
-                    ? $"자동 실행 등록 · {name} · {StartupRegistration.Label(StartupRegistration.SourceOfKey(r.TargetKey)!)}" : ActionText.Name(r.ActionId);
+                var label = r.ActionId is ActionId.Startup or ActionId.MachineStartup or ActionId.StartupFolder or ActionId.CommonStartupFolder or ActionId.StartupApproval or ActionId.MachineStartupApproval && StartupRegistration.Name(r.TargetKey) is { } name
+                    ? $"{(StartupRegistration.IsApproval(StartupRegistration.SourceOfKey(r.TargetKey)) ? "작업 관리자 시작 상태" : "자동 실행 등록")} · {name} · {StartupRegistration.Label(StartupRegistration.SourceOfKey(r.TargetKey)!)}" : ActionText.Name(r.ActionId);
                 Records.Add(new(r.Id, r.ActionId, label, $"{state} · {responsibility} · {r.UpdatedAt.ToLocalTime():g}", r.NeedsRecovery,
                     !completed && _workflow.Supports(r.ActionId, true)));
             }
