@@ -342,18 +342,9 @@
                         <Border Visibility="{Binding IsSpecVisible, Converter={StaticResource BoolToVisibility}}">
                             <views:PcSpecView x:Name="SpecView" DataContext="{Binding Spec}" />
                         </Border>
-                        <!-- 고급(SP2 준비 전) -->
+                        <!-- 고급: 공통 조치 확인·복원 연결 -->
                         <StackPanel Visibility="{Binding IsAdvancedPage, Converter={StaticResource BoolToVisibility}}">
-                            <Border Style="{StaticResource Tile}" Margin="0,0,0,14">
-                                <StackPanel>
-                                    <TextBlock Text="고급 항목은 준비 중이에요" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,6" />
-                                    <TextBlock Text="Resizable BAR·게임 모드처럼 켜 두면 대체로 이득인 항목과 커뮤니티 권장 옵션을 다음 단계(SP2)에서 여기에 넣습니다. 지금은 Windows 설정으로 바로 갈 수 있는 항목만 둡니다. 이 페이지에 없는 항목이 '문제 없음'이라는 뜻은 아닙니다." Style="{StaticResource Muted}" Margin="0,0,0,12" />
-                                    <WrapPanel>
-                                        <Button Content="게임 모드 설정 열기" Command="{Binding OpenAdvancedSettingCommand}" CommandParameter="{x:Static services:SettingsUriPolicy.GAME_MODE_SETTINGS_URI}" Margin="0,0,8,8" />
-                                        <Button Content="고급 그래픽 설정 열기" Command="{Binding OpenAdvancedSettingCommand}" CommandParameter="{x:Static services:SettingsUriPolicy.ADVANCED_GRAPHICS_SETTINGS_URI}" Margin="0,0,8,8" />
-                                    </WrapPanel>
-                                </StackPanel>
-                            </Border>
+                            <views:AdvancedView x:Name="AdvancedView" />
                         </StackPanel>
                         <!-- 조치 실행 · 되돌리기 -->
                         <StackPanel Visibility="{Binding IsActionsPage, Converter={StaticResource BoolToVisibility}}">

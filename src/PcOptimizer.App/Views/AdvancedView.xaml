@@ -1,0 +1,57 @@
+<!--
+@file    : AdvancedView.xaml
+@author  : rudals252
+@brief   : 고급 설정의 상태·영향과 공통 확인 화면 연결. 내부 ScrollViewer 없이 메인 스크롤을 공유
+-->
+<UserControl x:Class="PcOptimizer.App.Views.AdvancedView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:services="clr-namespace:PcOptimizer.App.Services" FontFamily="Segoe UI, Malgun Gothic" FontSize="14" Foreground="{DynamicResource AppTextBrush}">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="/PcOptimizer;component/Resources/VisibilityTheme.xaml" /></ResourceDictionary.MergedDictionaries>
+            <Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap" /><Setter Property="Margin" Value="0,0,0,8" /></Style>
+            <Style TargetType="Button"><Setter Property="Padding" Value="14,9" /><Setter Property="Margin" Value="0,0,8,8" /><Setter Property="Background" Value="White" /><Setter Property="Foreground" Value="#172D4F" /><Setter Property="BorderBrush" Value="#667994" /></Style>
+            <Style x:Key="Card" TargetType="Border"><Setter Property="Background" Value="White" /><Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}" /><Setter Property="BorderThickness" Value="1" /><Setter Property="CornerRadius" Value="10" /><Setter Property="Padding" Value="20" /><Setter Property="Margin" Value="0,0,0,14" /></Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <StackPanel>
+        <TextBlock TextWrapping="Wrap" Text="고급 설정 · 필요한 기능만 직접 조정" FontSize="23" FontWeight="SemiBold" />
+        <TextBlock TextWrapping="Wrap" Text="{Binding Status}" />
+        <WrapPanel>
+            <Button Content="현재 상태 확인" Command="{Binding RefreshCommand}" />
+            <Button Content="게임 모드 설정 열기" Command="{Binding OpenSettingCommand}" CommandParameter="{x:Static services:SettingsUriPolicy.GAME_MODE_SETTINGS_URI}" />
+            <Button Content="Windows 그래픽 설정 열기" Command="{Binding OpenSettingCommand}" CommandParameter="{x:Static services:SettingsUriPolicy.ADVANCED_GRAPHICS_SETTINGS_URI}" />
+        </WrapPanel>
+        <ItemsControl ItemsSource="{Binding Cards}">
+            <ItemsControl.ItemTemplate><DataTemplate>
+                <Border Style="{StaticResource Card}"><StackPanel>
+                    <TextBlock TextWrapping="Wrap" Text="{Binding Title}" FontSize="18" FontWeight="SemiBold" />
+                    <TextBlock TextWrapping="Wrap" Text="{Binding StateText}" FontWeight="SemiBold" Foreground="#174A79" />
+                    <TextBlock TextWrapping="Wrap" Text="{Binding Explanation}" />
+                    <TextBlock TextWrapping="Wrap" Text="{Binding Detail}" Foreground="{DynamicResource AppSecondaryTextBrush}" />
+                    <ItemsControl ItemsSource="{Binding Choices}" IsEnabled="{Binding CanChange}">
+                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate><DataTemplate>
+                            <Button Content="{Binding Label}" Command="{Binding DataContext.PrepareCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                        </DataTemplate></ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock TextWrapping="Wrap" Text="변경 전 값으로 되돌리기: ‘조치 실행·되돌리기’의 기록에서 선택하세요." FontSize="12" />
+                </StackPanel></Border>
+            </DataTemplate></ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <Border Style="{StaticResource Card}"><StackPanel>
+            <TextBlock TextWrapping="Wrap" Text="다시 시작 · BIOS/UEFI 또는 안전 모드 선택" FontSize="18" FontWeight="SemiBold" />
+            <TextBlock TextWrapping="Wrap" Text="작업을 저장한 뒤 확인 화면으로 이동하세요. 실행 후 5초 동안 취소할 수 있습니다. 안전 모드는 고급 시작 화면에서 직접 선택하며 계정 암호가 필요할 수 있습니다." />
+            <ItemsControl ItemsSource="{Binding Restarts}">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate><DataTemplate><Button Content="{Binding Label}" Command="{Binding DataContext.PrepareCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" /></DataTemplate></ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel></Border>
+        <Border Style="{StaticResource Card}"><StackPanel>
+            <TextBlock TextWrapping="Wrap" Text="GPU별 추가 기능 · 아직 직접 제어 미지원" FontSize="18" FontWeight="SemiBold" />
+            <TextBlock TextWrapping="Wrap" Text="NVIDIA 게임별 ReBAR, RTX 영상 초고해상도, AMD 동영상 업스케일링은 직접 제어 연동 중입니다. 이 버전의 위 버튼들은 해당 GPU 기능을 바꾸지 않습니다." />
+            <TextBlock TextWrapping="Wrap" Text="NVIDIA App: 그래픽 → 프로그램 설정 → 드라이버 설정 → Resizable BAR / 시스템 → 동영상. BIOS의 ReBAR 활성 상태와 게임별 프로필 설정은 별개입니다." />
+        </StackPanel></Border>
+    </StackPanel>
+</UserControl>

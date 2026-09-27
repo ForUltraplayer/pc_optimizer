@@ -31,8 +31,8 @@ public sealed class ActionCoordinator
         foreach (var definition in _adapters.Values.Select(a => a.Definition))
         {
             if (!Enum.IsDefined(definition.Id) || !Enum.IsDefined(definition.Scope)
-                || (definition.Id is ActionId.Startup or ActionId.Power or ActionId.Display or ActionId.UserFiles or ActionId.AppFiles or ActionId.OfficialCache or ActionId.SteamShaderCache or ActionId.StartupFolder or ActionId.StartupApproval or ActionId.GraphicsShaderCache && definition.Scope != ActionScope.CurrentUser)
-                || (definition.Id is ActionId.MachineStartup or ActionId.UpdateServices or ActionId.WindowsUpdateCache or ActionId.CommonStartupFolder or ActionId.MachineStartupApproval && definition.Scope != ActionScope.System))
+                || (definition.Id is ActionId.Startup or ActionId.Power or ActionId.Display or ActionId.UserFiles or ActionId.AppFiles or ActionId.OfficialCache or ActionId.SteamShaderCache or ActionId.StartupFolder or ActionId.StartupApproval or ActionId.GraphicsShaderCache or ActionId.GameMode && definition.Scope != ActionScope.CurrentUser)
+                || (definition.Id is ActionId.MachineStartup or ActionId.UpdateServices or ActionId.WindowsUpdateCache or ActionId.CommonStartupFolder or ActionId.MachineStartupApproval or ActionId.Mpo or ActionId.Hags or ActionId.Restart && definition.Scope != ActionScope.System))
             { throw new ArgumentException("조치 정의의 사용자 범위가 올바르지 않습니다.", nameof(adapters)); }
         }
         _time = time ?? TimeProvider.System;
@@ -175,6 +175,8 @@ public sealed class ActionCoordinator
         (ActionId.Display, ActionTarget.Display) => true,
         (ActionId.OfficialCache, ActionTarget.OfficialTool t) => Enum.IsDefined(t.Tool),
         (ActionId.DeliveryOptimization, ActionTarget.DeliveryCache) => true,
+        (ActionId.Mpo or ActionId.Hags or ActionId.GameMode, ActionTarget.Advanced t) => Enum.IsDefined(t.Option) && Enum.IsDefined(t.Setting) && AdvancedOptions.Action(t.Option) == id,
+        (ActionId.Restart, ActionTarget.Restart t) => Enum.IsDefined(t.Destination),
         _ => false,
     };
     private sealed class ActionRejected(string code) : Exception { internal string Code { get; } = code; }
