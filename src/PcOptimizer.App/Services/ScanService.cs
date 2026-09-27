@@ -167,6 +167,7 @@ public sealed class ScanService
                 new UnclassifiedFolderRule(),
                 new RuleCatalogSummaryRule(),
                 new AppCacheRule(),
+                new VideoEditorCacheRule(),
                 new SquirrelVersionFoldersRule(),
             ],
             new ScanOptions(),

@@ -59,6 +59,7 @@ public sealed class AppCacheSmokeTests(ITestOutputHelper output)
 
         var findings = new RuleCatalogSummaryRule().Evaluate(snapshot)
             .Concat(new AppCacheRule().Evaluate(snapshot))
+            .Concat(new VideoEditorCacheRule().Evaluate(snapshot))
             .Concat(new SquirrelVersionFoldersRule().Evaluate(snapshot))
             .ToList();
         foreach (var finding in findings)
@@ -71,6 +72,10 @@ public sealed class AppCacheSmokeTests(ITestOutputHelper output)
         Assert.Equal(AppCacheProbeContract.CATALOG_VERIFIED, SnapshotText(snapshot, AppCacheProbeContract.CATALOG_STATE));
         Assert.Contains(findings, f => f.Id == RuleCatalogSummaryRule.FINDING_ID && f.Verdict == Verdict.Info);
         Assert.DoesNotContain(findings, f => f.Verdict == Verdict.Candidate);
+        // 로컬 캐시 파일명·경로는 출력하지 않고 관측 범위/크기만 기록한다.
+        foreach (var measurement in result.Measurements.Where(m => m.Name.StartsWith("appCache.videoCache.", StringComparison.Ordinal)
+            && !m.Name.EndsWith(".paths", StringComparison.Ordinal) && !m.Name.EndsWith(".scope", StringComparison.Ordinal)))
+        { output.WriteLine($"{measurement.Name} = {Describe(measurement.Value)}"); }
     }
 
     /// <summary>

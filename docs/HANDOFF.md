@@ -2,7 +2,15 @@
 
 현재 브랜치 `codex/sp1-actions`. 사용자 인계 지시에 따라 `feature/p0-skeleton`을 로컬 `master`에 fast-forward 병합했다(`77efa2e` → `32ab51f`). 기존 브랜치는 보존했고 원격 게시는 하지 않았다. 아래 날짜별 기록은 당시 상태를 보존한 이력이다.
 
-## 현재 작업 — Adobe 기본 미디어·파형 캐시 정리 / preview.4
+## 현재 작업 — DaVinci Resolve·CapCut 캐시 검사 / preview.5
+
+- 사용자 요청에 따라 두 앱의 읽기 전용 캐시 후보 검사와 전체 결과 카드의 **캐시 위치·정리 방법 보기**를 추가했다. [변경 파일·범위·예외·검증](reviews/2026-09-27-video-editor-cache-inspection.md). 기준 `806bff9`.
+- Resolve는 제한된 config.dat 전역 CacheClip 위치 또는 설정이 없을 때 기본 Videos/CacheClip을 확인한다. CapCut은 기본 User Data/Cache만 관측한다. 프로젝트/원본/DB를 검사하거나 새 자동 삭제를 제공하는 기능은 아니다. 옮겨진 CapCut·Resolve 프로젝트별 재정의는 미확인이다.
+- 기존 보호/삭제 정책은 유지한다. 중복 보호 출처를 보존하고 새 inspector에만 Videos 바로 아래 CacheClip 읽기 예외를 뒀다. 승격 시 Resolve의 작은 설정 읽기만 별도로 허용한다. 구체적 계약은 보고서 참조.
+- Release 0/0, 최종 기본 **1534/1534**, 전체 Smoke **44/44**. 사용자 데이터/설정 변경 없음. 독립 리뷰는 사용자 지시로 생략했다. 배포·최종 호스트 결과는 보고서 완료 기록 참조.
+- 새 ZIP: `dist/sp1-evaluation/PcOptimizer-v0.3.0-preview.5-win-x64.zip`. 실행 중인 이전 앱은 교체하지 않는다. **전체 결과**에서 확인할 것. T10 전체·T6/T9·실환경 평가와 UI/UX 개선은 잔여다.
+
+## 이전 기록 — Adobe 기본 미디어·파형 캐시 정리 / preview.4
 
 - 구현·테스트·배포 기록 커밋 `4a7b17c` (기준 `4eb6aac`). 후속 문서 커밋은 제품 코드를 변경하지 않는다.
 - 사용자 지시대로 기능 추가를 이어갔다. T10 F2 중 Adobe 기본 두 폴더의 90일 이상 `.cfa`/`.pek` 정리, 프로세스 관문, 카드에서 대상 확인·별도 실행, 부분 결과·재검사를 연결했다. [변경 파일·검증 명령·제한](reviews/2026-09-27-sp1-adobe-cache-implementation.md).
