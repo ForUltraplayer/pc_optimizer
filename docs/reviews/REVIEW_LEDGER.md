@@ -695,6 +695,8 @@
 
 ## 2026-09-27 SP1 통합 구현·UI·자체 검증 / preview.7
 
+- 구현·검증·배포 기록 커밋 **`9ab6822`** (`f403a97..9ab6822`, 29파일). 후속 문서 커밋은 이 참조만 기록한다.
+
 - 기준 `f403a97`. [변경 파일·실행 계약·실패 이력·검증 명령·배포·미완료 범위](2026-09-27-sp1-integrated-completion.md). 사용자 지시대로 구현 → UI/UX → 검증, 독립 리뷰·서브에이전트 생략, 중간 기능별 ZIP 없음. 이전 발견·독립 재검증 상태는 변경하지 않는다.
 - T6: `StartupFolderPlatform`, `StartupRunActionAdapter`, Core StartupRegistration/Selection·ActionId, RollbackCodec/Record·조율기, App 등록/카드/기록을 연결. 기본 사용자·공용 .lnk만 고정 핸들로 원본 보관/복원하며 SID/세션·범위·링크/ADS/hardlink·헤더·ID/본문/ACL 지문·이름 충돌/변조를 확인. Pending 선행 저장과 복원 전 원본 기록 보존. Task Manager 토글과 구분.
 - T11: MainWindow·ActionCenterWindow/ViewModel·ActionPresentation에 효과별 진입/그룹/필터, 필터 중 확인·결과 유지, 수동 위치 펼침, 빈 목록 사유와 좁은 화면 줄바꿈을 반영.
