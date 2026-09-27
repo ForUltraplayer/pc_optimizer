@@ -234,7 +234,7 @@
                         <TextBlock TextWrapping="Wrap" Text="{Binding PageTitle}" FontSize="21" FontWeight="Bold" AutomationProperties.AutomationId="PageTitle" />
                     </StackPanel>
                 </DockPanel>
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                <ScrollViewer x:Name="MainScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
                     <StackPanel Margin="28,0,28,28">
                         <!-- 추천 조치 · 전체 결과 -->
                         <StackPanel Visibility="{Binding IsResultsVisible, Converter={StaticResource BoolToVisibility}}">
