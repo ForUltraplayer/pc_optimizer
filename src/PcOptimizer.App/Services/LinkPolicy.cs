@@ -16,7 +16,7 @@ namespace PcOptimizer.App.Services;
 /// <remarks>
 /// 허용 조건: <see cref="OfficialUrl.TryParse"/>를 통과한 HTTPS URL(사용자 정보·비기본 포트·IP·끝 점·공백·역슬래시 없음)이면서
 /// (1) 공식 링크 표(vendor-links.json) 항목과 같은 ASCII 호스트이고 경로가 그 항목 경로로 시작하거나,
-/// (2) NVIDIA 허용 호스트의 드라이버 페이지 또는 Windows 배포 파일 경로입니다.
+/// (2) NVIDIA 허용 호스트의 드라이버 페이지 또는 Windows 배포 파일 경로이거나 (3) CacheSupportLinks의 정확한 공식 안내 URL입니다.
 /// 이 정책은 출처와 관계없이 호스트와 경로를 다시 확인합니다. 호스트는 퓨니코드로 비교해 유사 문자 도메인을 막습니다.
 /// 열 때는 검증한 <see cref="Uri.AbsoluteUri"/>(정규화한 문자열)만 <see cref="UnelevatedShellLauncher"/>에 넘깁니다. 앱이 항상 관리자 권한이므로
 /// URL을 직접 셸 실행하지 않고 이미 실행 중인 비승격 데스크톱 셸에 COM으로 위임해 브라우저가 일반 권한으로 열리게 합니다.
@@ -104,7 +104,7 @@ public sealed class LinkPolicy
     }
 
     /// <summary>
-    /// 엄격한 URL 해석 후 공식 링크 표 또는 NVIDIA 허용 호스트 조건을 확인한다.
+    /// 엄격한 URL 해석 후 캐시 안내의 정확한 주소·공식 링크 표·NVIDIA 허용 호스트 조건을 확인한다.
     /// </summary>
     private bool TryValidate(string? url, out Uri validated)
     {
@@ -112,6 +112,12 @@ public sealed class LinkPolicy
         if (!OfficialUrl.TryParse(url, out var uri))
         {
             return false;
+        }
+
+        if (PcOptimizer.Core.Actions.CacheSupportLinks.IsAllowed(url))
+        {
+            validated = uri;
+            return true;
         }
 
         if ((_catalog is not null && _catalog.IsAllowedLink(uri)) || NvidiaUrlAllowlist.IsAllowedLink(uri))
