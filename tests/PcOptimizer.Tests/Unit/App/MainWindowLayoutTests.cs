@@ -100,7 +100,7 @@ public sealed class MainWindowLayoutTests
     /// 긴 경로가 든 CannotVerify를 돌려주는 규칙이 있는 뷰모델로 검사를 한 번 실행한다.
     /// </summary>
     private static MainViewModel CreateScannedViewModel(bool isElevated = false, UserScopeMode userScope = UserScopeMode.Full,
-        bool overview = false, bool scan = true, IRule? rule = null, IActionAvailability? availability = null, bool userScopeUnresolved = false, bool displayTrialsAvailable = false)
+        bool overview = false, bool scan = true, IRule? rule = null, IActionAvailability? availability = null, bool userScopeUnresolved = false, bool displayTrialsAvailable = false, ActionCenterViewModel? actions = null)
     {
         var elevation = new FakeElevationState(isElevated);
         var service = new ScanService(
@@ -123,7 +123,7 @@ public sealed class MainWindowLayoutTests
             userScope,
             availability ?? new FixedActionAvailability(false),
             SpecTestFactory.Create(),
-            userScopeUnresolved, displayTrialsAvailable: displayTrialsAvailable);
+            userScopeUnresolved, actions, displayTrialsAvailable: displayTrialsAvailable);
         if (scan)
         {
             vm.StartScanCommand.ExecuteAsync(null).GetAwaiter().GetResult();
@@ -656,6 +656,43 @@ public sealed class MainWindowLayoutTests
             }
             finally { window.Close(); }
         });
+    }
+    /// <summary>Adobe 정보 카드에 실제 버튼이 있고 시스템 전용에서는 숨겨지는지 검증합니다.</summary>
+    [Theory] [InlineData(UserScopeMode.Full, true)] [InlineData(UserScopeMode.SystemOnly, false)]
+    public void AdobeCardHasPreparationButtonOnlyForFullScope(UserScopeMode scope, bool expected)
+    {
+        RunOnSta(() =>
+        {
+            var session = ActionCenterTests.Session;
+            var workflow = new ActionWorkflow(new PcOptimizer.Core.Actions.OperationCoordinator(), new ActionCenterTests.Store(), () => session,
+                [PcOptimizer.Probes.Actions.Files.FileCleanupAdapter.ForAdobeCache(() => session)], []);
+            using var actions = new ActionCenterViewModel(workflow, new ActionCenterTests.Dispatch(), () => Task.CompletedTask,
+                [new(PcOptimizer.Core.Actions.ActionId.AppFiles, new PcOptimizer.Core.Actions.ActionTarget.Files(PcOptimizer.Probes.Actions.Files.AdobeCacheTargets.Media), "Adobe 기본 미디어 캐시", "")]);
+            var vm = CreateScannedViewModel(userScope: scope, rule: new AdobeActionRule(), actions: actions);
+            var window = new MainWindow(vm);
+            try
+            {
+                var root = (FrameworkElement)window.Content; root.Measure(new Size(1100, 900)); root.Arrange(new Rect(0, 0, 1100, 900)); root.UpdateLayout();
+                var button = Assert.Single(Descendants<Button>(root), b => AutomationProperties.GetAutomationId(b) == "PrepareAdobeFromCard"
+                    && b.DataContext is FindingCardViewModel { Finding.Category: FindingCategory.AppCache });
+                Assert.Equal(expected ? Visibility.Visible : Visibility.Collapsed, button.Visibility);
+                Assert.Equal(0, vm.DoNowCount); // 정보 카드의 전체 크기를 개선 후보/확보 용량으로 승격하지 않는다.
+                var folder = Environment.GetEnvironmentVariable("PCOPTIMIZER_UI_ARTIFACTS");
+                if (expected && !string.IsNullOrEmpty(folder))
+                {
+                    Directory.CreateDirectory(folder); var bitmap = new RenderTargetBitmap(1100, 900, 96, 96, PixelFormats.Pbgra32); bitmap.Render(root);
+                    var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                    using var file = File.Create(Path.Combine(folder, "adobe-card-action.png")); encoder.Save(file);
+                }
+            }
+            finally { window.Close(); }
+        });
+    }
+    private sealed class AdobeActionRule : IRule
+    {
+        public string Id => "fixture.adobe-action";
+        public IReadOnlyList<Finding> Evaluate(ScanSnapshot snapshot) => [new(PcOptimizer.Core.Rules.AppCacheRule.FINDING_ID_PREFIX + "Adobe 미디어 캐시",
+            FindingCategory.AppCache, "Adobe 미디어 캐시 관측", [], "기본 위치 관측 fixture", Verdict.Info, null, null, null, null, [])];
     }
     private sealed class DisplayActionRule : IRule
     {

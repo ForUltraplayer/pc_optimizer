@@ -38,6 +38,10 @@
 - 기존 데스크톱의 COM 연결은 [Microsoft의 Explorer 위임 예제](https://devblogs.microsoft.com/oldnewthing/20131118-00/?p=2643)와 [FindWindowSW](https://learn.microsoft.com/en-us/windows/win32/api/exdisp/nf-exdisp-ishellwindows-findwindowsw)를 참고했다. 새 Explorer 프로세스 실행으로 대체하지 않는다.
 - 현재 호스트에서 데스크톱 Explorer는 동일 세션이지만 TokenElevation=1이었다. 따라서 자동 링크 열기를 거절하는 경로만 검증했다. URL 호출 없이 COM 연결만 검사하는 Smoke도 환경에 따라 성공 연결/거절을 명시적으로 구분한다. 비승격 Explorer에서 COM 성공·실제 브라우저 토큰 검증은 T12에 남는다.
 
+## F2 후속 — Adobe 기본 오디오·파형 캐시 (preview.4)
+
+기본 Common 하위 Media Cache Files의 `.cfa`/`.pek`, Peak Files의 `.pek`에 대해 90일 경과·Full 현재 프로필·보호/링크·파일 집합·알려진 앱 프로세스 관문을 구현했다. DB/프로젝트/렌더 및 사용자 지정 위치는 포함하지 않는다. [공식 근거·실행 계약·검증·경합 한계](2026-09-27-sp1-adobe-cache-implementation.md)를 읽고 이어갈 것. 프로세스 부재 관측을 OS의 작성자 배타성 보장으로 표현하지 않는다. Steam/NVIDIA·사용자 지정 앱 위치는 아직 이월이다.
+
 ## 이월 책임표
 
 | 항목 | 담당 | 완료 조건 |

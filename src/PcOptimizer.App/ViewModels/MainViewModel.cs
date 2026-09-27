@@ -501,7 +501,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void ApplyResult(ScanResult result)
     {
         var report = result.Report;
-        _allCards = [.. report.Findings.Select(finding => new FindingCardViewModel(finding, _settingsPolicy, _linkPolicy, _displayTrialsAvailable))];
+        var adobeAvailable = !IsSystemOnly && !IsUserScopeUnresolved && Actions?.Choices.Any(c => c.Id == PcOptimizer.Core.Actions.ActionId.AppFiles) == true;
+        _allCards = [.. report.Findings.Select(finding => new FindingCardViewModel(finding, _settingsPolicy, _linkPolicy, _displayTrialsAvailable, adobeAvailable))];
         OnPropertyChanged(nameof(CommunitySummary));
         if (OnlineComparisonComplete(report))
         {

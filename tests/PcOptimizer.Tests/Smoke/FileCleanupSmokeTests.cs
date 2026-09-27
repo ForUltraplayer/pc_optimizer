@@ -16,6 +16,39 @@ namespace PcOptimizer.Tests.Smoke;
 [Trait("Category", "Smoke")]
 public sealed class FileCleanupSmokeTests
 {
+    /// <summary>실제 삭제도 테스트 소유 폴더의 오래된 Adobe 캐시 파일만 처리합니다.</summary>
+    [Fact]
+    public async Task AdobeNativeDeletionPreservesNewLockedAndNonCacheFiles()
+    {
+        using var fixture = new Fixture();
+        var old = fixture.Add("audio.cfa"); var locked = fixture.Add("wave.pek");
+        foreach (var path in new[] { old, locked })
+        { File.SetCreationTimeUtc(path, DateTime.UtcNow.AddDays(-100)); File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddDays(-100)); }
+        var recent = fixture.Add("recent.cfa"); var project = fixture.Add("edit.prproj");
+        var session = SystemActionSession.Read();
+        var service = new ActionCoordinator(new OperationCoordinator(), () => session, [new FileCleanupAdapter(
+            (_, _) => AdobeCacheTargets.Target(AdobeCacheTargets.Media, fixture.Root, _ => false, () => null),
+            () => session, new NativeFileCleanupPlatform(), definition: new(ActionId.AppFiles, ActionScope.CurrentUser))]);
+        var prepared = await service.PrepareAsync(ActionId.AppFiles, new ActionTarget.Files(AdobeCacheTargets.Media), false, default);
+        Assert.NotNull(prepared.Plan);
+        var added = fixture.Add("after-preview.cfa");
+        using (var held = new FileStream(locked, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            var result = await service.ExecuteAsync(prepared.Plan.Id, default);
+            Assert.Equal("Partial", result.Code); Assert.Equal(1, result.Effect!.ChangedFiles); Assert.Equal(1, result.Effect.FailedFiles);
+        }
+        Assert.False(File.Exists(old)); Assert.True(File.Exists(locked)); Assert.True(File.Exists(recent));
+        Assert.True(File.Exists(project)); Assert.True(File.Exists(added)); Assert.True(Directory.Exists(fixture.Root));
+    }
+
+    /// <summary>실제 호스트에서는 이름만 조회하고 프로그램 실행·종료·캐시 삭제는 하지 않습니다.</summary>
+    [Fact]
+    public void AdobeProcessStateCanBeObservedWithoutReadingCommandLines()
+    {
+        var state = AdobeProcessGuard.Check();
+        Assert.True(state is null or "AdobeAppRunning", "Process name enumeration could not be completed.");
+    }
+
     /// <summary>별칭은 긴 경로와 같은 파일 ID로 정규화하고 하드링크 파일은 제외합니다.</summary>
     [Fact]
     public async Task ShortAliasAndHardLinkCannotBypassIdentity()
