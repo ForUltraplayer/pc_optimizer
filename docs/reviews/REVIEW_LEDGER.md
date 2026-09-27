@@ -520,3 +520,11 @@
 - REV-017: `3d286be`·`be6e99a`·`ec3547e`의 Task.Run·실제 Task 추적·양방향 UI 차단·늦은 종료 복구·동기 BlockingProbe 테스트를 확인. 원본 TimedOutSpecMustNotReenterLiveSharedProbe 통과. `검증 완료(현재 UI 경로)`. 서비스 직접 동시 호출의 공통 직렬화는 이전 이월 그대로이며 완료 주장에 포함하지 않는다.
 - REV-018: `0c80a8b`·`3d286be`의 IsLoading/IsDraining 정리 진입 조건과 알림 회귀, 원본 SpecLoadingMustBlockCacheActions 통과. `검증 완료(UI 경계)`.
 - 남은 검증: 실제 브라우저 토큰·UAC/다른 계정·.NET 없는 PC·DPI·SmartScreen. explorer 셸 미실행/쉼표 URL, 제3자 고지 원문, 도구별 실행 가능 판정, 서비스 공통 직렬화, lock 그래프 등 기존 minor는 해결로 바꾸지 않는다. 추가 설계·SP1 브리프 작성 전에 이 절과 보고서의 인계 항목을 읽을 것.
+
+## 2026-09-27 SP1 인계·계획 시작 (Codex 구현자)
+
+- 사용자 인계 지시로 검증된 SP4를 로컬 master에 fast-forward 병합(`77efa2e`→`32ab51f`)하고 `codex/sp1-actions`를 만들었다. 원격 게시 없음.
+- [SP1 계획](../superpowers/plans/2026-09-27-sp1-actions.md), [진행 기록](../superpowers/sp1-progress.md). 이번 변경은 문서뿐이며 제품 코드는 구현 미착수다.
+- SP4 이월을 T1에 편입했다. 링크 쉼표/셸 미실행·도구별 가용성·문구·패키지/RID/고지 항목을 처리하고, 공통 실행 수명은 T2, 실제 복구 저장소는 T3, 실환경 확인은 T12에 배정했다. 기술 근거가 부족한 API는 실제 조치 활성화의 선행 조건으로 기록했다.
+- 관련 REV-010·014~018의 완료 범위는 유지하며, 계획에 적었다는 이유로 잔여 minor를 해결 처리하지 않는다. 기존 REV-002·003·006·007의 독립 검증 대기도 그대로다. 이후 Task가 해당 코드를 변경하면 관련 회귀와 기존 원장 근거를 함께 확인할 것.
+- 검증: master 조상 관계/fast-forward 결과, 기존 feature와 master 트리 일치, 문서 링크와 diff 형식. 동일 코드 병합·문서 변경이므로 빌드/테스트 재실행 없음. 계획 자체 검토와 독립 설계 검토를 구분한다.
