@@ -4,6 +4,7 @@
 
 ## 현재 작업 — DaVinci Resolve·CapCut 캐시 검사 / preview.5
 
+- 구현·테스트·패키징 기록 커밋 `820b53d` (`806bff9..820b53d`, 19파일). 후속 문서 커밋은 이 참조만 보존한다.
 - 사용자 요청에 따라 두 앱의 읽기 전용 캐시 후보 검사와 전체 결과 카드의 **캐시 위치·정리 방법 보기**를 추가했다. [변경 파일·범위·예외·검증](reviews/2026-09-27-video-editor-cache-inspection.md). 기준 `806bff9`.
 - Resolve는 제한된 config.dat 전역 CacheClip 위치 또는 설정이 없을 때 기본 Videos/CacheClip을 확인한다. CapCut은 기본 User Data/Cache만 관측한다. 프로젝트/원본/DB를 검사하거나 새 자동 삭제를 제공하는 기능은 아니다. 옮겨진 CapCut·Resolve 프로젝트별 재정의는 미확인이다.
 - 기존 보호/삭제 정책은 유지한다. 중복 보호 출처를 보존하고 새 inspector에만 Videos 바로 아래 CacheClip 읽기 예외를 뒀다. 승격 시 Resolve의 작은 설정 읽기만 별도로 허용한다. 구체적 계약은 보고서 참조.
