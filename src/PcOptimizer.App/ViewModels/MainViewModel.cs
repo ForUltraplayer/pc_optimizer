@@ -121,6 +121,47 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsResultsVisible), nameof(SpecToggleText))]
     private bool _isSpecVisible;
+    partial void OnIsSpecVisibleChanged(bool value)
+    {
+        if (value) { CurrentPage = MainPage.Spec; }
+        else if (CurrentPage == MainPage.Spec) { CurrentPage = ShowAllResults ? MainPage.AllResults : MainPage.Recommended; }
+    }
+
+    /// <summary>좌측 내비게이션의 현재 페이지입니다. 사양·전체 결과 표시 상태와 서로 맞춥니다.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsRecommendedPage), nameof(IsAllResultsPage), nameof(IsTroubleshootingPage), nameof(IsAdvancedPage), nameof(IsActionsPage), nameof(IsSettingsPage), nameof(PageTitle), nameof(IsResultsVisible))]
+    private MainPage _currentPage = MainPage.Recommended;
+    partial void OnCurrentPageChanged(MainPage value)
+    {
+        if (value == MainPage.Spec) { if (!IsSpecVisible) { IsSpecVisible = true; } EnsureSpecLoaded(); }
+        else if (IsSpecVisible) { IsSpecVisible = false; }
+        if (value == MainPage.AllResults && !ShowAllResults) { ShowAllResults = true; SelectedCategory ??= Categories.FirstOrDefault(); }
+        else if (value == MainPage.Recommended && ShowAllResults) { ShowAllResults = false; }
+    }
+    /// <summary>추천 조치 페이지인지.</summary>
+    public bool IsRecommendedPage => CurrentPage == MainPage.Recommended;
+    /// <summary>전체 결과 페이지인지.</summary>
+    public bool IsAllResultsPage => CurrentPage == MainPage.AllResults;
+    /// <summary>문제 해결 페이지인지.</summary>
+    public bool IsTroubleshootingPage => CurrentPage == MainPage.Troubleshooting;
+    /// <summary>고급 페이지인지.</summary>
+    public bool IsAdvancedPage => CurrentPage == MainPage.Advanced;
+    /// <summary>조치·되돌리기 페이지인지.</summary>
+    public bool IsActionsPage => CurrentPage == MainPage.Actions;
+    /// <summary>설정 페이지인지.</summary>
+    public bool IsSettingsPage => CurrentPage == MainPage.Settings;
+    /// <summary>머리글 페이지 제목입니다.</summary>
+    public string PageTitle => CurrentPage switch
+    {
+        MainPage.Recommended => "추천 조치", MainPage.AllResults => "전체 결과", MainPage.Troubleshooting => "문제 해결", MainPage.Spec => "내 PC 사양",
+        MainPage.Advanced => "고급", MainPage.Actions => "조치 실행 · 되돌리기", _ => "설정",
+    };
+    /// <summary>좌측 내비게이션 항목을 선택합니다.</summary>
+    [RelayCommand]
+    private void Navigate(MainPage page) => CurrentPage = page;
+    /// <summary>고급 페이지의 Windows 설정 바로가기(허용 목록 URI만).</summary>
+    [RelayCommand]
+    private void OpenAdvancedSetting(string? uri) { if (uri is not null) { _settingsPolicy.TryOpen(uri); } }
 
     /// <summary>마지막 검사 결과.</summary>
     [ObservableProperty]
@@ -227,7 +268,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool HasScopeBanner => ScopeBannerText is not null;
 
     /// <summary>검사 결과 영역을 보여 주는지 여부(사양 화면과 번갈아 표시).</summary>
-    public bool IsResultsVisible => !IsSpecVisible;
+    public bool IsResultsVisible => !IsSpecVisible && CurrentPage is MainPage.Recommended or MainPage.AllResults;
 
     /// <summary>머리글 전환 버튼 문구("내 PC 사양" 또는 "결과로 돌아가기").</summary>
     public string SpecToggleText => IsSpecVisible ? Strings.Spec_NavBack : Strings.Spec_NavOpen;
@@ -619,3 +660,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         NotifyOverview();
     }
 }
+
+/// <summary>메인 창 좌측 내비게이션 페이지입니다(사용자 확정 배치안 7개).</summary>
+public enum MainPage { Recommended, AllResults, Troubleshooting, Spec, Advanced, Actions, Settings }

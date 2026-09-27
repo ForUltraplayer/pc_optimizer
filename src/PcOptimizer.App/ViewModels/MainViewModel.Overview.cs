@@ -95,6 +95,7 @@ public sealed partial class MainViewModel
     private void ShowRecommendations()
     {
         ShowAllResults = false;
+        CurrentPage = MainPage.Recommended;
     }
 
     /// <summary>모든 분류의 결과를 표시합니다.</summary>
@@ -103,6 +104,7 @@ public sealed partial class MainViewModel
     {
         ShowAllResults = true;
         SelectedCategory = Categories.FirstOrDefault();
+        CurrentPage = MainPage.AllResults;
     }
 
     /// <summary>검사에서 발견한 앱 캐시 위치·크기를 바로 표시합니다. 삭제나 재검사를 실행하지 않습니다.</summary>
@@ -111,6 +113,7 @@ public sealed partial class MainViewModel
     {
         ShowAllResults = true;
         SelectedCategory = Categories.FirstOrDefault(c => c.Category == FindingCategory.AppCache);
+        CurrentPage = MainPage.AllResults;
     }
 
     partial void OnStateChanged(ScanState value) => NotifyOverview();

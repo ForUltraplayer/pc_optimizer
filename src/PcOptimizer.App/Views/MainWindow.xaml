@@ -1,7 +1,7 @@
 <!--
 @file    : MainWindow.xaml
 @author  : rudals252
-@brief   : 추천 조치와 검사 결과, "바로 할 수 있는 것/직접 해야 하는 것" 요약 타일(검사 결과가 생긴 뒤에만), 보호 위치 도구가 있을 때만 보이는 정리 창 버튼, 다른 관리자 계정으로 실행 중이거나 사용자를 확인하지 못했을 때의 시스템 범위 안내 배너, 링크 열기 실패 시 복사 가능한 주소 안내, 검사·사양 프로브 종료 대기 안내(검사 시작·정리 버튼 비활성 사유)를 표시하고, 머리글의 "내 PC 사양" 버튼으로 본문을 사양 화면과 번갈아 보여 주는 메인 창
+@brief   : 좌측 내비게이션(추천 조치·전체 결과·문제 해결·내 PC 사양·고급·조치/되돌리기·설정)과 페이지별 본문. 추천 조치는 "바로 할 수 있는 것/직접 해야 하는 것" 타일과 3줄 설명 카드, 시스템 범위 배너, 링크 실패 복사 안내, 검사·사양 종료 대기 안내를 표시한다
 -->
 <ui:FluentWindow x:Class="PcOptimizer.App.Views.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -10,8 +10,9 @@
     xmlns:res="clr-namespace:PcOptimizer.App.Resources"
     xmlns:vm="clr-namespace:PcOptimizer.App.ViewModels"
     xmlns:views="clr-namespace:PcOptimizer.App.Views"
+    xmlns:services="clr-namespace:PcOptimizer.App.Services"
     xmlns:models="clr-namespace:PcOptimizer.Core.Models;assembly=PcOptimizer.Core"
-    Title="{x:Static res:Strings.MainWindow_Title}" Width="1180" Height="820" MinWidth="720" MinHeight="480"
+    Title="{x:Static res:Strings.MainWindow_Title}" Width="1240" Height="840" MinWidth="760" MinHeight="480"
     WindowStartupLocation="CenterScreen" ExtendsContentIntoTitleBar="True" WindowBackdropType="None"
     WindowCornerPreference="Round" Background="#F4F6FA" Foreground="#19253B" FontFamily="Segoe UI, Malgun Gothic"
     KeyboardNavigation.TabNavigation="Cycle">
@@ -50,6 +51,15 @@
         </Style>
         <Style x:Key="CardButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Margin" Value="0,12,8,0" />
+        </Style>
+        <!-- 좌측 내비게이션 항목: 선택된 페이지는 연한 파랑 배경과 진한 글자로 표시한다. -->
+        <Style x:Key="NavButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="Transparent" /><Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" /><Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Padding" Value="12,10" /><Setter Property="Margin" Value="0,0,0,4" /><Setter Property="FontSize" Value="14" />
+        </Style>
+        <Style x:Key="NavSelected" TargetType="Button" BasedOn="{StaticResource NavButton}">
+            <Setter Property="Background" Value="#E9EFFD" /><Setter Property="Foreground" Value="#2855D9" /><Setter Property="FontWeight" Value="SemiBold" />
         </Style>
         <Style x:Key="Muted" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#53627A" /><Setter Property="TextWrapping" Value="Wrap" />
@@ -160,137 +170,213 @@
         </DataTemplate>
     </ui:FluentWindow.Resources>
     <Grid Background="#F4F6FA">
-        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
         <ui:TitleBar Grid.Row="0" Title="{x:Static res:Strings.MainWindow_Title}" />
-        <DockPanel Grid.Row="1" Margin="28,12,28,16">
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                <!-- 좌측 내비게이션(SP5)이 생기기 전까지 "내 PC 사양" 진입은 머리글 전환 버튼으로 둔다. -->
-                <Button Content="{Binding SpecToggleText}" Command="{Binding ToggleSpecCommand}" Margin="0,0,8,0" AutomationProperties.AutomationId="SpecToggleButton" />
-                <Button Content="{x:Static res:Strings.Button_CancelScan}" Command="{Binding CancelScanCommand}" Margin="0,0,8,0"
-                        Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibility}}" AutomationProperties.AutomationId="CancelScanButton" />
-                <Button x:Name="StartScanButton" Content="{Binding StartButtonText}" Command="{Binding StartScanCommand}" Style="{StaticResource PrimaryButton}"
-                        MinWidth="130" AutomationProperties.AutomationId="StartScanButton" />
-            </StackPanel>
-            <StackPanel Margin="0,0,16,0">
-                <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Overview_AppTitle}" FontSize="21" FontWeight="Bold" />
-                <WrapPanel Margin="0,4,0,0">
-                    <TextBlock TextWrapping="Wrap" Text="{Binding LastMeasuredText}" Style="{StaticResource Muted}" FontSize="12" Margin="0,0,16,0" AutomationProperties.AutomationId="LastMeasuredText" />
-                    <TextBlock TextWrapping="Wrap" Text="{Binding StateText}" Style="{StaticResource Muted}" FontSize="12" AutomationProperties.AutomationId="StateText" />
-                </WrapPanel>
-            </StackPanel>
-        </DockPanel>
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
-            <StackPanel Margin="28,0,28,28">
-                <Border Background="White" CornerRadius="10" Padding="16" Margin="0,0,0,14" Visibility="{Binding HasActionCenter, Converter={StaticResource BoolToVisibility}}">
-                    <StackPanel>
-                        <TextBlock Text="내 PC에서 바꿀 수 있는 것" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,6" />
-                        <TextBlock Text="캐시로 찬 공간을 줄이고, 로그인할 때 켜지는 앱을 관리하고, 전원 계획을 선택합니다. 대상과 부작용을 확인한 뒤 원하는 항목만 실행하세요." TextWrapping="Wrap" Foreground="#53627A" Margin="0,0,0,12" />
-                        <WrapPanel Margin="0,0,0,10">
-                            <Button Content="공간 확보 작업" Tag="space" Click="OpenActionCenter" Margin="0,0,8,8" Style="{StaticResource PrimaryButton}" />
-                            <Button Content="자동 실행 줄이기" Tag="startup" Click="OpenActionCenter" Margin="0,0,8,8" />
-                            <Button Content="전력·발열 조정" Tag="power" Click="OpenActionCenter" Margin="0,0,8,8" />
-                        </WrapPanel>
-                        <Button Content="개선할 작업 선택 · 결과 · 되돌리기" Click="OpenActionCenter" HorizontalAlignment="Left" AutomationProperties.AutomationId="OpenActionCenter" />
-                        <Button x:Name="DisplayEvaluationButton" Content="주사율 변경 · 되돌리기" Click="OpenDisplayTrials" Visibility="Collapsed" HorizontalAlignment="Left" />
-                        <Button x:Name="TroubleshootingButton" Content="문제 해결 도구 · 증상별 절차" Click="OpenTroubleshooting" Visibility="Collapsed" HorizontalAlignment="Left" Margin="0,8,0,0" AutomationProperties.AutomationId="OpenTroubleshooting" />
-                        <Button x:Name="DriverGuideButton" Content="드라이버 안내 · 무엇을 받을지" Click="OpenDriverGuide" Visibility="Collapsed" HorizontalAlignment="Left" AutomationProperties.AutomationId="OpenDriverGuide" />
-                        <TextBlock Text="{Binding Actions.Overview}" TextWrapping="Wrap" Foreground="#53627A" Margin="0,8,0,0" AutomationProperties.LiveSetting="Polite" />
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="228" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+            <!-- 좌측 내비게이션(사용자 확정 배치안: 7개 항목). -->
+            <Border Grid.Column="0" Background="White" BorderBrush="#E3E8EF" BorderThickness="0,0,1,0" Padding="12,14">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Bottom" Margin="12,12,12,4">
+                        <TextBlock TextWrapping="Wrap" Text="{Binding LastMeasuredText}" Style="{StaticResource Muted}" FontSize="12" AutomationProperties.AutomationId="LastMeasuredText" />
+                        <TextBlock TextWrapping="Wrap" Text="{Binding StateText}" Style="{StaticResource Muted}" FontSize="12" Margin="0,4,0,0" AutomationProperties.AutomationId="StateText" />
                     </StackPanel>
-                </Border>
-                <Border Visibility="{Binding IsSpecVisible, Converter={StaticResource BoolToVisibility}}">
-                    <views:PcSpecView x:Name="SpecView" DataContext="{Binding Spec}" />
-                </Border>
-                <StackPanel Visibility="{Binding IsResultsVisible, Converter={StaticResource BoolToVisibility}}">
-                <Border Background="#E9EFFD" CornerRadius="12" Padding="22,18" Margin="0,0,0,18">
                     <StackPanel>
-                        <TextBlock TextWrapping="Wrap" Text="{Binding OverviewTitle}" FontSize="24" FontWeight="SemiBold" AutomationProperties.AutomationId="OverviewTitle" />
-                        <TextBlock TextWrapping="Wrap" Text="{Binding OverviewDescription}" Foreground="#435877" Margin="0,7,0,0" />
-
-                        <TextBlock TextWrapping="Wrap" Text="{Binding DrainingNote}" FontWeight="SemiBold" Margin="0,6,0,0" AutomationProperties.AutomationId="DrainingNote"
-                                   Visibility="{Binding HasDrainingNote, Converter={StaticResource BoolToVisibility}}" />
-                        <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Spec_DrainingNote}" FontWeight="SemiBold" Margin="0,6,0,0" AutomationProperties.AutomationId="SpecDrainingNoteMain"
-                                   Visibility="{Binding HasSpecDrainingNote, Converter={StaticResource BoolToVisibility}}" />
-                        <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Operation_Busy}" FontWeight="SemiBold" Margin="0,6,0,0" AutomationProperties.AutomationId="OperationNote"
-                                   Visibility="{Binding HasOperationNote, Converter={StaticResource BoolToVisibility}}" />
+                        <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Overview_AppTitle}" FontSize="17" FontWeight="Bold" Margin="12,6,12,18" />
+                        <Button Content="추천 조치" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:MainPage.Recommended}" AutomationProperties.AutomationId="NavRecommended">
+                            <Button.Style><Style TargetType="Button" BasedOn="{StaticResource NavButton}"><Style.Triggers>
+                                <DataTrigger Binding="{Binding IsRecommendedPage}" Value="True"><Setter Property="Background" Value="#E9EFFD" /><Setter Property="Foreground" Value="#2855D9" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
+                            </Style.Triggers></Style></Button.Style>
+                        </Button>
+                        <Button Content="전체 결과" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:MainPage.AllResults}" AutomationProperties.AutomationId="NavAllResults">
+                            <Button.Style><Style TargetType="Button" BasedOn="{StaticResource NavButton}"><Style.Triggers>
+                                <DataTrigger Binding="{Binding IsAllResultsPage}" Value="True"><Setter Property="Background" Value="#E9EFFD" /><Setter Property="Foreground" Value="#2855D9" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
+                            </Style.Triggers></Style></Button.Style>
+                        </Button>
+                        <Button Content="문제 해결" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:MainPage.Troubleshooting}" AutomationProperties.AutomationId="NavTroubleshooting">
+                            <Button.Style><Style TargetType="Button" BasedOn="{StaticResource NavButton}"><Style.Triggers>
+                                <DataTrigger Binding="{Binding IsTroubleshootingPage}" Value="True"><Setter Property="Background" Value="#E9EFFD" /><Setter Property="Foreground" Value="#2855D9" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
+                            </Style.Triggers></Style></Button.Style>
+                        </Button>
+                        <Button Content="내 PC 사양" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:MainPage.Spec}" AutomationProperties.AutomationId="SpecToggleButton">
+                            <Button.Style><Style TargetType="Button" BasedOn="{StaticResource NavButton}"><Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSpecVisible}" Value="True"><Setter Property="Background" Value="#E9EFFD" /><Setter Property="Foreground" Value="#2855D9" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
+                            </Style.Triggers></Style></Button.Style>
+                        </Button>
+                        <Button Content="고급" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:MainPage.Advanced}" AutomationProperties.AutomationId="NavAdvanced">
+                            <Button.Style><Style TargetType="Button" BasedOn="{StaticResource NavButton}"><Style.Triggers>
+                                <DataTrigger Binding="{Binding IsAdvancedPage}" Value="True"><Setter Property="Background" Value="#E9EFFD" /><Setter Property="Foreground" Value="#2855D9" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
+                            </Style.Triggers></Style></Button.Style>
+                        </Button>
+                        <Button Content="조치 실행 · 되돌리기" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:MainPage.Actions}" AutomationProperties.AutomationId="OpenActionCenter">
+                            <Button.Style><Style TargetType="Button" BasedOn="{StaticResource NavButton}"><Style.Triggers>
+                                <DataTrigger Binding="{Binding IsActionsPage}" Value="True"><Setter Property="Background" Value="#E9EFFD" /><Setter Property="Foreground" Value="#2855D9" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
+                            </Style.Triggers></Style></Button.Style>
+                        </Button>
+                        <Button Content="설정" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:MainPage.Settings}" AutomationProperties.AutomationId="NavSettings">
+                            <Button.Style><Style TargetType="Button" BasedOn="{StaticResource NavButton}"><Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSettingsPage}" Value="True"><Setter Property="Background" Value="#E9EFFD" /><Setter Property="Foreground" Value="#2855D9" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
+                            </Style.Triggers></Style></Button.Style>
+                        </Button>
                     </StackPanel>
-                </Border>
-                <!-- Rows=1이면 숨긴(Collapsed) 타일을 빼고 열을 나누므로, 바로 할 수 있는 것이 0이면 직접 해야 하는 것 타일이 전체 폭을 쓴다. -->
-                <!-- 검사 결과가 생기기 전에는 타일 묶음을 숨긴다(검사 전 "직접 해야 하는 것 0건"이 "문제 없음"으로 읽히지 않게). -->
-                <UniformGrid Rows="1" Margin="0,0,0,12" AutomationProperties.AutomationId="SummaryTiles"
-                             Visibility="{Binding HasCards, Converter={StaticResource BoolToVisibility}}">
-                    <Border Style="{StaticResource Tile}" Margin="0,0,12,0" AutomationProperties.AutomationId="DoNowTile"
-                            Visibility="{Binding HasDoNow, Converter={StaticResource BoolToVisibility}}">
-                        <StackPanel>
-                            <TextBlock TextWrapping="Wrap" Text="{Binding DoNowText}" FontSize="20" FontWeight="SemiBold" />
-                            <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Overview_DoNowHelp}" Style="{StaticResource Muted}" Margin="0,6,0,0" />
+                </DockPanel>
+            </Border>
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                <DockPanel Grid.Row="0" Margin="28,14,28,14">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="{x:Static res:Strings.Button_CancelScan}" Command="{Binding CancelScanCommand}" Margin="0,0,8,0"
+                                Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibility}}" AutomationProperties.AutomationId="CancelScanButton" />
+                        <Button x:Name="StartScanButton" Content="{Binding StartButtonText}" Command="{Binding StartScanCommand}" Style="{StaticResource PrimaryButton}"
+                                MinWidth="130" AutomationProperties.AutomationId="StartScanButton" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,16,0" VerticalAlignment="Center">
+                        <TextBlock TextWrapping="Wrap" Text="{Binding PageTitle}" FontSize="21" FontWeight="Bold" AutomationProperties.AutomationId="PageTitle" />
+                    </StackPanel>
+                </DockPanel>
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                    <StackPanel Margin="28,0,28,28">
+                        <!-- 추천 조치 · 전체 결과 -->
+                        <StackPanel Visibility="{Binding IsResultsVisible, Converter={StaticResource BoolToVisibility}}">
+                            <Border Background="#E9EFFD" CornerRadius="12" Padding="22,18" Margin="0,0,0,18">
+                                <StackPanel>
+                                    <TextBlock TextWrapping="Wrap" Text="{Binding OverviewTitle}" FontSize="24" FontWeight="SemiBold" AutomationProperties.AutomationId="OverviewTitle" />
+                                    <TextBlock TextWrapping="Wrap" Text="{Binding OverviewDescription}" Foreground="#435877" Margin="0,7,0,0" />
+                                    <TextBlock TextWrapping="Wrap" Text="{Binding DrainingNote}" FontWeight="SemiBold" Margin="0,6,0,0" AutomationProperties.AutomationId="DrainingNote"
+                                               Visibility="{Binding HasDrainingNote, Converter={StaticResource BoolToVisibility}}" />
+                                    <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Spec_DrainingNote}" FontWeight="SemiBold" Margin="0,6,0,0" AutomationProperties.AutomationId="SpecDrainingNoteMain"
+                                               Visibility="{Binding HasSpecDrainingNote, Converter={StaticResource BoolToVisibility}}" />
+                                    <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Operation_Busy}" FontWeight="SemiBold" Margin="0,6,0,0" AutomationProperties.AutomationId="OperationNote"
+                                               Visibility="{Binding HasOperationNote, Converter={StaticResource BoolToVisibility}}" />
+                                </StackPanel>
+                            </Border>
+                            <!-- Rows=1이면 숨긴(Collapsed) 타일을 빼고 열을 나누므로, 바로 할 수 있는 것이 0이면 직접 해야 하는 것 타일이 전체 폭을 쓴다. -->
+                            <!-- 검사 결과가 생기기 전에는 타일 묶음을 숨긴다(검사 전 "직접 해야 하는 것 0건"이 "문제 없음"으로 읽히지 않게). -->
+                            <UniformGrid Rows="1" Margin="0,0,0,12" AutomationProperties.AutomationId="SummaryTiles"
+                                         Visibility="{Binding HasCards, Converter={StaticResource BoolToVisibility}}">
+                                <Border Style="{StaticResource Tile}" Margin="0,0,12,0" AutomationProperties.AutomationId="DoNowTile"
+                                        Visibility="{Binding HasDoNow, Converter={StaticResource BoolToVisibility}}">
+                                    <StackPanel>
+                                        <TextBlock TextWrapping="Wrap" Text="{Binding DoNowText}" FontSize="20" FontWeight="SemiBold" />
+                                        <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Overview_DoNowHelp}" Style="{StaticResource Muted}" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource Tile}" AutomationProperties.AutomationId="DoManuallyTile">
+                                    <StackPanel>
+                                        <TextBlock TextWrapping="Wrap" Text="{Binding DoManuallyText}" FontSize="20" FontWeight="SemiBold" />
+                                        <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Overview_DoManuallyHelp}" Style="{StaticResource Muted}" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                </Border>
+                            </UniformGrid>
+                            <!-- 효과별 바로가기: 조치 페이지로 이동하며 필터를 정한다(추천 조치 페이지에서만). -->
+                            <Border Style="{StaticResource Tile}" Margin="0,0,0,14">
+                                <Border.Visibility>
+                                    <MultiBinding Converter="{x:Static services:AllTrueToVisibilityConverter.Instance}">
+                                        <Binding Path="HasActionCenter" /><Binding Path="IsRecommendedPage" />
+                                    </MultiBinding>
+                                </Border.Visibility>
+                                <StackPanel>
+                                    <TextBlock Text="내 PC에서 바꿀 수 있는 것" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,6" />
+                                    <TextBlock Text="캐시로 찬 공간을 줄이고, 로그인할 때 켜지는 앱을 관리하고, 전원 계획을 선택합니다. 대상과 부작용을 확인한 뒤 원하는 항목만 실행하세요." Style="{StaticResource Muted}" Margin="0,0,0,12" />
+                                    <WrapPanel>
+                                        <Button Content="공간 확보 작업" Tag="space" Click="OpenActionCenter" Margin="0,0,8,8" Style="{StaticResource PrimaryButton}" />
+                                        <Button Content="자동 실행 줄이기" Tag="startup" Click="OpenActionCenter" Margin="0,0,8,8" />
+                                        <Button Content="전력·발열 조정" Tag="power" Click="OpenActionCenter" Margin="0,0,8,8" />
+                                        <Button x:Name="DisplayEvaluationButton" Content="주사율 변경 · 되돌리기" Click="OpenDisplayTrials" Visibility="Collapsed" Margin="0,0,8,8" />
+                                        <Button Content="앱 캐시 위치·용량" Command="{Binding ShowAppCachesCommand}" Margin="0,0,8,8" AutomationProperties.AutomationId="ShowAppCaches" />
+                                    </WrapPanel>
+                                    <TextBlock Text="{Binding Actions.Overview}" Style="{StaticResource Muted}" Margin="0,4,0,0" AutomationProperties.LiveSetting="Polite" />
+                                </StackPanel>
+                            </Border>
+                            <Border Margin="0,0,0,16" Visibility="{Binding HasCleanupOutcome, Converter={StaticResource BoolToVisibility}}">
+                                <views:CleanupOutcomeView DataContext="{Binding LastCleanupOutcome}" />
+                            </Border>
+                            <Border Padding="12" Background="#FFF2D7" CornerRadius="8" Margin="0,0,0,12" Visibility="{Binding HasScopeBanner, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock TextWrapping="Wrap" Text="{Binding ScopeBannerText}" Foreground="#644300" AutomationProperties.AutomationId="ScopeBanner" />
+                            </Border>
+                            <TextBlock TextWrapping="Wrap" Text="{Binding StatusMessage}" Margin="0,0,0,8" AutomationProperties.AutomationId="StatusMessage" Visibility="{Binding HasStatusMessage, Converter={StaticResource BoolToVisibility}}" />
+                            <TextBlock x:Name="ResultsAnchor" Focusable="True" TextWrapping="Wrap" Text="{Binding ResultsDescription}" Style="{StaticResource Muted}" Margin="0,0,0,14" />
+                            <StackPanel Visibility="{Binding ShowAllResults, Converter={StaticResource BoolToVisibility}}" Margin="0,0,0,14">
+                                <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" DisplayMemberPath="Label" MaxWidth="300" HorizontalAlignment="Left" MinWidth="210"
+                                          AutomationProperties.Name="{x:Static res:Strings.Categories_Header}" AutomationProperties.AutomationId="CategoryList" />
+                                <CheckBox IsChecked="{Binding ShowCommunityDetails}" Margin="0,10,0,0">
+                                    <TextBlock TextWrapping="Wrap" Text="{Binding CommunitySummary}" />
+                                </CheckBox>
+                            </StackPanel>
+                            <Border Style="{StaticResource Tile}" Visibility="{Binding IsResultListEmpty, Converter={StaticResource BoolToVisibility}}">
+                                <StackPanel>
+                                    <TextBlock TextWrapping="Wrap" Text="{Binding EmptyResultsText}" Style="{StaticResource Muted}" />
+                                    <Button Content="{x:Static res:Strings.Overview_All}" Command="{Binding ShowAllCommand}" HorizontalAlignment="Left" Margin="0,12,0,0"
+                                            Visibility="{Binding IsOverview, Converter={StaticResource BoolToVisibility}}" />
+                                </StackPanel>
+                            </Border>
+                            <ItemsControl ItemsSource="{Binding VisibleCards}" Focusable="False" KeyboardNavigation.TabNavigation="Continue" AutomationProperties.AutomationId="CardList" />
                         </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource Tile}" AutomationProperties.AutomationId="DoManuallyTile">
-                        <StackPanel>
-                            <TextBlock TextWrapping="Wrap" Text="{Binding DoManuallyText}" FontSize="20" FontWeight="SemiBold" />
-                            <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Overview_DoManuallyHelp}" Style="{StaticResource Muted}" Margin="0,6,0,0" />
+                        <!-- 문제 해결(SP5) + 드라이버 안내(SP3) -->
+                        <StackPanel Visibility="{Binding IsTroubleshootingPage, Converter={StaticResource BoolToVisibility}}">
+                            <Expander x:Name="DriverGuideExpander" Header="드라이버 안내 · 어디서 무엇을 받을지" IsExpanded="False" Margin="0,0,0,14" AutomationProperties.AutomationId="DriverGuideExpander">
+                                <views:DriverGuideView x:Name="DriverGuideView" Margin="0,12,0,0" />
+                            </Expander>
+                            <TextBlock x:Name="TroubleshootingUnavailableNote" Text="문제 해결 카탈로그를 읽지 못해 이 페이지를 쓸 수 없어요. 로그를 확인하세요." Style="{StaticResource Muted}" Visibility="Collapsed" />
+                            <views:TroubleshootingView x:Name="TroubleshootingView" MinHeight="520" />
                         </StackPanel>
-                    </Border>
-                </UniformGrid>
-                <!-- 도구 캐시 정리 창은 보호 위치(Program Files)에 npm·pip·dotnet이 있는 PC에서만 보인다. -->
-                <WrapPanel Margin="0,0,0,18">
-                    <Button Content="{x:Static res:Strings.Overview_CleanupButton}" Click="OpenCacheTools" IsEnabled="{Binding CanOpenCacheTools}" Margin="0,0,12,0"
-                            AutomationProperties.AutomationId="OpenCacheToolsButton" Visibility="{Binding CacheToolsAvailable, Converter={StaticResource BoolToVisibility}}" />
-                    <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Overview_SpaceHelp}" Style="{StaticResource Muted}" VerticalAlignment="Center"
-                               Visibility="{Binding CacheToolsAvailable, Converter={StaticResource BoolToVisibility}}" />
-                </WrapPanel>
-                <Border Margin="0,0,0,16" Visibility="{Binding HasCleanupOutcome, Converter={StaticResource BoolToVisibility}}">
-                    <views:CleanupOutcomeView DataContext="{Binding LastCleanupOutcome}" />
-                </Border>
-                <Border Padding="12" Background="#FFF2D7" CornerRadius="8" Margin="0,0,0,12" Visibility="{Binding HasScopeBanner, Converter={StaticResource BoolToVisibility}}">
-                    <TextBlock TextWrapping="Wrap" Text="{Binding ScopeBannerText}" Foreground="#644300" AutomationProperties.AutomationId="ScopeBanner" />
-                </Border>
-
-                <TextBlock TextWrapping="Wrap" Text="{Binding StatusMessage}" Margin="0,0,0,8" AutomationProperties.AutomationId="StatusMessage" Visibility="{Binding HasStatusMessage, Converter={StaticResource BoolToVisibility}}" />
-                <WrapPanel Margin="0,0,0,14">
-                    <Button Content="{Binding RecommendationsTab}" Command="{Binding ShowRecommendationsCommand}" Margin="0,0,8,0">
-                        <Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Style.Triggers>
-                            <DataTrigger Binding="{Binding IsOverview}" Value="True"><Setter Property="Background" Value="#253652" /><Setter Property="Foreground" Value="White" /></DataTrigger>
-                        </Style.Triggers></Style></Button.Style>
-                    </Button>
-                    <Button Content="앱 캐시 위치·용량" Command="{Binding ShowAppCachesCommand}" Margin="0,0,8,0" AutomationProperties.AutomationId="ShowAppCaches" />
-                    <Button Content="{Binding AllResultsTab}" Command="{Binding ShowAllCommand}">
-                        <Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Style.Triggers>
-                            <DataTrigger Binding="{Binding ShowAllResults}" Value="True"><Setter Property="Background" Value="#253652" /><Setter Property="Foreground" Value="White" /></DataTrigger>
-                        </Style.Triggers></Style></Button.Style>
-                    </Button>
-                </WrapPanel>
-                <TextBlock x:Name="ResultsAnchor" Focusable="True" TextWrapping="Wrap" Text="{Binding ResultsDescription}" Style="{StaticResource Muted}" Margin="0,0,0,14" />
-                <StackPanel Visibility="{Binding ShowAllResults, Converter={StaticResource BoolToVisibility}}" Margin="0,0,0,14">
-                    <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" DisplayMemberPath="Label" MaxWidth="300" HorizontalAlignment="Left" MinWidth="210"
-                              AutomationProperties.Name="{x:Static res:Strings.Categories_Header}" AutomationProperties.AutomationId="CategoryList" />
-                    <CheckBox IsChecked="{Binding ShowCommunityDetails}" Margin="0,10,0,0">
-                        <TextBlock TextWrapping="Wrap" Text="{Binding CommunitySummary}" />
-                    </CheckBox>
-                </StackPanel>
-                <Border Style="{StaticResource Tile}" Visibility="{Binding IsResultListEmpty, Converter={StaticResource BoolToVisibility}}">
-                    <StackPanel>
-                        <TextBlock TextWrapping="Wrap" Text="{Binding EmptyResultsText}" Style="{StaticResource Muted}" />
-                        <Button Content="{x:Static res:Strings.Overview_All}" Command="{Binding ShowAllCommand}" HorizontalAlignment="Left" Margin="0,12,0,0"
-                                Visibility="{Binding IsOverview, Converter={StaticResource BoolToVisibility}}" />
+                        <!-- 내 PC 사양 -->
+                        <Border Visibility="{Binding IsSpecVisible, Converter={StaticResource BoolToVisibility}}">
+                            <views:PcSpecView x:Name="SpecView" DataContext="{Binding Spec}" />
+                        </Border>
+                        <!-- 고급(SP2 준비 전) -->
+                        <StackPanel Visibility="{Binding IsAdvancedPage, Converter={StaticResource BoolToVisibility}}">
+                            <Border Style="{StaticResource Tile}" Margin="0,0,0,14">
+                                <StackPanel>
+                                    <TextBlock Text="고급 항목은 준비 중이에요" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,6" />
+                                    <TextBlock Text="Resizable BAR·게임 모드처럼 켜 두면 대체로 이득인 항목과 커뮤니티 권장 옵션을 다음 단계(SP2)에서 여기에 넣습니다. 지금은 Windows 설정으로 바로 갈 수 있는 항목만 둡니다. 이 페이지에 없는 항목이 '문제 없음'이라는 뜻은 아닙니다." Style="{StaticResource Muted}" Margin="0,0,0,12" />
+                                    <WrapPanel>
+                                        <Button Content="게임 모드 설정 열기" Command="{Binding OpenAdvancedSettingCommand}" CommandParameter="{x:Static services:SettingsUriPolicy.GAME_MODE_SETTINGS_URI}" Margin="0,0,8,8" />
+                                        <Button Content="고급 그래픽 설정 열기" Command="{Binding OpenAdvancedSettingCommand}" CommandParameter="{x:Static services:SettingsUriPolicy.ADVANCED_GRAPHICS_SETTINGS_URI}" Margin="0,0,8,8" />
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                        <!-- 조치 실행 · 되돌리기 -->
+                        <StackPanel Visibility="{Binding IsActionsPage, Converter={StaticResource BoolToVisibility}}">
+                            <views:ActionCenterView x:Name="ActionCenterView" DataContext="{Binding Actions}" MinHeight="520" />
+                            <TextBlock Text="현재 사용자 범위에서는 조치를 실행할 수 없어요. 관리자 계정으로 로그인해서 실행하면 쓸 수 있어요." Style="{StaticResource Muted}">
+                                <TextBlock.Visibility>
+                                    <MultiBinding Converter="{x:Static services:AllTrueToVisibilityConverter.Instance}" ConverterParameter="invert">
+                                        <Binding Path="HasActionCenter" />
+                                    </MultiBinding>
+                                </TextBlock.Visibility>
+                            </TextBlock>
+                        </StackPanel>
+                        <!-- 설정 -->
+                        <StackPanel Visibility="{Binding IsSettingsPage, Converter={StaticResource BoolToVisibility}}">
+                            <Border Style="{StaticResource Tile}" Margin="0,0,0,14">
+                                <Expander x:Name="OptionsExpander" Header="{x:Static res:Strings.Overview_Options}" IsExpanded="True">
+                                    <StackPanel Margin="0,12,0,0">
+                                        <CheckBox Content="{x:Static res:Strings.Toggle_OnlineCheck}" IsChecked="{Binding IsOnlineCheckRequested}" IsEnabled="{Binding CanChangeOptions}" AutomationProperties.AutomationId="OnlineCheckToggle" />
+                                        <WrapPanel Margin="0,10,0,8">
+                                            <Button Content="{x:Static res:Strings.Button_Export}" Command="{Binding ExportCommand}" Margin="0,0,8,8" AutomationProperties.AutomationId="ExportButton" />
+                                        </WrapPanel>
+                                        <TextBlock TextWrapping="Wrap" Text="{Binding SummaryText}" Style="{StaticResource Muted}" AutomationProperties.AutomationId="SummaryText" />
+                                        <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Summary_Disclaimer}" Style="{StaticResource Muted}" Margin="0,4,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="{Binding LastOnlineCheckText}" Style="{StaticResource Muted}" AutomationProperties.AutomationId="LastOnlineCheckText"
+                                                   Visibility="{Binding HasLastOnlineCheck, Converter={StaticResource BoolToVisibility}}" />
+                                    </StackPanel>
+                                </Expander>
+                            </Border>
+                            <!-- 도구 캐시 정리 창은 보호 위치(Program Files)에 npm·pip·dotnet이 있는 PC에서만 보인다. -->
+                            <Border Style="{StaticResource Tile}" Visibility="{Binding CacheToolsAvailable, Converter={StaticResource BoolToVisibility}}">
+                                <StackPanel>
+                                    <TextBlock Text="개발 도구 캐시" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,6" />
+                                    <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Overview_SpaceHelp}" Style="{StaticResource Muted}" Margin="0,0,0,12" />
+                                    <Button Content="{x:Static res:Strings.Overview_CleanupButton}" Click="OpenCacheTools" IsEnabled="{Binding CanOpenCacheTools}" HorizontalAlignment="Left"
+                                            AutomationProperties.AutomationId="OpenCacheToolsButton" Visibility="{Binding CacheToolsAvailable, Converter={StaticResource BoolToVisibility}}" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
                     </StackPanel>
-                </Border>
-                <ItemsControl ItemsSource="{Binding VisibleCards}" Focusable="False" KeyboardNavigation.TabNavigation="Continue" AutomationProperties.AutomationId="CardList" />
-                </StackPanel>
-
-            </StackPanel>
-        </ScrollViewer>
-                <Expander x:Name="OptionsExpander" Grid.Row="3" Header="{x:Static res:Strings.Overview_Options}" Margin="28,8,28,12">
-                    <StackPanel Margin="0,12,0,0">
-                        <CheckBox Content="{x:Static res:Strings.Toggle_OnlineCheck}" IsChecked="{Binding IsOnlineCheckRequested}" IsEnabled="{Binding CanChangeOptions}" AutomationProperties.AutomationId="OnlineCheckToggle" />
-                        <WrapPanel Margin="0,10,0,8">
-                            <Button Content="{x:Static res:Strings.Button_Export}" Command="{Binding ExportCommand}" Margin="0,0,8,8" AutomationProperties.AutomationId="ExportButton" />
-                        </WrapPanel>
-                        <TextBlock TextWrapping="Wrap" Text="{Binding SummaryText}" Style="{StaticResource Muted}" AutomationProperties.AutomationId="SummaryText" />
-                        <TextBlock TextWrapping="Wrap" Text="{x:Static res:Strings.Summary_Disclaimer}" Style="{StaticResource Muted}" Margin="0,4,0,0" />
-                        <TextBlock TextWrapping="Wrap" Text="{Binding LastOnlineCheckText}" Style="{StaticResource Muted}" AutomationProperties.AutomationId="LastOnlineCheckText"
-                                   Visibility="{Binding HasLastOnlineCheck, Converter={StaticResource BoolToVisibility}}" />
-                    </StackPanel>
-                </Expander>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
     </Grid>
 </ui:FluentWindow>

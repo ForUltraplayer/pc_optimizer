@@ -1,7 +1,7 @@
 /**
  * @file    : MainWindow.xaml.cs
  * @author  : rudals252
- * @brief   : 메인 진단 창 코드 비하인드. 화면 모델을 DataContext로 연결하고 첫 포커스를 검사 시작 버튼에 두며, 사양 이미지 저장 대상(SpecCaptureRoot)을 공개한다
+ * @brief   : 메인 창 코드 비하인드. 좌측 내비게이션 페이지(추천 조치·전체 결과·문제 해결·내 PC 사양·고급·조치/되돌리기·설정)에 화면 모델을 연결하고, 카드의 실행 버튼을 조치 페이지로 보내며, 사양 이미지 저장 대상을 공개한다
  */
 
 // 기본 패키지
@@ -25,11 +25,8 @@ public partial class MainWindow : FluentWindow
     private readonly DisplayTrialViewModel? _displayTrials;
     private DisplayTrialWindow? _displayWindow;
     private readonly TroubleshootingViewModel? _troubleshooting;
-    private TroubleshootingWindow? _troubleshootingWindow;
-    private readonly DriverGuideViewModel? _driverGuide;
-    private DriverGuideWindow? _driverGuideWindow;
     /// <summary>
-    /// 화면 모델로 메인 창을 만듭니다.
+    /// 화면 모델로 메인 창을 만듭니다. 문제 해결·드라이버 안내 모델이 없으면 해당 페이지에 준비 안내만 보입니다.
     /// </summary>
     /// <param name="viewModel">메인 화면 모델.</param>
     public MainWindow(MainViewModel viewModel, IAppLogger? logger = null, DisplayTrialViewModel? displayTrials = null, TroubleshootingViewModel? troubleshooting = null, DriverGuideViewModel? driverGuide = null)
@@ -39,10 +36,13 @@ public partial class MainWindow : FluentWindow
         InitializeComponent();
         _displayTrials = displayTrials;
         _troubleshooting = troubleshooting;
-        _driverGuide = driverGuide;
-        DriverGuideButton.Visibility = driverGuide is null ? Visibility.Collapsed : Visibility.Visible;
-        TroubleshootingButton.Visibility = troubleshooting is null ? Visibility.Collapsed : Visibility.Visible;
+        TroubleshootingView.DataContext = troubleshooting;
+        TroubleshootingView.Visibility = troubleshooting is null ? Visibility.Collapsed : Visibility.Visible;
+        TroubleshootingUnavailableNote.Visibility = troubleshooting is null ? Visibility.Visible : Visibility.Collapsed;
+        DriverGuideView.DataContext = driverGuide;
+        DriverGuideExpander.Visibility = driverGuide is null ? Visibility.Collapsed : Visibility.Visible;
         DisplayEvaluationButton.Visibility = displayTrials is null ? Visibility.Collapsed : Visibility.Visible;
+        ActionCenterView.Visibility = viewModel.HasActionCenter ? Visibility.Visible : Visibility.Collapsed;
         DataContext = viewModel;
         Loaded += async (_, _) =>
         {
@@ -50,44 +50,30 @@ public partial class MainWindow : FluentWindow
             if (viewModel.Actions is { } actions && actions.RefreshCommand.CanExecute(null)) { await actions.RefreshCommand.ExecuteAsync(null); }
             if (_displayTrials?.RefreshCommand.CanExecute(null) == true) { await _displayTrials.RefreshCommand.ExecuteAsync(null); }
         };
-        Closing += (_, e) => { if (_displayTrials?.IsWorking == true) { _displayTrials.RequestClose(); e.Cancel = true; } };
+        Closing += (_, e) =>
+        {
+            if (_displayTrials?.IsWorking == true) { _displayTrials.RequestClose(); e.Cancel = true; }
+            if (_troubleshooting?.IsRunning == true) { viewModel.CurrentPage = MainPage.Troubleshooting; e.Cancel = true; }
+        };
         Closed += (_, _) => { _displayTrials?.Dispose(); _troubleshooting?.Dispose(); viewModel.Dispose(); };
-    }
-    /// <summary>드라이버 안내 창을 엽니다(하나만, 재열기 시 앞으로).</summary>
-    private void OpenDriverGuide(object sender, RoutedEventArgs e)
-    {
-        if (_driverGuide is null) { return; }
-        if (_driverGuideWindow is not null) { _driverGuideWindow.Activate(); return; }
-        _driverGuideWindow = new DriverGuideWindow(_driverGuide) { Owner = this };
-        _driverGuideWindow.Closed += (_, _) => _driverGuideWindow = null;
-        _driverGuideWindow.Show();
-    }
-    /// <summary>문제 해결 도구함 창을 엽니다(하나만, 재열기 시 앞으로).</summary>
-    private void OpenTroubleshooting(object sender, RoutedEventArgs e)
-    {
-        if (_troubleshooting is null) { return; }
-        if (_troubleshootingWindow is not null) { _troubleshootingWindow.Activate(); return; }
-        _troubleshootingWindow = new TroubleshootingWindow(_troubleshooting) { Owner = this };
-        _troubleshootingWindow.Closed += (_, _) => _troubleshootingWindow = null;
-        _troubleshootingWindow.Show();
     }
 
     /// <summary>내 PC 사양 화면의 이미지 저장 대상(하단 익명화 표기 포함).</summary>
     public FrameworkElement SpecCaptureRoot => SpecView.CaptureRoot;
-    private ActionCenterWindow? _actionWindow;
+
     private async void PrepareStartupFromCard(object sender, RoutedEventArgs e)
     {
-        if (DataContext is not MainViewModel { Actions: { } actions }
+        if (DataContext is not MainViewModel { Actions: { } actions } viewModel
             || sender is not FrameworkElement { DataContext: FindingCardViewModel { StartupTarget: { } target } }
             || actions.Choices.FirstOrDefault(c => c.Id == PcOptimizer.Core.Actions.StartupRegistration.ActionFor(target.SourceKey) && c.Target == target) is not { } choice) { return; }
-        OpenActionCenter(sender, e);
+        viewModel.CurrentPage = MainPage.Actions;
         await actions.PrepareAsync(choice.Id, target);
     }
     private async void PrepareAdobeFromCard(object sender, RoutedEventArgs e)
     {
-        if (DataContext is not MainViewModel { Actions: { } actions }
+        if (DataContext is not MainViewModel { Actions: { } actions } viewModel
             || sender is not FrameworkElement { DataContext: FindingCardViewModel { CanPrepareAdobe: true } }) { return; }
-        OpenActionCenter(sender, e);
+        viewModel.CurrentPage = MainPage.Actions;
         await actions.PrepareAsync(PcOptimizer.Core.Actions.ActionId.AppFiles,
             new PcOptimizer.Core.Actions.ActionTarget.Files(PcOptimizer.Probes.Actions.Files.AdobeCacheTargets.Media));
     }
@@ -105,14 +91,12 @@ public partial class MainWindow : FluentWindow
         _displayWindow.Closed += (_, _) => _displayWindow = null;
         _displayWindow.Show();
     }
+    /// <summary>효과 버튼(Tag)으로 조치 페이지의 필터를 정하고 그 페이지로 이동합니다.</summary>
     private void OpenActionCenter(object sender, RoutedEventArgs e)
     {
-        if (DataContext is not MainViewModel { Actions: { } actions }) { return; }
+        if (DataContext is not MainViewModel { Actions: { } actions } viewModel) { return; }
         actions.SelectEffectCommand.Execute((sender as FrameworkElement)?.Tag as string);
-        if (_actionWindow is not null) { _actionWindow.Activate(); return; }
-        _actionWindow = new ActionCenterWindow(actions) { Owner = this };
-        _actionWindow.Closed += (_, _) => _actionWindow = null;
-        _actionWindow.Show();
+        viewModel.CurrentPage = MainPage.Actions;
     }
 
     private async void OpenCacheTools(object sender, System.Windows.RoutedEventArgs e)

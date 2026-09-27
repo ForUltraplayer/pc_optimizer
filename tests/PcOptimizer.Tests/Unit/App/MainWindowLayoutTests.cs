@@ -373,8 +373,9 @@ public sealed class MainWindowLayoutTests
             Assert.Equal(Visibility.Visible, spec.Visibility);
             Assert.True(spec.ActualHeight > 0);
             Assert.Same(spec.CaptureRoot, window.SpecCaptureRoot);
+            // 좌측 내비게이션의 "내 PC 사양" 항목이 선택 상태(연한 파랑 배경)로 표시된다.
             var toggle = Descendants<Button>(root).Single(b => AutomationProperties.GetAutomationId(b) == SPEC_TOGGLE_ID);
-            Assert.Equal(Strings.Spec_NavBack, toggle.Content);
+            Assert.Equal("내 PC 사양", toggle.Content); Assert.Equal(FontWeights.SemiBold, toggle.FontWeight);
             window.Close();
         });
     }

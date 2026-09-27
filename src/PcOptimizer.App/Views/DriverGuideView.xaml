@@ -1,0 +1,108 @@
+<!--
+@file    : DriverGuideView.xaml
+@author  : rudals252
+@brief   : 드라이버 안내 뷰(메인 창 페이지와 얇은 창 래퍼가 공유). 제조사·모델 식별과 지원 페이지 링크, 받을 드라이버 네 가지, 그래픽 공식 링크
+-->
+<UserControl x:Class="PcOptimizer.App.Views.DriverGuideView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="Visible" />
+        <Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap" /></Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="14,9" /><Setter Property="Margin" Value="0,0,8,8" />
+            <Setter Property="Background" Value="White" /><Setter Property="Foreground" Value="#253652" />
+            <Setter Property="BorderBrush" Value="#CCD5E2" /><Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+                <Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}" CornerRadius="7">
+                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Surface" Property="Opacity" Value="0.4" /></Trigger>
+                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="#122E73" /><Setter TargetName="Surface" Property="BorderThickness" Value="2" /></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate></Setter.Value></Setter>
+        </Style>
+        <Style x:Key="Primary" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="#2563EB" /><Setter Property="Foreground" Value="White" /><Setter Property="BorderBrush" Value="#2563EB" />
+        </Style>
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Padding" Value="18" /><Setter Property="Margin" Value="0,0,0,14" />
+            <Setter Property="Background" Value="White" /><Setter Property="CornerRadius" Value="10" />
+            <Setter Property="BorderBrush" Value="#E3E8EF" /><Setter Property="BorderThickness" Value="1" />
+        </Style>
+    </UserControl.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="0">
+            <TextBlock TextWrapping="Wrap" Text="{Binding Status}" Foreground="#53627A" Margin="0,4,0,14" AutomationProperties.LiveSetting="Polite" AutomationProperties.AutomationId="DriverGuideStatus" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock TextWrapping="Wrap" Text="내 PC" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,8" />
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions><RowDefinition /><RowDefinition /></Grid.RowDefinitions>
+                        <TextBlock TextWrapping="Wrap" Text="종류" Foreground="#53627A" FontSize="12" Margin="0,0,12,4" />
+                        <TextBlock TextWrapping="Wrap" Grid.Column="1" Text="{Binding ChassisText}" Margin="0,0,0,4" />
+                        <TextBlock TextWrapping="Wrap" Grid.Row="1" Text="제조사 · 모델" Foreground="#53627A" FontSize="12" Margin="0,0,12,0" />
+                        <TextBlock TextWrapping="Wrap" Grid.Row="1" Grid.Column="1" Text="{Binding IdentityText}" FontWeight="SemiBold" AutomationProperties.AutomationId="IdentityText" />
+                    </Grid>
+                    <WrapPanel Margin="0,12,0,0">
+                        <Button Content="{Binding SupportLabel}" Command="{Binding OpenSupportCommand}" Style="{StaticResource Primary}" AutomationProperties.AutomationId="OpenSupport" />
+                        <Button Content="모델명 복사" Command="{Binding CopyModelCommand}" AutomationProperties.AutomationId="CopyModel" />
+                    </WrapPanel>
+                    <ItemsControl ItemsSource="{Binding Notes}" Margin="0,4,0,0">
+                        <ItemsControl.ItemTemplate><DataTemplate><TextBlock TextWrapping="Wrap" Text="{Binding}" Foreground="#53627A" FontSize="12" Margin="0,0,0,2" /></DataTemplate></ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+            <TextBlock TextWrapping="Wrap" Text="이 페이지에서 아래 네 가지를 받으세요" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,10" />
+            <ItemsControl ItemsSource="{Binding Items}" AutomationProperties.AutomationId="DriverItems">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock TextWrapping="Wrap" DockPanel.Dock="Left" Text="{Binding InstallOrder, StringFormat={}{0}번째 설치}" Foreground="#1D4ED8" FontSize="12" Margin="0,0,12,0" />
+                                    <TextBlock TextWrapping="Wrap" Text="{Binding KoreanName}" FontSize="16" FontWeight="SemiBold" />
+                                </DockPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition /><RowDefinition /><RowDefinition /></Grid.RowDefinitions>
+                                    <TextBlock TextWrapping="Wrap" Text="영어 표기" Foreground="#53627A" FontSize="12" Margin="0,0,12,4" />
+                                    <TextBlock TextWrapping="Wrap" Grid.Column="1" Text="{Binding EnglishTerms}" Margin="0,0,0,4" />
+                                    <TextBlock TextWrapping="Wrap" Grid.Row="1" Text="어디에 있나" Foreground="#53627A" FontSize="12" Margin="0,0,12,4" />
+                                    <TextBlock TextWrapping="Wrap" Grid.Row="1" Grid.Column="1" Text="{Binding MenuHint}" Margin="0,0,0,4" />
+                                    <TextBlock TextWrapping="Wrap" Grid.Row="2" Text="지금 설치됨" Foreground="#53627A" FontSize="12" Margin="0,0,12,0" />
+                                    <TextBlock TextWrapping="Wrap" Grid.Row="2" Grid.Column="1" Text="{Binding StatusText}" />
+                                </Grid>
+                                <ItemsControl ItemsSource="{Binding Installed}" Margin="0,6,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#53627A">
+                                                <Run Text="{Binding Name, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Version, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Date, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Provider, Mode=OneWay}" />
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Border Style="{StaticResource Card}" Visibility="{Binding HasGpuLinks, Converter={StaticResource Visible}}">
+                <StackPanel>
+                    <TextBlock TextWrapping="Wrap" Text="그래픽 드라이버" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,6" />
+                    <TextBlock TextWrapping="Wrap" Text="그래픽카드는 메인보드 페이지가 아니라 그래픽 제조사 공식 페이지에서 받습니다. 설치 파일을 받아 실행하면 되고, 문제가 있으면 문제 해결 도구의 DDU 절차를 따르세요." Foreground="#53627A" Margin="0,0,0,10" />
+                    <ItemsControl ItemsSource="{Binding GpuLinks}">
+                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding Label}" Command="{Binding DataContext.OpenGpuLinkCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
