@@ -676,6 +676,7 @@
 
 ## 2026-09-27 T9-B Windows Update Download 실행 연결
 
+- 구현 커밋 **`4de30d1`** (`3456a75..4de30d1`, 16파일). 후속 문서 커밋은 이 참조만 보존한다.
 - 기준 `3456a75`. [구현 파일·지원 계약·공식 근거·검증 이월](2026-09-27-update-download-implementation.md). Windows Download의 7일 경과 파일 고정 미리보기와 서비스 중지/내구 기록/부분 파일 처리/독립 복구를 조치 목록에 연결했다. WUA 외 ALL_USERS BITS 작업 수·DO·CBS/재부팅·알려진 작업 프로세스·서비스 재진입도 확인한다. 양 서비스 Running 조건이며 정지된 서비스 자동 시작/작업 강제 종료/다른 업데이트 영역 삭제는 없다.
 - REV-008: 고정 Windows 경로·기존 정규화/보호/링크·핸들 엔진 재사용, 모든 등록 사용자 프로필 제외. REV-013: 서비스 중지부터 Started, 파일 처리 수와 `ServiceRecoveryCompleted` 분리, 0바이트 대상은 중지 전 종료. REV-016: 시스템 범위·같은 실제 세션/복구 SID. REV-017/018: 실제 파일 작업과 복구 종료까지 공통 조율기/저장소 수명 유지. 기존 독립 검증 범위를 새 실행기에 확대하지 않는다.
 - 실제 빌드 명령: `dotnet build src/PcOptimizer.App/PcOptimizer.App.csproj -c Release --no-restore` → 최종 경고 0/오류 0. 테스트 작성·실행/Smoke/서비스 제어/BITS COM 실기 호출/사용자 캐시 삭제는 미실시. T12에 재현 조건과 VM 시험을 남겼다. 사용자 지시대로 구현 우선이며 독립 리뷰·에이전트는 사용하지 않았다.
