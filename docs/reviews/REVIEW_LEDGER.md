@@ -738,3 +738,4 @@
 - 링크 정책 변경의 경계: 최종 리뷰 필수 1(관리자 브라우저 실행 금지)은 유지된다 — 앱은 여전히 브라우저·Explorer를 직접 시작하지 않고 세션의 셸 COM에 위임한다. 바뀐 것은 "셸이 비승격이어야만 위임"에서 "세션의 셸이면 위임(승격 여부 기록)"이며, UAC를 끈 PC에서는 셸 자체가 사용자의 평소 권한이라 새로운 권한 상승이 아니다. `LinkPolicyTests.ElevatedSessionShellStillReceivesUrl`, `DesktopShellSmokeTests`.
 - DISM /Source: 명령 목록은 닫혀 있고 사용자 입력은 폴더 하나뿐이며 `InstallMediaSource.TryResolve`(절대 경로·UNC/와일드카드 금지·sources\install.wim|esd 존재)를 통과한 값만 `/Source:` 인자로 들어간다. `TroubleshootingTests.InstallMediaResolvesImageFile`, `SourceCommandRefusesWithoutValidFolder`.
 - 검증: Release 0/0, 기본 1693/1693, Smoke 58/58, preview.11 ZIP 검증. 독립 리뷰 없음(사용자 지시).
+- 후속 `5acc71e`: 도구 카드 보조 링크(`extraLinks`, 링크 표 항목만 허용·도구당 3개 상한) 지원. Rufus 카드에 '홍차의 꿈 블로그(한국어 안내)' 버튼(jsb000.tistory.com/search/rufus, 사용자 요청). 공식 배포처 버튼과 구분해 두었고 파일은 받지 않는다. 기본 1694/1694, preview.12 ZIP 검증.
