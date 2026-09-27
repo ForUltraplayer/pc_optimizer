@@ -135,6 +135,7 @@ public sealed class ActionCenterTests
     [InlineData(true, true, "Failed", "복구")]
     [InlineData(false, false, "PlanExpired", "만료")]
     [InlineData(false, false, "Busy", "다른 검사")]
+    [InlineData(false, false, "AlreadyApplied", "같아 변경하지")]
     public void ResultStatesOfferAppropriateNextStep(bool started, bool restore, string code, string expected)
     {
         var result = new ActionResultViewModel(new(Guid.NewGuid(), started, false, code), ActionId.Power, restore, "");
