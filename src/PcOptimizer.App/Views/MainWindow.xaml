@@ -118,6 +118,8 @@
                         <WrapPanel>
                             <Button Content="{Binding DisplayTrialButtonText}" Click="PrepareDisplayFromCard" Style="{StaticResource PrimaryButton}" Margin="0,12,8,0"
                                     AutomationProperties.AutomationId="TrialDisplayFromCard" Visibility="{Binding CanTrialDisplay, Converter={StaticResource BoolToVisibility}}" />
+                            <Button Content="자동 실행 등록 해제 확인" Click="PrepareStartupFromCard" Margin="0,0,8,8"
+                                    AutomationProperties.AutomationId="PrepareStartupFromCard" Visibility="{Binding CanPrepareStartup, Converter={StaticResource BoolToVisibility}}" />
                             <Button Content="Adobe 기본 캐시 정리 대상 확인" Click="PrepareAdobeFromCard" Margin="0,0,8,8"
                                     AutomationProperties.AutomationId="PrepareAdobeFromCard" Visibility="{Binding CanPrepareAdobe, Converter={StaticResource BoolToVisibility}}" />
                             <Button Content="{Binding SettingsButtonText}" Command="{Binding OpenSettingsCommand}" Style="{StaticResource CardButton}" Margin="0,12,8,0"

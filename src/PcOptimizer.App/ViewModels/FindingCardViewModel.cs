@@ -53,13 +53,15 @@ public sealed partial class FindingCardViewModel : ObservableObject
     /// <param name="finding">표시할 Finding.</param>
     /// <param name="settingsPolicy">설정 URI 허용 정책.</param>
     /// <param name="linkPolicy">외부 링크 허용 정책.</param>
-    public FindingCardViewModel(Finding finding, SettingsUriPolicy settingsPolicy, LinkPolicy linkPolicy, bool displayTrialsAvailable = false, bool adobeCleanupAvailable = false)
+    public FindingCardViewModel(Finding finding, SettingsUriPolicy settingsPolicy, LinkPolicy linkPolicy, bool displayTrialsAvailable = false, bool adobeCleanupAvailable = false, PcOptimizer.Core.Actions.ActionTarget.Startup? startupTarget = null)
     {
         ArgumentNullException.ThrowIfNull(finding);
         ArgumentNullException.ThrowIfNull(settingsPolicy);
         ArgumentNullException.ThrowIfNull(linkPolicy);
 
         Finding = finding;
+        StartupTarget = finding.Category == FindingCategory.Startup && startupTarget is not null
+            && finding.Id == PcOptimizer.Core.Rules.StartupItemsRule.FINDING_ID_PREFIX + startupTarget.SourceKey + ":" + startupTarget.ValueName ? startupTarget : null;
         _settingsPolicy = settingsPolicy;
         _linkPolicy = linkPolicy;
         var displayTarget = displayTrialsAvailable ? DisplayFindingTarget.Read(finding) : null;
@@ -94,6 +96,10 @@ public sealed partial class FindingCardViewModel : ObservableObject
     public string DisplayTrialButtonText { get; }
     /// <summary>관측 크기를 삭제량으로 간주하지 않고 기본 미디어 캐시를 새로 확인합니다.</summary>
     public bool CanPrepareAdobe { get; }
+    /// <summary>현재 검사의 허용 목록과 일치하는 개별 Run 등록 대상입니다.</summary>
+    public PcOptimizer.Core.Actions.ActionTarget.Startup? StartupTarget { get; }
+    /// <summary>선택한 등록의 확인 화면으로 바로 연결할 수 있는지 여부입니다.</summary>
+    public bool CanPrepareStartup => StartupTarget is not null;
 
     /// <summary>한 문장 제목.</summary>
     public string Title => Finding.Title;
