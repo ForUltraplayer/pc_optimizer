@@ -2,7 +2,7 @@
 
 기준 `master`=`32ab51f`, 작업 브랜치 `codex/sp1-actions`. [계획](plans/2026-09-27-sp1-actions.md)과 [공유 원장](../reviews/REVIEW_LEDGER.md)이 작업 입력이다.
 
-**현재 결과:** [preview.7 통합 구현·검증·미완료 범위](../reviews/2026-09-27-sp1-integrated-completion.md). 2026-09-27 후속(Claude, `e25aa43`·`9bc264a`): [T6 작업 관리자 시작 상태 토글·T10 그래픽 캐시 부분 정리·Resolve 기본 위치](../reviews/2026-09-27-startup-approval-and-graphics-cache.md). Adobe·CapCut 설정 fixture는 이 PC에 앱이 없어 미확보. 이어서 [SP5 문제 해결 도구함·SP3 드라이버 안내](../reviews/2026-09-27-sp5-sp3-implementation.md)(`5da2700`·`081ecbd`)를 구현했다. 기본 1686/1686, Smoke 58/58, preview.9 ZIP. 다음은 UI 다듬기(좌측 내비게이션 배치안). 구현 → UI/UX → 검증을 진행해 하나의 통합 배포본을 만들었다. 표 아래 기록은 당시 상태이며, 전체 계획 완료를 뜻하지 않는다. 기술 지원 계약이 없는 기능과 평가 PC/VM 항목은 명시적으로 열린 상태다.
+**현재 결과:** [preview.7 통합 구현·검증·미완료 범위](../reviews/2026-09-27-sp1-integrated-completion.md). 2026-09-27 후속(Claude, `e25aa43`·`9bc264a`): [T6 작업 관리자 시작 상태 토글·T10 그래픽 캐시 부분 정리·Resolve 기본 위치](../reviews/2026-09-27-startup-approval-and-graphics-cache.md). Adobe·CapCut 설정 fixture는 이 PC에 앱이 없어 미확보. 이어서 [SP5 문제 해결 도구함·SP3 드라이버 안내](../reviews/2026-09-27-sp5-sp3-implementation.md)(`5da2700`·`081ecbd`)를 구현했다. 기본 1686/1686, Smoke 58/58, preview.9 ZIP. 이어서 [좌측 내비게이션 UI](../reviews/2026-09-27-ui-navigation.md)(`ee05ec4`·`75f7d65`)를 적용했다. 기본 1686/1686, Smoke 58/58, preview.10 ZIP. 구현 → UI/UX → 검증을 진행해 하나의 통합 배포본을 만들었다. 표 아래 기록은 당시 상태이며, 전체 계획 완료를 뜻하지 않는다. 기술 지원 계약이 없는 기능과 평가 PC/VM 항목은 명시적으로 열린 상태다.
 
 2026-09-27 이전 배치: [남은 구현 순서](plans/2026-09-27-sp1-remaining-implementation.md)에 따라 T9-B 이후 Steam 선택 정리·NVIDIA NV_Cache 관측·NVIDIA/Steam 공식 안내/Direct3D Windows 연결을 구현했다. [계약·제한·검증 이월](../reviews/2026-09-27-steam-cleanup-and-graphics-guides.md). 빌드만 확인, 그래픽 직접 삭제·T10 전체 완료를 주장하지 않는다. 구버전 정리와 preview.6 보존 유지.
 
