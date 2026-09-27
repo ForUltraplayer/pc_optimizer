@@ -731,3 +731,10 @@
 - 구현 커밋 **`ee05ec4`**, `75f7d65`(스크롤). [배치 기록·구조 변경·검증](reviews/2026-09-27-ui-navigation.md). 사용자 지시로 독립 리뷰 없음. 구현자 자체 검증.
 - 실행 경계 불변: 조치·문제 해결·드라이버 화면을 페이지에 내장했을 뿐 실행기·관문·링크 허용 목록(REV-004/013/016/017/018 대응)은 바꾸지 않았다. 카드 버튼은 창 대신 조치 페이지로 이동한 뒤 같은 `PrepareAsync`를 호출한다.
 - 검증: Release 0/0, 기본 1686/1686, Smoke 58/58, 오프스크린 렌더 확인, preview.10 ZIP 검증 통과. 실기 DPI·키보드·최소 폭 확인은 남는다.
+
+## 2026-09-27 후속 — 링크 열기(UAC 꺼진 PC)·유틸리티 탭·DISM 설치 미디어 원본 (Claude)
+
+- 커밋 `b5b8992`(링크), `2895c4a`(링크 주소), `960fe62`·`41114ab`(유틸리티 탭·DISM /Source·오류 안내·점검 스크립트). [기록](reviews/2026-09-27-sp5-sp3-implementation.md §5).
+- 링크 정책 변경의 경계: 최종 리뷰 필수 1(관리자 브라우저 실행 금지)은 유지된다 — 앱은 여전히 브라우저·Explorer를 직접 시작하지 않고 세션의 셸 COM에 위임한다. 바뀐 것은 "셸이 비승격이어야만 위임"에서 "세션의 셸이면 위임(승격 여부 기록)"이며, UAC를 끈 PC에서는 셸 자체가 사용자의 평소 권한이라 새로운 권한 상승이 아니다. `LinkPolicyTests.ElevatedSessionShellStillReceivesUrl`, `DesktopShellSmokeTests`.
+- DISM /Source: 명령 목록은 닫혀 있고 사용자 입력은 폴더 하나뿐이며 `InstallMediaSource.TryResolve`(절대 경로·UNC/와일드카드 금지·sources\install.wim|esd 존재)를 통과한 값만 `/Source:` 인자로 들어간다. `TroubleshootingTests.InstallMediaResolvesImageFile`, `SourceCommandRefusesWithoutValidFolder`.
+- 검증: Release 0/0, 기본 1693/1693, Smoke 58/58, preview.11 ZIP 검증. 독립 리뷰 없음(사용자 지시).

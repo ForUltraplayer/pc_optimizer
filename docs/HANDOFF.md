@@ -6,7 +6,7 @@
 
 - 실제 저장소: `C:\Users\Administrator\Desktop\pc_optimizer`. 과거 대화의 `Desktop\windows` 경로를 그대로 사용하지 말 것.
 - 브랜치: `codex/sp1-actions`.
-- 최신 제품 구현: **`75f7d65`**(UI 내비게이션·스크롤) ← `ee05ec4`(좌측 내비게이션 7페이지) ← `081ecbd`(SP3 드라이버 안내) ← `5da2700`(SP5 문제 해결 도구함) ← `9bc264a`(T10 그래픽 캐시·Resolve) ← `e25aa43`(T6 StartupApproved) ← `9ab6822`(Codex 통합). 상세: [SP5·SP3 구현 기록](reviews/2026-09-27-sp5-sp3-implementation.md), [T6·T10 구현 기록](reviews/2026-09-27-startup-approval-and-graphics-cache.md).
+- 최신 제품 구현: **`41114ab`**(유틸리티 탭·DISM 설치 미디어 원본 복구·링크 열기 수정) ← `75f7d65`(UI 내비게이션·스크롤) ← `ee05ec4`(좌측 내비게이션 7페이지) ← `081ecbd`(SP3 드라이버 안내) ← `5da2700`(SP5 문제 해결 도구함) ← `9bc264a`(T10 그래픽 캐시·Resolve) ← `e25aa43`(T6 StartupApproved) ← `9ab6822`(Codex 통합). 상세: [SP5·SP3 구현 기록](reviews/2026-09-27-sp5-sp3-implementation.md), [T6·T10 구현 기록](reviews/2026-09-27-startup-approval-and-graphics-cache.md).
 - **UI 다듬기 1차 완료**(`ee05ec4`·`75f7d65`): 확정 배치안대로 좌측 내비게이션 7페이지(추천 조치·전체 결과·문제 해결·내 PC 사양·고급·조치 실행/되돌리기·설정)로 메인 창을 재구성했고, 조치·문제 해결·드라이버 화면을 페이지에 내장했다(창 래퍼는 유지). 상세: [UI 배치 기록](reviews/2026-09-27-ui-navigation.md). 남은 UI: 실기 DPI·키보드·최소 폭 확인, 고급 페이지는 SP2 내용이 들어오면 채움.
 - 작성 착수 시 작업 트리 깨끗함. 이 세션이 실행한 백그라운드 작업·서브에이전트 없음. 실행 중인 사용자 앱을 종료/교체하지 않았다.
 - `feature/p0-skeleton`은 앞서 로컬 master `32ab51f`로 병합됐다. **이번 SP1 브랜치는 master에 병합하지 않았고 원격 게시도 하지 않았다.**
@@ -25,14 +25,14 @@
 
 ## 3. 현재 구현과 배포본
 
-**버전 `0.3.0-preview.10`**(좌측 내비게이션 UI + SP5·SP3), 단일 파일/self-contained Windows x64 평가 빌드.
+**버전 `0.3.0-preview.11`**(유틸리티 탭·DISM /Source 복구·UAC 꺼진 PC의 링크 열기 수정 포함), 단일 파일/self-contained Windows x64 평가 빌드.
 
-- ZIP: `dist/sp1-integrated/PcOptimizer-v0.3.0-preview.10-win-x64.zip`(57.0 MB).
-- 실행 파일: `dist/sp1-integrated/PcOptimizer-v0.3.0-preview.10-win-x64/PcOptimizer.exe`.
+- ZIP: `dist/sp1-integrated/PcOptimizer-v0.3.0-preview.11-win-x64.zip`(57.0 MB).
+- 실행 파일: `dist/sp1-integrated/PcOptimizer-v0.3.0-preview.11-win-x64/PcOptimizer.exe`.
 - 해시: 같은 ZIP 이름의 `.sha256`.
-- SHA-256: `C129B23FFEC9AD76FD7AE4839BF9ABAD19F341F5B6811BDCEBDCBA9DBAC6B5C0`.
+- SHA-256: `9A26A942A29A7C4DD425316816D1C904FD7AB153F30D9AA286E059AC6C51A96F`.
 - ZIP 13파일/최상위4개, `tools/verify-package.ps1`로 PE·필수 고지·규칙 원문·원본 해시 확인(PowerShell 7과 5.1 모두 통과; 5.1용 UTF-8 BOM 추가). 변조 거절 시험은 preview.7 때 결과.
-- preview.9는 비교용으로 보존(그 이전은 정리해도 됨). 그 이전 산출물 정리는 이미 완료했으므로 다시 광범위하게 삭제하지 않는다. `dist/`와 `artifacts/`는 로컬 산출물로 Git 커밋에 포함되지 않는다.
+- preview.10은 비교용으로 보존(그 이전은 정리해도 됨). 그 이전 산출물 정리는 이미 완료했으므로 다시 광범위하게 삭제하지 않는다. `dist/`와 `artifacts/`는 로컬 산출물로 Git 커밋에 포함되지 않는다.
 
 | 기능 | 현재 제공 범위 |
 |---|---|
@@ -44,7 +44,8 @@
 | Resolve·CapCut | 기본/지원 설정 또는 수동 CacheClip/Cache 위치의 용량 검사. Resolve는 `RenderCaching.CacheDir` 키가 없으면 첫 저장소의 CacheClip을 기본으로 해석(20.1 실제 설정 근거). 직접 삭제 없음 |
 | 그래픽 | NVIDIA DX/GL/NV_Cache·Direct3D 관측, 공식 안내/Windows 기능 연결. 캐시별 30일 이상 미사용 파일 부분 정리(사용 중 파일 건너뜀, 설정 불변). 전체 초기화는 공식 절차 안내 |
 | 전원·주사율 | 전원 계획 적용/복원, 같은 해상도 주사율 시험·15초 유지 확인/복구 기록. 실제 변경 평가는 남음 |
-| 문제 해결(SP5) | 증상 8개 → 권장 순서 도구 카드. 직접 실행(DISM·SFC·chkdsk 검사/재부팅 예약·flushdns·winsock reset·복원 지점), 내장 도구 열기(메모리 진단·디스크 관리·이벤트 뷰어·신뢰성 모니터·문제 해결사), 외부 도구 15종 공식 링크+한국어 절차 |
+| 문제 해결(SP5) | 증상 8개 → 권장 순서 도구 카드. 직접 실행(DISM·DISM 설치 미디어 원본(/Source)·SFC·chkdsk 검사/재부팅 예약·flushdns·winsock reset·복원 지점), 알려진 DISM 오류 코드 한국어 안내, 내장 도구 열기(메모리 진단·디스크 관리·이벤트 뷰어·신뢰성 모니터·문제 해결사), 외부 도구 15종 공식 링크+한국어 절차 |
+| 유틸리티 탭 | 외부 도구를 분류별 카드 섹션으로 표시(공식 사이트만 열기). 링크는 `tools/check-links.ps1`로 배포 전 점검 |
 | 드라이버 안내(SP3) | 노트북/데스크톱별 제조사·모델 식별, 공식 지원 첫 화면 링크·모델명 복사, 칩셋·유선 랜·Wi-Fi·오디오 설치 버전·날짜와 받을 항목·설치 순서 안내, 그래픽 공식 링크. 최신 여부 판단 없음 |
 | UI/UX | 좌측 내비게이션 7페이지(확정 배치안), 추천 조치 타일·3줄 카드, 효과별 진입·필터, 확인/결과 우선 배치, 필터 변경 시 계획·결과 보존, 수동 위치 펼침, 빈 목록 사유, 문제 해결 증상 칩(좁은 폭 대응) |
 
@@ -55,7 +56,7 @@
 | 항목 | 마지막 실제 결과 |
 |---|---|
 | Release 솔루션 빌드 | 경고 0 / 오류 0 |
-| 기본 | **1686/1686** |
+| 기본 | **1693/1693** |
 | Smoke | **58/58** |
 | ToolSmoke | **4/4**(Codex 마지막 실행, 이번 배치에서 재실행 안 함), 소유 임시 캐시에 고정한 npm·pip·NuGet |
 | UI | WPF 100/150/200% 오프스크린 회귀, 메인/좁은 창 PNG 시각 확인 |
@@ -78,7 +79,7 @@
 3. **T10 NVIDIA 직접 정리**: 30일 미사용 파일 부분 정리로 구현(`9bc264a`, 기존 파일 엔진·독점 핸들·보호 경계 재사용, 설정 불변). 전체 초기화(캐시 끄기·재부팅)는 공식 안내로 유지. 남은 것은 게임/드라이버 실행 중 실기 거동 확인.
 4. **T8/T9/T12 평가 Windows 11/VM**: UAC 승인/거절·다른 계정 SystemOnly·비승격 브라우저, 실제 다음 로그인, 전원 변경/복원, 화면 유지/시간 초과/분리/종료, Update COM/BITS ABI·다운로드 중 거절·서비스 중간 실패/복구·다음 실행 회복, 게임/편집 재개, .NET 없는 PC·SmartScreen·물리 DPI/키보드를 시험한다. 시험별 원상 복구와 실제 관측 근거를 남긴다. 별도 평가 환경이 확보되지 않아 아직 수행하지 않았다.
 5. 지원 범위별 증거를 원장/Task 표에 반영한 뒤 통합 배포를 갱신한다.
-6. **SP5·SP3 평가 항목(2026-09-27 추가)**: 평가 PC에서 DISM·SFC·chkntfs·netsh·복원 지점의 실제 출력 인코딩·진행 표시·시간 상한, mdsched 재부팅 흐름, 노트북에서 드라이버 안내 식별. 이 PC에서는 `ipconfig /flushdns`만 실제 실행했다.
+6. **SP5·SP3 평가 항목(2026-09-27 추가)**: 평가 PC에서 SFC·chkntfs·netsh·복원 지점의 실제 출력 인코딩·진행 표시·시간 상한, mdsched 재부팅 흐름, 노트북에서 드라이버 안내 식별, DISM /Source(같은 빌드 ISO). 이 PC에서는 `ipconfig /flushdns`와 DISM(사용자 실행, 0x800f0915로 실패 → 원본 복구 변형 추가)만 실제 실행됐다. UAC를 켠 PC에서 링크가 비승격 셸로 열리는지도 확인해야 한다(이 PC는 UAC 꺼짐).
 7. **UI 다듬기**: 1차 완료(좌측 내비게이션). 남은 것은 실기 DPI 100/150/200%·키보드 탐색·최소 폭 760px 확인과, SP2가 들어오면 고급 페이지 채우기. 대역 서비스 시험을 실제 서비스 복구 검증으로, 렌더 시험을 실제 DPI/키보드 검증으로, 파일 지문 보존을 다음 로그인 효과 검증으로 대신하지 않는다. 원격 게시/브랜치 병합을 이번 인계 작성 요청에 포함시키지 않는다.
 
 T1~5와 T11은 구현·자체 회귀 완료. T7/8은 구현됐으나 실제 설정 변경 시험이 남고, T6/9/10/12는 위의 지원 계약 또는 평가 항목이 열려 있다. 전체 계획 완료/정식 출시를 선언하지 말 것.
