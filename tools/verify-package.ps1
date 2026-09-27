@@ -1,4 +1,4 @@
-<#
+﻿<#
  @file    : verify-package.ps1
  @author  : rudals252
  @brief   : 실제 ZIP의 경로·필수 파일·PE 헤더·규칙 및 라이선스 원문·SHA-256을 추출 없이 검증

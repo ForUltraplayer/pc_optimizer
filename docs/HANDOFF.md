@@ -24,14 +24,14 @@
 
 ## 3. 현재 구현과 배포본
 
-**버전 `0.3.0-preview.7`**, 단일 파일/self-contained Windows x64 평가 빌드.
+**버전 `0.3.0-preview.8`**(T6 StartupApproved 토글·T10 그래픽 캐시 부분 정리·Resolve 기본 위치 포함), 단일 파일/self-contained Windows x64 평가 빌드.
 
-- ZIP: `dist/sp1-integrated/PcOptimizer-v0.3.0-preview.7-win-x64.zip`.
-- 실행 파일: `dist/sp1-integrated/PcOptimizer-v0.3.0-preview.7-win-x64/PcOptimizer.exe`.
+- ZIP: `dist/sp1-integrated/PcOptimizer-v0.3.0-preview.8-win-x64.zip`(57.0 MB).
+- 실행 파일: `dist/sp1-integrated/PcOptimizer-v0.3.0-preview.8-win-x64/PcOptimizer.exe`.
 - 해시: 같은 ZIP 이름의 `.sha256`.
-- SHA-256: `DD7D63723F07BB2518A94574EE582178553EC0F38B1BECD98D134AFA3FA3C001`.
-- ZIP 13파일/최상위4개, PE·필수 고지·규칙 원문·원본 해시 확인. 해시 불일치/고지 누락/규칙 변조/중복 항목 거절 시험도 통과.
-- preview.6는 비교용으로 보존. 그 이전 산출물 정리는 이미 완료했으므로 다시 광범위하게 삭제하지 않는다. `dist/`와 `artifacts/`는 로컬 산출물로 Git 커밋에 포함되지 않는다.
+- SHA-256: `4FD6AF375D56475C4CCBD5EFC4B77F916ED4F524E215BE6E1F145DCDAC431E71`.
+- ZIP 13파일/최상위4개, `tools/verify-package.ps1`로 PE·필수 고지·규칙 원문·원본 해시 확인(PowerShell 7과 5.1 모두 통과; 5.1용 UTF-8 BOM 추가). 변조 거절 시험은 preview.7 때 결과.
+- preview.7은 비교용으로 보존(preview.6는 정리해도 됨). 그 이전 산출물 정리는 이미 완료했으므로 다시 광범위하게 삭제하지 않는다. `dist/`와 `artifacts/`는 로컬 산출물로 Git 커밋에 포함되지 않는다.
 
 | 기능 | 현재 제공 범위 |
 |---|---|
