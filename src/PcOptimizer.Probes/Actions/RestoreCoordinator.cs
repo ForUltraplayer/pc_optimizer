@@ -68,6 +68,14 @@ public sealed class RestoreCoordinator
                 var record = transaction.Read(selected.RecordId);
                 if (record is null || !Matches(record, currentSession) || Completed(record)
                     || !await adapter.ValidateAsync(record, ct).ConfigureAwait(false)) { return null; }
+                if (record.ActionId == ActionId.UpdateServices)
+                {
+                    var service = SystemCleanup.UpdateServiceRecoveryAdapter.Service(record.TargetKey);
+                    var label = service is { } known ? SystemCleanup.UpdateServicePlatform.Name(known) : "지원하지 않는 서비스";
+                    return new(target, $"중단된 업데이트 정리의 서비스 복구 · {label}",
+                        "이 앱이 정리 전에 실행 중으로 기록한 서비스만 다시 시작합니다. 시작 유형은 바꾸지 않으며 삭제된 파일은 복원하지 않습니다.",
+                        new(label, "이미 실행 중이면 다시 시작하지 않습니다. 서비스가 전환 중이거나 복구하지 못하면 기록을 남깁니다.", RequiresRestart: false));
+                }
                 if (record.ActionId is ActionId.Startup or ActionId.MachineStartup && StartupRegistration.Name(record.TargetKey) is { } name)
                 {
                     var scopeLabel = StartupRegistration.Label(StartupRegistration.SourceOfKey(record.TargetKey)!);

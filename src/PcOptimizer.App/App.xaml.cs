@@ -124,7 +124,7 @@ public partial class App : Application
         }
         // 코드 카탈로그만 등록하며 준비/확인 전에는 사용자 파일을 변경하지 않는다.
         var actions = new ActionCenterViewModel(new ActionWorkflow(scanService.Operations, new RollbackStore(),
-            ReadActionSession, [new FileCleanupAdapter(ReadActionSession), FileCleanupAdapter.ForSystemTemp(ReadActionSession), FileCleanupAdapter.ForAdobeCache(ReadActionSession, adobeLocations), new DeliveryOptimizationAdapter(ReadActionSession), new OfficialCacheActionAdapter(new SystemCacheToolBackend(logger, actionScope != ActionUserScope.Full), ReadActionSession)], [new PowerActionAdapter(ReadActionSession), new StartupRunActionAdapter(ReadActionSession), StartupRunActionAdapter.ForMachine(ReadActionSession)]), dispatcher, async () =>
+            ReadActionSession, [new FileCleanupAdapter(ReadActionSession), FileCleanupAdapter.ForSystemTemp(ReadActionSession), FileCleanupAdapter.ForAdobeCache(ReadActionSession, adobeLocations), new DeliveryOptimizationAdapter(ReadActionSession), new OfficialCacheActionAdapter(new SystemCacheToolBackend(logger, actionScope != ActionUserScope.Full), ReadActionSession)], [new PowerActionAdapter(ReadActionSession), new StartupRunActionAdapter(ReadActionSession), StartupRunActionAdapter.ForMachine(ReadActionSession), new UpdateServiceRecoveryAdapter(ReadActionSession)]), dispatcher, async () =>
             {
                 if (viewModel?.StartScanCommand.CanExecute(null) != true) { throw new InvalidOperationException("RescanUnavailable"); }
                 await viewModel.StartScanCommand.ExecuteAsync(null);
