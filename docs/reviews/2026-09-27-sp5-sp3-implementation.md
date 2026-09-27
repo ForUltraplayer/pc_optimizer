@@ -37,3 +37,11 @@
 
 ## 4. UI 다듬기 전 남은 것(사용자 지시: SP5·SP3 뒤 UI)
 - 메인 화면에 창 진입 버튼이 4개(조치·주사율·문제 해결·드라이버)로 늘어 배치 정리가 필요하다. 좌측 내비게이션 구조(사용자 확정 배치안)로 옮기는 것이 다음 UI 작업이다.
+
+## 5. 후속(2026-09-27 저녁, 사용자 시험 뒤)
+
+- **링크 버튼이 안 먹던 문제**: 로그에 `LinkOpenFailed … InvalidOperationException`. 원인은 이 PC가 UAC를 끈 상태(EnableLUA=0, 내장 Administrator)라 탐색기 자체가 관리자 토큰이고, 실행기가 "비승격 셸이 아니면 거절"했기 때문. 세션의 데스크톱 셸(같은 세션·같은 창·같은 프로세스)이면 승격 여부와 무관하게 셸의 ShellExecute에 위임하도록 완화(`b5b8992`). 앱이 브라우저를 직접 시작하는 경로는 여전히 없다. 승격된 셸이었는지는 `ShellWasElevated`로 남긴다. 같은 COM 경로를 이 PC에서 직접 호출해 Chrome이 열리는 것을 확인했고 `DesktopShellSmokeTests`는 승격 셸도 세션 셸로 인정하도록 바꿨다.
+- **외부 링크 실제 확인**: 15개 중 14개 200, HWiNFO는 스크립트에 403(봇 차단)이지만 브라우저에서는 정상. DDU·OCCT는 리디렉션 최종 주소로 정정(`2895c4a`). 점검 스크립트 `tools/check-links.ps1` 추가(배포 전 실행 권장).
+- **유틸리티 탭**(`960fe62`): 좌측 내비게이션에 '유틸리티' 추가. 외부 도구를 분류별 카드 섹션(언제/무엇/주의·안전 배지·절차 펼치기·공식 사이트 열기)으로 보여 준다(`UtilitiesView`, `TroubleshootingViewModel.UtilityGroups`).
+- **DISM 0x800f0915**: 사용자가 이 PC에서 실행해 '복구 콘텐츠를 찾을 수 없음'으로 실패. 진단(읽기 전용): WU/BITS/DO 서비스 실행 중, 차단 정책 없음, dism.log에 CBS 0x800f0915. 프리뷰 빌드(26200)라 WU에 복구 페이로드가 없거나 AdGuard가 막았을 가능성. 대응: (1) 알려진 종료 코드(0x800f0915/081f/0906/0954)를 한국어 안내로 바꿈(`ExplainExitCode`), (2) 새 직접 실행 명령 `dism-restorehealth-source` = `/Online /Cleanup-Image /RestoreHealth /Source:{WIM|ESD:…\sources\install.wim|esd:1} /LimitAccess`. 사용자가 고른 폴더는 Core `InstallMediaSource`가 sources\install.wim/esd 존재·절대 경로·UNC/와일드카드 금지로 검증한 뒤에만 인자로 바뀐다(명령 목록은 여전히 닫혀 있음). 카탈로그에 도구·절차와 증상 순서를 추가.
+- 검증: Release 0/0, 기본 1693/1693, Smoke 58/58, 유틸리티·문제 해결 오프스크린 렌더 확인, preview.11 ZIP 검증 통과. DISM /Source 실제 실행은 같은 빌드의 ISO가 없어 이 PC에서 시험하지 못했다.
