@@ -1,23 +1,104 @@
 # HANDOFF — PC Optimizer (2026-09-27)
 
+이 문서의 **재개 안내와 현재 상태가 아래 과거 기록보다 우선**한다. SP1 전체 완료/정식 출시 상태가 아니다. 사용자 마지막 요청은 인계 문서 작성이며, 기능 변경을 추가로 수행하지 않았다.
 
-## 최신 — preview.7 통합 구현·UI·자체 검증
+## 1. 재개 위치와 작업 원칙
 
-구현·검증·배포 기록 커밋 **`9ab6822`** (`f403a97..9ab6822`).
+- 실제 저장소: `C:\Users\Administrator\Desktop\pc_optimizer`. 과거 대화의 `Desktop\windows` 경로를 그대로 사용하지 말 것.
+- 브랜치: `codex/sp1-actions`.
+- 인계 작성 직전 HEAD: `be22e22` (구현 커밋 참조 문서). 최신 제품 구현: **`9ab6822`** (`f403a97..9ab6822`, 29파일). 이 인계 변경은 그 뒤의 문서 전용 커밋이다.
+- 작성 착수 시 작업 트리 깨끗함. 이 세션이 실행한 백그라운드 작업·서브에이전트 없음. 실행 중인 사용자 앱을 종료/교체하지 않았다.
+- `feature/p0-skeleton`은 앞서 로컬 master `32ab51f`로 병합됐다. **이번 SP1 브랜치는 master에 병합하지 않았고 원격 게시도 하지 않았다.**
+- 사용자 우선순위: **기능 구현 → UI/UX 개선 → 검증**. 기능 하나마다 프리뷰를 만들고 멈추지 말고 묶어서 진행한다. 기존 도구·Windows 공식 기능의 통합 활용이 제품 방향이다.
+- **독립 리뷰와 서브에이전트는 사용자 지시로 생략**한다. 자체 테스트를 독립 승인으로 표시하지 않는다.
+- 착수 전 [공유 리뷰 원장](reviews/REVIEW_LEDGER.md)을 읽고 관련 REV-008/013/016/017/018 및 제품 방향 REV-004/015의 대응 기록을 유지한다. 기존 발견·증거를 지우지 않는다.
+- 개발 시험은 소유한 임시 파일/레지스트리 또는 대역을 쓴다. 실제 사용자 캐시·시작 등록·서비스·전원·화면 변경 시험은 별도 평가 환경에서 수행한다. 일반 작업 PC에 임의 적용하지 않는다.
 
-[전체 근거와 정확한 미완료 범위](reviews/2026-09-27-sp1-integrated-completion.md). 이번 구현은 기본 사용자·공용 시작 바로가기 보관/복원, 효과별 조치 선택 화면, 빈 목록/긴 설명·미리보기/결과 보존이며, 그간 미배포된 HKLM 시작 등록·Adobe/영상 수동 위치·Update/DO·Steam 실행 기능을 한 배포본에 묶었다.
+## 2. 바로 읽을 문서
 
-- Release 경고 0/오류 0, 기본 **1639/1639**, 전체 Smoke **57/57**, 소유 임시 캐시 ToolSmoke **4/4**. Online 미실행(관련 코드 불변). 독립 리뷰/서브에이전트 생략.
-- 배포: `dist/sp1-integrated/PcOptimizer-v0.3.0-preview.7-win-x64.zip`. 13파일/최상위4·고지/규칙/해시 및 변조 검증기 4종 통과. 실행 파일은 같은 이름의 폴더에 있다. 이전 preview.6는 보존.
-- **전체 계획 완료로 표시하지 않는다.** 남은 구현은 StartupApproved 토글, 미확인 앱 버전별 설정 자동 탐지, NVIDIA 직접 정리의 검증된 지원 계약이다. 현재는 Run/기본 시작 폴더, 수동 위치, 공식 안내로 각각 제공한다. 영구적인 범위 축소 결정이 아니다.
-- 실제 UAC·다른 계정·로그인/전원/화면·업데이트 서비스 복구·게임/편집 재개·.NET 없는 Windows 11 평가 환경이 없어 T12 수동 시험은 미완료다. 실제 사용자 캐시/설정을 개발 시험으로 변경하지 않았다.
-- Task 1~12 현재 표는 [SP1 진행 기록](superpowers/sp1-progress.md). 원장 관련 경계는 이번 자체 증거를 추가했으며 기존 독립 검증 상태는 변경하지 않았다. master 병합/원격 게시 없음.
+1. [공유 리뷰 원장](reviews/REVIEW_LEDGER.md)의 마지막 통합 기록과 관련 리뷰 ID.
+2. [통합 구현·자체 검증 보고서](reviews/2026-09-27-sp1-integrated-completion.md): 실행 계약, 변경 경계, 실패 이력, 테스트 명령, 미완료 범위.
+3. [Task 1~12 현재 표](superpowers/sp1-progress.md).
+4. [원래 SP1 계획](superpowers/plans/2026-09-27-sp1-actions.md), [남은 구현 계획과 실행 결과](superpowers/plans/2026-09-27-sp1-remaining-implementation.md).
+5. 특정 기능을 이어갈 때 [업데이트 Download 실행](reviews/2026-09-27-update-download-implementation.md), [Steam·그래픽 계약](reviews/2026-09-27-steam-cleanup-and-graphics-guides.md), [HKLM·수동 앱 위치](reviews/2026-09-27-implementation-first-expansion.md).
+
+## 3. 현재 구현과 배포본
+
+**버전 `0.3.0-preview.7`**, 단일 파일/self-contained Windows x64 평가 빌드.
+
+- ZIP: `dist/sp1-integrated/PcOptimizer-v0.3.0-preview.7-win-x64.zip`.
+- 실행 파일: `dist/sp1-integrated/PcOptimizer-v0.3.0-preview.7-win-x64/PcOptimizer.exe`.
+- 해시: 같은 ZIP 이름의 `.sha256`.
+- SHA-256: `DD7D63723F07BB2518A94574EE582178553EC0F38B1BECD98D134AFA3FA3C001`.
+- ZIP 13파일/최상위4개, PE·필수 고지·규칙 원문·원본 해시 확인. 해시 불일치/고지 누락/규칙 변조/중복 항목 거절 시험도 통과.
+- preview.6는 비교용으로 보존. 그 이전 산출물 정리는 이미 완료했으므로 다시 광범위하게 삭제하지 않는다. `dist/`와 `artifacts/`는 로컬 산출물로 Git 커밋에 포함되지 않는다.
+
+| 기능 | 현재 제공 범위 |
+|---|---|
+| 시작 앱 | HKCU Run·HKLM32/64 Run 등록 해제/원문 복원. 기본 사용자·공용 Startup의 지원 `.lnk`는 Programs 폴더에 보관/복원 |
+| 일반 정리 | 사용자·Windows 임시 파일 7일 기준, 공식 npm·pip·NuGet HTTP 도구 실행 |
+| 업데이트 | DO 비고정 캐시 ID별 처리, 고정 Windows Download 7일 파일·서비스 원본 기록/중지/복구. wuauserv·BITS 모두 Running 등 제한 조건 |
+| Adobe | 기본/직접 선택 Media Cache Files·Peak Files의 90일 `.cfa/.pek`만 정리 |
+| Steam | 직접 선택한 현재 라이브러리 shadercache의 AppID 아래 30일 파일. Program Files 보호 유지, Steam·게임 관측 불완전 시 거절 |
+| Resolve·CapCut | 기본/지원 설정 또는 수동 CacheClip/Cache 위치의 용량 검사. 직접 삭제 없음 |
+| 그래픽 | NVIDIA DX/GL/NV_Cache·Direct3D 관측, 공식 안내/Windows 기능 연결. 직접 삭제 없음 |
+| 전원·주사율 | 전원 계획 적용/복원, 같은 해상도 주사율 시험·15초 유지 확인/복구 기록. 실제 변경 평가는 남음 |
+| UI/UX | 공간 확보/자동 실행/전원 효과별 진입·필터, 확인/결과 우선 배치, 필터 변경 시 계획·결과 보존, 수동 위치 펼침, 빈 목록 사유 |
+
+시작 폴더 보관 파일과 복구 기록을 모두 유지해야 복원할 수 있다. 파일 지문(ID/본문/ACL 등) 변경이나 원래 이름 충돌 시 덮어쓰지 않는다. 이 기능을 Task Manager의 사용/사용 안 함 토글과 동일하다고 설명하지 않는다. 자세한 제약은 통합 보고서와 `tools/README-in-zip.txt`를 따른다.
+
+## 4. 검증 상태와 실행 환경
+
+| 항목 | 마지막 실제 결과 |
+|---|---|
+| Release 솔루션 빌드 | 경고 0 / 오류 0 |
+| 기본 | **1639/1639** |
+| Smoke | **57/57** |
+| ToolSmoke | **4/4**, 소유 임시 캐시에 고정한 npm·pip·NuGet |
+| UI | WPF 100/150/200% 오프스크린 회귀, 메인/좁은 창 PNG 시각 확인 |
+| Online | 미실행. 온라인 수집 코드가 바뀌지 않아 재실행하지 않음 |
+
+증거: `artifacts/sp1-completion/sp1-final-basic.trx`, `sp1-final-smoke.trx`, `sp1-final-toolsmoke.trx`, `ui/`. 인계 문서 작성 시에는 테스트를 다시 실행하지 않았다.
+
+- SDK: `C:\Program Files\dotnet\dotnet.exe` 10.0.401. PowerShell 사용.
+- ToolSmoke 변수: `PCOPTIMIZER_TEST_NODE=C:\Program Files\nodejs\node.exe`, `PCOPTIMIZER_TEST_PYTHON=C:\ProgramData\Anaconda3\python.exe`, `PCOPTIMIZER_TEST_DOTNET=C:\Program Files\dotnet\dotnet.exe`.
+- 화면 증거 저장: `PCOPTIMIZER_UI_ARTIFACTS=<저장소>\artifacts\sp1-completion\ui`.
+- native Smoke의 조상 디렉터리 핸들, NuGet 자식 프로세스, 패키징의 NuGet.Config 읽기는 샌드박스 제한 밖 실행이 필요했다. 접근 거절을 제품 결함/미설치로 오해하거나 보호 코드를 완화하지 않는다. 권한은 도구의 정상 승인 경로를 사용한다.
+- 명령 전문과 초기 실패·수정은 통합 보고서에 있다. 새 코드가 없으면 수치 갱신만을 위해 전체 테스트를 반복하지 않는다. 변경 시 관련 회귀부터 실행한다.
+
+## 5. 남은 작업과 재개 순서
+
+**미지원 기능은 영구 제외로 승인된 것이 아니다.** 근거가 없어서 추측 구현하지 않은 상태다. 아래 순서로 지원 계약과 fixture를 확보한 뒤 구현 → UI → 검증한다.
+
+1. **T10 앱 설정 자동 탐지 확대**: 설치 버전/공식 설명/민감 값을 제거한 실제 설정 fixture로 Adobe·CapCut 형식과 Resolve 프로젝트별 재정의 위치를 확인한다. 경로 필드만 제한적으로 읽고 파일 부재와 읽기 실패·형식 불명을 구분한다. 현재 수동 위치 선택을 자동 탐지라고 표시하지 않는다. 현재 PC에 해당 버전/자료가 없으면 그 조건을 기록하고 다른 독립 작업을 진행한다.
+2. **T6 StartupApproved 토글**: 전체 값 형식과 원복·미등록 값 의미를 검증할 계약/평가 OS가 먼저 필요하다. 첫 바이트 0x02/0x03만 근거로 쓰지 않는다. 현재 Run/기본 폴더 동작을 유지하고 같은 이름의 출처를 섞지 않는다.
+3. **T10 NVIDIA 직접 정리**: 공식 절차의 설정·재부팅·그래픽 작성자 유휴/재개 계약을 확인한 뒤 별도 공급자로 구현할 수 있는지 판단한다. 현재 공식 안내를 임의 재귀 삭제로 바꾸지 않는다. Steam 설정 읽기용 Program Files 예외를 삭제에 재사용하지 않는다.
+4. **T8/T9/T12 평가 Windows 11/VM**: UAC 승인/거절·다른 계정 SystemOnly·비승격 브라우저, 실제 다음 로그인, 전원 변경/복원, 화면 유지/시간 초과/분리/종료, Update COM/BITS ABI·다운로드 중 거절·서비스 중간 실패/복구·다음 실행 회복, 게임/편집 재개, .NET 없는 PC·SmartScreen·물리 DPI/키보드를 시험한다. 시험별 원상 복구와 실제 관측 근거를 남긴다. 별도 평가 환경이 확보되지 않아 아직 수행하지 않았다.
+5. 지원 범위별 증거를 원장/Task 표에 반영한 뒤 통합 배포를 갱신한다. 대역 서비스 시험을 실제 서비스 복구 검증으로, 렌더 시험을 실제 DPI/키보드 검증으로, 파일 지문 보존을 다음 로그인 효과 검증으로 대신하지 않는다. 원격 게시/브랜치 병합을 이번 인계 작성 요청에 포함시키지 않는다.
+
+T1~5와 T11은 구현·자체 회귀 완료. T7/8은 구현됐으나 실제 설정 변경 시험이 남고, T6/9/10/12는 위의 지원 계약 또는 평가 항목이 열려 있다. 전체 계획 완료/정식 출시를 선언하지 말 것.
+
+## 6. 주요 코드와 회귀 진입점
+
+| 작업 | 파일/디렉터리 |
+|---|---|
+| 시작 폴더 native | `src/PcOptimizer.Probes/Actions/Startup/StartupFolderPlatform.cs`, `StartupRunActionAdapter.cs` |
+| 시작 출처/보존 | `src/PcOptimizer.Core/Actions/StartupRegistration.cs`, `StartupSelection.cs`, `RollbackRecord.cs`; `Probes/Actions/RollbackCodec.cs` |
+| 업데이트 정리/복구 | `src/PcOptimizer.Probes/Actions/SystemCleanup/WindowsUpdateCleanupAdapter.cs`, `UpdateCleanupGuard.cs`, `UpdateServiceMaintenance.cs`, `UpdateServiceRecoveryAdapter.cs` |
+| 앱 위치/정리 | `src/PcOptimizer.Probes/Actions/Files/AdobeCacheLocationCatalog.cs`, `SteamCacheLocationCatalog.cs`; `Applications/VideoCacheLocations.cs`, `Applications/ConfigReaders/` |
+| 효과 UI | `src/PcOptimizer.App/ViewModels/ActionCenterViewModel.cs`, `ActionPresentation.cs`; `Views/ActionCenterWindow.xaml`, `MainWindow.xaml`/`.cs`; 등록은 `App.xaml.cs` |
+| 추가 회귀 | `tests/PcOptimizer.Tests/Unit/App/IntegratedActionTests.cs`, `UpdateMaintenanceTests.cs`, `ActionCenterLayoutTests.cs`; `Smoke/StartupFolderSmokeTests.cs` |
+| 패키징 | `tools/package.ps1`, `verify-package.ps1`, `test-package-verifier.ps1`, `README-in-zip.txt` |
+
+새 조치는 기존 공통 관문·실제 작업 종료 대기·대상/세션 재대조·복구 기록 경계를 통해 연결한다. 보호 정책/사용자 경계·새 파일 제외·관측 크기와 실제 효과 구분을 유지한다. 최신 원장 확인과 대응 기록 갱신이 각 작업의 마무리다.
+
+---
 
 ## 아래는 이전 이력 (당시 상태)
 
 현재 브랜치 `codex/sp1-actions`. 사용자 인계 지시에 따라 `feature/p0-skeleton`을 로컬 `master`에 fast-forward 병합했다(`77efa2e` → `32ab51f`). 기존 브랜치는 보존했고 원격 게시는 하지 않았다. 아래 날짜별 기록은 당시 상태를 보존한 이력이다.
 
-## 현재 작업 — T10-B Steam 선택 정리·그래픽 공식 안내
+## 이전 기록 — T10-B Steam 선택 정리·그래픽 공식 안내
 
 - 구현 커밋 **`6b163e8`** (`9687ff4..6b163e8`, 18파일). 후속 문서 커밋은 이 참조만 기록한다.
 - 기준 `9687ff4`. [구현 계약·변경 파일·공식 근거·검증 이월](reviews/2026-09-27-steam-cleanup-and-graphics-guides.md). Steam 라이브러리의 shadercache 명시 선택 → 현재 설정 대조 → 30일 경과 AppID 파일 미리보기 → 실행/재검사를 연결했다. Program Files 삭제 보호 유지, Steam/게임 관측·불완전 조회 거절, 파일별 기존 보호 엔진 재사용.
