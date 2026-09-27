@@ -782,3 +782,10 @@
 - 최종 `dotnet test tests/PcOptimizer.Tests -c Release --no-restore --filter "Category!=Smoke&Category!=Online&Category!=ToolSmoke|FullyQualifiedName~GpuReadSmokeTests" --logger "trx;LogFileName=beta-final.trx"` → **1764/1764(기본1761+GPU 조회3)**. Release0/0, GPU 대역36개·440px UI100/150/200% 렌더. NVIDIA616.56 프로필73/영상출력3 조회, AMD 미설치 안내 확인. 자체 검증이며 독립 리뷰 없음.
 - 실패 기록: AMD 테스트 var 선언 컴파일 오류 수정. 저장하지 않는 DRS 메모리 사본의 SetSetting은 -137(관리자 권한 필요)로 실패. 자동 승인 검토가 실제 드라이버 API 쓰기 위험으로 권한 상승 재시도를 거절하여 우회하지 않고 해당 자동 Smoke를 제거했다. SaveSettings/영상/AMD 실제 setter는 호출하지 않았다. 제품의 GPU 적용·복원은 대역으로만 검증했다는 제한을 README·ZIP·베타 노트에 반영.
 - 원격 태그 `v0.0.2-beta.1`, Pre-release·ZIP·sha256 게시 예정. 패키지·게시 결과와 커밋은 후속 기록한다. 기존0.0.1 유지, master 병합 없음. 실제 GPU 변경/재부팅·AMD 장치·다른 사용자·.NET 없는 PC·기존 전체 Smoke/Online/ToolSmoke는 미실시.
+
+### 0.0.2 Beta 1 게시 확인
+
+- 구현/배포 기준 커밋 **`bf6f483`**, 태그 `v0.0.2-beta.1`의 peeled commit 일치. `codex/sp1-actions` push와 공개 [Pre-release](https://github.com/ForUltraplayer/pc_optimizer/releases/tag/v0.0.2-beta.1) 게시 완료. 이 후속 문서 커밋은 제품 코드·태그·ZIP을 바꾸지 않는다.
+- 패키지 초기 실행은 샌드박스의 NuGet.Config 읽기 거절로 중단됐다. **패키징만** 정상 권한으로 재실행해 locked restore/publish 성공, ZIP13파일/최상위4·필수 고지·규칙 원본·SHA 검증 통과. 앱/GPU 테스트를 실행하지 않았다.
+- 실행 파일 FileVersion `0.0.2.0`, ProductVersion `0.0.2-beta.1+bf6f483...`. ZIP **59,866,386 bytes**, SHA-256 **`95C83B800DEAD912619F5C298FEB29C70F5C91BF8F08F1EC37B3AA0A846A5C0B`**.
+- 인증 없는 GitHub API에서 public=true, draft=false, prerelease=true, 첨부 ZIP/sha256 두 개 확인. 원격 ZIP asset digest가 위 로컬 SHA와 일치. 기존0.0.1을 변경하거나 master 병합하지 않았다.
