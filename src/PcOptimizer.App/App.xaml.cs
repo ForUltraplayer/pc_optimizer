@@ -72,8 +72,9 @@ public partial class App : Application
             logger.Warn(LOG_CATEGORY, $"VendorLinksUnavailable errors={vendorLinks.Errors.Count}");
         }
 
+        var videoLocations = new PcOptimizer.Probes.Applications.VideoCacheLocations();
         var scanService = ScanService.CreateDefault(
-            logger, limitToSystemScope: userScope == UserScopeMode.SystemOnly, rules: bundledRules, vendorLinks: vendorLinks.Catalog);
+            logger, limitToSystemScope: userScope == UserScopeMode.SystemOnly, rules: bundledRules, vendorLinks: vendorLinks.Catalog, videoLocations: videoLocations);
 
         // 내 PC 사양은 검사와 같은 프로브 인스턴스를 규칙 없이 직접 실행한다(검사 중에는 새로 고침을 막음). 이미지 저장 대상은 창이 만들어진 뒤 정해진다.
         var dispatcher = new WpfUiDispatcher(Dispatcher);
@@ -93,9 +94,37 @@ public partial class App : Application
         MainViewModel? viewModel = null;
         var actionScope = userScopeUnresolved ? ActionUserScope.Unknown : userScope == UserScopeMode.SystemOnly ? ActionUserScope.SystemOnly : ActionUserScope.Full;
         ActionSession ReadActionSession() => SystemActionSession.Read(actionScope);
+        bool? SelectVideoFolder(string app)
+        {
+            if (ReadActionSession() is not { IsKnown: true, Scope: ActionUserScope.Full } || app is not ("davinci" or "capcut")) { return false; }
+            var picker = new Microsoft.Win32.OpenFolderDialog
+            {
+                Title = app == "davinci" ? "Resolve 프로젝트 설정에서 확인한 CacheClip 폴더를 선택하세요" : "CapCut 설정에서 확인한 Cache 폴더를 선택하세요",
+                Multiselect = false,
+            };
+            return picker.ShowDialog() == true ? videoLocations.TrySet(app, picker.FolderName) : null;
+        }
+        var adobeLocations = new AdobeCacheLocationCatalog();
+        string? PickAdobeFolder()
+        {
+            var picker = new Microsoft.Win32.OpenFolderDialog
+            {
+                Title = "Adobe 설정에서 지정한 Media Cache Files 또는 Peak Files 폴더를 선택하세요",
+                Multiselect = false,
+            };
+            return picker.ShowDialog() == true ? picker.FolderName : null;
+        }
+        (ActionChoice? Choice, string? Code) RegisterAdobeFolder(string path)
+        {
+            var registration = adobeLocations.TryRegister(path, ReadActionSession());
+            return registration.Key is { } key
+                ? (new(ActionId.AppFiles, new ActionTarget.Files(key), "사용자 지정 Adobe 캐시 · " + path,
+                    "선택한 위치의 90일 이상 된 오디오·파형 파일만 확인합니다. 앱 재시작 후에는 폴더를 다시 선택하세요."), null)
+                : (null, registration.Code);
+        }
         // 코드 카탈로그만 등록하며 준비/확인 전에는 사용자 파일을 변경하지 않는다.
         var actions = new ActionCenterViewModel(new ActionWorkflow(scanService.Operations, new RollbackStore(),
-            ReadActionSession, [new FileCleanupAdapter(ReadActionSession), FileCleanupAdapter.ForSystemTemp(ReadActionSession), FileCleanupAdapter.ForAdobeCache(ReadActionSession), new DeliveryOptimizationAdapter(ReadActionSession), new OfficialCacheActionAdapter(new SystemCacheToolBackend(logger, actionScope != ActionUserScope.Full), ReadActionSession)], [new PowerActionAdapter(ReadActionSession), new StartupRunActionAdapter(ReadActionSession)]), dispatcher, async () =>
+            ReadActionSession, [new FileCleanupAdapter(ReadActionSession), FileCleanupAdapter.ForSystemTemp(ReadActionSession), FileCleanupAdapter.ForAdobeCache(ReadActionSession, adobeLocations), new DeliveryOptimizationAdapter(ReadActionSession), new OfficialCacheActionAdapter(new SystemCacheToolBackend(logger, actionScope != ActionUserScope.Full), ReadActionSession)], [new PowerActionAdapter(ReadActionSession), new StartupRunActionAdapter(ReadActionSession), StartupRunActionAdapter.ForMachine(ReadActionSession)]), dispatcher, async () =>
             {
                 if (viewModel?.StartScanCommand.CanExecute(null) != true) { throw new InvalidOperationException("RescanUnavailable"); }
                 await viewModel.StartScanCommand.ExecuteAsync(null);
@@ -110,7 +139,7 @@ public partial class App : Application
                 new(ActionId.Power, new ActionTarget.Power(PowerActionAdapter.PowerSaver), "절전 전원 계획", "전력 소비를 줄이는 쪽으로 선택합니다. 작업 응답성이 낮아질 수 있으며 이전 계획으로 되돌릴 수 있습니다."),
                 .. (actionScope == ActionUserScope.Full ? Enum.GetValues<OfficialCacheTool>() : []).Where(t => SystemCacheToolBackend.IsToolInProtectedLocation((CacheTool)t))
                     .Select(t => new ActionChoice(ActionId.OfficialCache, new ActionTarget.OfficialTool(t), t + " 공식 캐시 정리", "공식 도구로 다운로드 캐시를 정리합니다. 재다운로드가 필요할 수 있으며 개별 파일 미리보기와 처리 범위가 다릅니다."))],
-                    new SettingsUriPolicy(logger).TryOpen);
+                    new SettingsUriPolicy(logger).TryOpen, PickAdobeFolder, RegisterAdobeFolder, SelectVideoFolder, videoLocations.Clear);
         viewModel = new MainViewModel(
             scanService,
             new ReportExporter(PersonalDataScrubber.FromEnvironment()),

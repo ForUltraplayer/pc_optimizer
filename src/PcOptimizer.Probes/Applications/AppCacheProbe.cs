@@ -45,6 +45,7 @@ public sealed class AppCacheProbe : IProbe
     private readonly IClock _clock;
     private readonly TimeProvider _time;
     private readonly string? _currentUserSid;
+    private readonly VideoCacheLocations? _videoLocations;
 
     /// <summary>
     /// 프로브를 만듭니다.
@@ -67,7 +68,8 @@ public sealed class AppCacheProbe : IProbe
         IReadOnlyList<IAppConfigReader> readers,
         IClock clock,
         TimeProvider time,
-        string? currentUserSid)
+        string? currentUserSid,
+        VideoCacheLocations? videoLocations = null)
     {
         ArgumentNullException.ThrowIfNull(loader);
         ArgumentNullException.ThrowIfNull(fileScan);
@@ -91,6 +93,7 @@ public sealed class AppCacheProbe : IProbe
         _clock = clock;
         _time = time;
         _currentUserSid = currentUserSid;
+        _videoLocations = videoLocations;
 
         var total = fileScan.BudgetPerVolume * fileScan.CountPlannedVolumes() + FileScanProbe.FILE_SCAN_TIMEOUT_MARGIN;
         DefaultTimeout = total > FileScanProbe.FILE_SCAN_TIMEOUT_CAP ? FileScanProbe.FILE_SCAN_TIMEOUT_CAP : total;
@@ -120,7 +123,7 @@ public sealed class AppCacheProbe : IProbe
     /// <param name="fileScan">공유 파일 스캔 서비스(파일 스캔 프로브와 같은 인스턴스).</param>
     /// <param name="rules">포함 규칙 로더(없으면 <see cref="RuleCatalogLoader.CreateEmbedded"/>).</param>
     /// <returns>프로브.</returns>
-    public static AppCacheProbe CreateDefault(IFileScanService fileScan, RuleCatalogLoader? rules = null)
+    public static AppCacheProbe CreateDefault(IFileScanService fileScan, RuleCatalogLoader? rules = null, VideoCacheLocations? videoLocations = null)
     {
         var environment = SystemPathEnvironment.Instance;
         var source = FileSystemDirectoryEntrySource.Instance;
@@ -140,7 +143,7 @@ public sealed class AppCacheProbe : IProbe
             ],
             SystemClock.Instance,
             TimeProvider.System,
-            CurrentUserSid());
+            CurrentUserSid(), videoLocations);
     }
 
     /// <summary>
@@ -178,7 +181,7 @@ public sealed class AppCacheProbe : IProbe
         var protection = shared.Protection!;
         var otherUsers = OtherUserLocationGuard.Create(_registry, _environment, _currentUserSid);
         var reparse = new ReparseAncestorCheck(_source);
-        var editorMeasurements = new VideoEditorCacheInspector(_environment, _source, _time).Inspect(protection,
+        var editorMeasurements = new VideoEditorCacheInspector(_environment, _source, _time, _videoLocations?.Snapshot()).Inspect(protection,
             otherUsers.IsOtherUserLocation, otherUsers.ProfileListAvailable && !string.IsNullOrWhiteSpace(_currentUserSid), _clock.UtcNow,
             () => _time.GetElapsedTime(start) >= DefaultTimeout - FileScanProbe.FILE_SCAN_TIMEOUT_MARGIN, ct);
         editorMeasurements.AddRange(new ShaderCacheInspector(_environment, _registry, _source, _time).Inspect(protection,

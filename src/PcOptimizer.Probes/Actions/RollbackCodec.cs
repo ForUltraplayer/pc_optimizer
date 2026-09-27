@@ -57,11 +57,12 @@ internal static class RollbackCodec
     internal static void Validate(RollbackRecord r, string sid)
     {
         if (r.Version != 1 || r.Id == Guid.Empty || r.Sid != sid || string.IsNullOrWhiteSpace(sid) || sid.Length > 184
-            || r.ActionId is not (ActionId.Startup or ActionId.Power or ActionId.Display or ActionId.SystemFiles)
+            || r.ActionId is not (ActionId.Startup or ActionId.MachineStartup or ActionId.Power or ActionId.Display or ActionId.SystemFiles)
             || !Enum.IsDefined(r.Scope) || !Enum.IsDefined(r.State) || !Enum.IsDefined(r.Purpose)
             || r.Revision < 0 || r.CreatedAt == default || r.UpdatedAt < r.CreatedAt
             || string.IsNullOrWhiteSpace(r.TargetKey) || r.TargetKey.Length > 512 || r.TargetKey.Any(char.IsControl)
             || (r.ActionId is ActionId.Power or ActionId.Display && r.Scope != ActionScope.CurrentUser)
+            || (r.ActionId == ActionId.MachineStartup && r.Scope != ActionScope.System)
             || (r.Purpose == RollbackPurpose.ServiceRecovery) != (r.ActionId == ActionId.SystemFiles)
             || (r.Purpose == RollbackPurpose.ServiceRecovery && r.Scope != ActionScope.System)
             || (r.Purpose == RollbackPurpose.TemporaryDisplay && r.ActionId != ActionId.Display))

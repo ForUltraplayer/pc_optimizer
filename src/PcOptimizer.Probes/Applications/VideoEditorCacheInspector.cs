@@ -13,7 +13,8 @@ using PcOptimizer.Probes.Storage;
 
 namespace PcOptimizer.Probes.Applications;
 
-internal sealed class VideoEditorCacheInspector(IPathEnvironment environment, IDirectoryEntrySource source, TimeProvider time)
+internal sealed class VideoEditorCacheInspector(IPathEnvironment environment, IDirectoryEntrySource source, TimeProvider time,
+    IReadOnlyDictionary<string, string>? selected = null)
 {
     internal List<Measurement> Inspect(ResolvedProtection protection, Func<string, bool> otherUser, bool profileVerified,
         DateTimeOffset now, Func<bool> expired, CancellationToken ct)
@@ -21,6 +22,12 @@ internal sealed class VideoEditorCacheInspector(IPathEnvironment environment, ID
         var output = new List<Measurement>();
         var profile = environment.GetUserProfilePath();
         if (profile is null || !profileVerified) { return output; }
+        if (selected?.GetValueOrDefault("davinci") is { } chosenResolve)
+        {
+            Observe("davinci", chosenResolve, "사용자가 지정한 CacheClip 폴더입니다. 프로젝트 설정을 자동으로 읽어 찾은 위치가 아닙니다. 이 위치만 검사하며 자동 정리하지 않습니다.");
+        }
+        else
+        {
         var configPath = Path.Combine(profile, DaVinciCacheConfigReader.RelativeConfig);
         var config = protection.IsProtected(configPath) || otherUser(configPath)
             ? new AppConfigReading("davinci", AppConfigReadState.Unreadable, AppConfigValueOrigin.UserFile, [])
@@ -39,9 +46,17 @@ internal sealed class VideoEditorCacheInspector(IPathEnvironment environment, ID
                     : "기본 동영상 폴더의 CacheClip 후보만 확인했습니다. 프로젝트별·옮겨진 위치는 확인하지 않았습니다.");
             }
         }
+        }
+        if (selected?.GetValueOrDefault("capcut") is { } chosenCapcut)
+        {
+            Observe("capcut", chosenCapcut, "사용자가 CapCut 설정에서 확인해 지정한 Cache 폴더입니다. 이 위치만 검사하며 프로젝트·초안 경로를 추정하거나 자동 정리하지 않습니다.");
+        }
+        else
+        {
         var capcutApp = Path.Combine(profile, @"AppData\Local\CapCut\User Data");
         if (source.ProbeRoot(capcutApp) != RootPresence.Missing)
         { Observe("capcut", Path.Combine(capcutApp, "Cache"), "Windows 기본 User Data/Cache 후보만 확인했습니다. 버전별·사용자 지정 위치는 확인하지 않았습니다."); }
+        }
         return output;
 
         void Observe(string app, string path, string scope)

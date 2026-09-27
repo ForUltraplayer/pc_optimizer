@@ -12,7 +12,18 @@ public static class StartupRegistration
 {
     /// <summary>64비트 현재 사용자 Run만 지원합니다.</summary>
     public const string Source = "hkcu.run";
+    /// <summary>모든 사용자에게 적용되는 64비트 Run 출처입니다.</summary>
+    public const string Machine64 = "hklm64.run";
+    /// <summary>모든 사용자에게 적용되는 32비트 Run 출처입니다.</summary>
+    public const string Machine32 = "hklm32.run";
     private const string Prefix = "hkcu-run-v1:";
+    private static string? PrefixFor(string source) => source switch
+    { Source => Prefix, Machine64 => "hklm64-run-v1:", Machine32 => "hklm32-run-v1:", _ => null };
+    /// <summary>기계 전체에 영향을 주는 허용 출처인지 판정합니다.</summary>
+    public static bool IsMachine(string source) => source is Machine64 or Machine32;
+    /// <summary>동일 이름을 가진 출처를 구분하는 사용자 표시입니다.</summary>
+    public static string Label(string source) => source switch
+    { Source => "현재 사용자", Machine64 => "모든 사용자 · 64비트", Machine32 => "모든 사용자 · 32비트", _ => "지원하지 않는 출처" };
     private static readonly Encoding StrictUtf8 = new UTF8Encoding(false, true);
     private static readonly Encoding StrictUnicode = new UnicodeEncoding(false, false, true);
     /// <summary>복구 키 길이와 화면 표시를 제한하며 기본값/제어 문자는 허용하지 않습니다.</summary>
@@ -20,14 +31,19 @@ public static class StartupRegistration
         && !name.Any(c => char.IsControl(c) || char.IsSurrogate(c) || char.GetUnicodeCategory(c) == System.Globalization.UnicodeCategory.Format);
     /// <summary>등록 이름만 복구 키로 저장합니다. 경로나 명령으로 사용하지 않습니다.</summary>
     public static string Key(string name) => ValidName(name) ? Prefix + Convert.ToBase64String(StrictUtf8.GetBytes(name)) : throw new ArgumentException("Unsupported name");
+    /// <summary>출처와 이름을 함께 저장하며 기존 HKCU 복구 키와 호환됩니다.</summary>
+    public static string Key(string source, string name) => PrefixFor(source) is { } prefix && ValidName(name)
+        ? prefix + Convert.ToBase64String(StrictUtf8.GetBytes(name)) : throw new ArgumentException("Unsupported target");
+    /// <summary>허용된 버전의 키에서 출처를 얻습니다. 이름도 별도로 검증해야 합니다.</summary>
+    public static string? SourceOfKey(string key) => new[] { Source, Machine64, Machine32 }.FirstOrDefault(s => key.StartsWith(PrefixFor(s)!, StringComparison.Ordinal));
     /// <summary>정규 인코딩의 복구 키에서 이름을 얻습니다.</summary>
     public static string? Name(string key)
     {
-        if (!key.StartsWith(Prefix, StringComparison.Ordinal) || key.Length > 512) { return null; }
+        if (SourceOfKey(key) is not { } source || key.Length > 512) { return null; }
         try
         {
-            var name = StrictUtf8.GetString(Convert.FromBase64String(key[Prefix.Length..]));
-            return ValidName(name) && Key(name) == key ? name : null;
+            var name = StrictUtf8.GetString(Convert.FromBase64String(key[PrefixFor(source)!.Length..]));
+            return ValidName(name) && Key(source, name) == key ? name : null;
         }
         catch (Exception ex) when (ex is FormatException or DecoderFallbackException) { return null; }
     }

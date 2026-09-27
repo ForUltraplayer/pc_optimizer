@@ -68,10 +68,11 @@ public sealed class RestoreCoordinator
                 var record = transaction.Read(selected.RecordId);
                 if (record is null || !Matches(record, currentSession) || Completed(record)
                     || !await adapter.ValidateAsync(record, ct).ConfigureAwait(false)) { return null; }
-                if (record.ActionId == ActionId.Startup && StartupRegistration.Name(record.TargetKey) is { } name)
+                if (record.ActionId is ActionId.Startup or ActionId.MachineStartup && StartupRegistration.Name(record.TargetKey) is { } name)
                 {
-                    return new(target, $"'{name}'의 원래 자동 실행 등록 복원", "다음 로그인 때 원래 등록 명령을 다시 사용할 수 있게 합니다. 작업 관리자의 사용/사용 안 함 상태는 변경하지 않으며 앱을 지금 실행하지 않습니다.",
-                        new(name, "같은 이름의 새 등록이 없을 때만 원래 형식과 내용을 복원합니다. 다른 앱이 다시 등록한 값은 덮어쓰지 않습니다.", RequiresRestart: false));
+                    var scopeLabel = StartupRegistration.Label(StartupRegistration.SourceOfKey(record.TargetKey)!);
+                    return new(target, $"'{name}'의 원래 자동 실행 등록 복원 · {scopeLabel}", "표시한 사용자 범위에서 다음 로그인 때 원래 등록 명령을 다시 사용할 수 있게 합니다. 작업 관리자의 사용/사용 안 함 상태는 변경하지 않으며 앱을 지금 실행하지 않습니다.",
+                        new(name + " · " + scopeLabel, "선택한 출처에 같은 이름의 새 등록이 없을 때만 원래 형식과 내용을 복원합니다. 다른 앱이 다시 등록한 값은 덮어쓰지 않습니다.", RequiresRestart: false));
                 }
                 return new(target, "이 앱이 변경한 설정 되돌리기", "현재 값이 앱의 적용 값과 같을 때만 이전 값으로 되돌립니다.");
             }

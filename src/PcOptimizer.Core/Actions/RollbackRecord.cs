@@ -24,7 +24,7 @@ public sealed record RollbackRecord(int Version, Guid Id, string Sid, ActionId A
     public bool NeedsRecovery => State is RollbackState.Pending or RollbackState.Restoring
         || (State == RollbackState.Applied && Purpose != RollbackPurpose.UserUndo);
     /// <summary>완료 후 보관 기한이 지난 기록입니다. 해제된 시작 등록의 유일한 원본은 복원 전 자동 삭제하지 않습니다.</summary>
-    public bool CanExpire => !NeedsRecovery && !(ActionId == ActionId.Startup && State == RollbackState.Applied);
+    public bool CanExpire => !NeedsRecovery && !(ActionId is ActionId.Startup or ActionId.MachineStartup && State == RollbackState.Applied);
 }
 /// <summary>손상 기록도 묵살하지 않고 ID/일반 사유로 알립니다. 본문과 개인 경로는 노출하지 않습니다.</summary>
 public sealed record RollbackIssue(string FileName, string Code);

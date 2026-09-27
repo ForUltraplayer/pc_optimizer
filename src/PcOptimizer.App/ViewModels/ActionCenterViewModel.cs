@@ -28,6 +28,10 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     private readonly IUiDispatcher _dispatcher;
     private readonly Func<Task> _rescan;
     private readonly Func<string, bool>? _openSettings;
+    private readonly Func<string?>? _pickAdobeFolder;
+    private readonly Func<string, (ActionChoice? Choice, string? Code)>? _registerAdobeFolder;
+    private readonly Func<string, bool?>? _selectVideoFolder;
+    private readonly Action? _resetVideoFolders;
     private readonly SemaphoreSlim _reconcile = new(1, 1);
     private readonly HashSet<Guid> _finished = [];
     private ActionPreviewViewModel? _executing;
@@ -38,12 +42,18 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     private bool _rescanPending;
 
     /// <summary>앱에서 한 번 만들고 같은 실행 관문/조율기를 연결합니다.</summary>
-    public ActionCenterViewModel(IActionWorkflow workflow, IUiDispatcher dispatcher, Func<Task> rescan, IEnumerable<ActionChoice>? choices = null, Func<string, bool>? openSettings = null)
+    public ActionCenterViewModel(IActionWorkflow workflow, IUiDispatcher dispatcher, Func<Task> rescan, IEnumerable<ActionChoice>? choices = null, Func<string, bool>? openSettings = null,
+        Func<string?>? pickAdobeFolder = null, Func<string, (ActionChoice? Choice, string? Code)>? registerAdobeFolder = null,
+        Func<string, bool?>? selectVideoFolder = null, Action? resetVideoFolders = null)
     {
         _workflow = workflow;
         _dispatcher = dispatcher;
         _rescan = rescan;
         _openSettings = openSettings;
+        _pickAdobeFolder = pickAdobeFolder;
+        _registerAdobeFolder = registerAdobeFolder;
+        _selectVideoFolder = selectVideoFolder;
+        _resetVideoFolders = resetVideoFolders;
         Choices = (choices ?? []).Where(c => workflow.Supports(c.Id, false)).ToArray();
         workflow.Operations.Changed += OnOperationsChanged;
     }
@@ -80,19 +90,26 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     /// <summary>검사 결과의 현재 사용자 등록만 갱신하고 오래된 선택 대상을 남기지 않습니다.</summary>
     public void UpdateStartupChoices(PcOptimizer.Core.Models.ScanSnapshot snapshot, bool fullScope)
     {
-        var fixedChoices = Choices.Where(c => c.Id != ActionId.Startup);
-        var names = fullScope && _workflow.Supports(ActionId.Startup, false) ? StartupSelection.Names(snapshot) : [];
-        Choices = fixedChoices.Concat(names.Select(name => new ActionChoice(ActionId.Startup,
-            new ActionTarget.Startup(StartupRegistration.Source, name), $"자동 실행 등록 해제 · {name}",
+        var fixedChoices = Choices.Where(c => c.Id is not (ActionId.Startup or ActionId.MachineStartup));
+        var targets = StartupSelection.Targets(snapshot).Where(t => StartupRegistration.IsMachine(t.SourceKey)
+            ? _workflow.Supports(ActionId.MachineStartup, false) : fullScope && _workflow.Supports(ActionId.Startup, false));
+        Choices = fixedChoices.Concat(targets.Select(t => new ActionChoice(
+            StartupRegistration.IsMachine(t.SourceKey) ? ActionId.MachineStartup : ActionId.Startup,
+            t, $"자동 실행 등록 해제 · {t.ValueName} · {StartupRegistration.Label(t.SourceKey)}",
+            (StartupRegistration.IsMachine(t.SourceKey) ? "이 PC의 모든 사용자에게 영향을 줍니다. " : "") +
             "다음 로그인부터 이 등록으로 시작하지 않게 합니다. 필요한 앱인지 직접 선택하세요. 프로그램 삭제·앱 종료는 하지 않으며 원래 등록을 되돌릴 수 있습니다."))).ToArray();
         OnPropertyChanged(nameof(Choices)); PrepareChoiceCommand.NotifyCanExecuteChanged();
     }
     /// <summary>자동 지원 미확인 기능은 성공 버튼 대신 이유와 공식 경로를 제공합니다.</summary>
     public IReadOnlyList<ManualActionChoice> ManualChoices { get; } = [
-        new("그 밖의 시작 앱 관리", "현재 사용자 Run 등록은 검사 후 위 목록에서 해제·복원할 수 있습니다. 다른 출처의 시작 앱과 사용/사용 안 함 전환은 Windows 설정에서 관리하세요.", SettingsUriPolicy.STARTUP_APPS_SETTINGS_URI),
+        new("그 밖의 시작 앱 관리", "현재 사용자·모든 사용자 Run 등록은 검사 후 위 목록에서 해제·복원할 수 있습니다. 시작 폴더 항목과 사용/사용 안 함 전환은 Windows 설정에서 관리하세요.", SettingsUriPolicy.STARTUP_APPS_SETTINGS_URI),
         new("Windows에서 주사율 설정", "앱의 주사율 시험이 지원되지 않는 화면은 Windows 디스플레이 설정에서 직접 확인하세요.", SettingsUriPolicy.DISPLAY_SETTINGS_URI),
         new("그 밖의 Windows 업데이트 파일 정리", "배달 최적화 캐시는 위 목록에서 선택할 수 있습니다. 그 밖의 업데이트·설치 파일은 Windows 저장소에서 확인하세요. 앱이 업데이트 서비스를 중지하지는 않습니다.", SettingsUriPolicy.STORAGE_SENSE_SETTINGS_URI),
-        new("사용자 지정 Adobe 캐시·게임 캐시", "Adobe는 기본 폴더의 오래된 오디오·파형만 위 목록에서 정리합니다. 옮긴 위치와 Steam·NVIDIA 캐시는 해당 앱의 관리 기능을 사용해 주세요.", null)];
+        new("게임·그래픽 캐시", "Steam·NVIDIA 캐시 용량은 검사 결과에서 확인할 수 있습니다. 직접 정리는 해당 앱의 관리 기능을 사용해 주세요.", null)];
+    /// <summary>사용자 범위 실행기를 쓸 수 있을 때만 폴더 선택을 제공합니다.</summary>
+    public bool CanSelectAdobeLocation => _pickAdobeFolder is not null && _registerAdobeFolder is not null && _workflow.Supports(ActionId.AppFiles, false);
+    /// <summary>개인 폴더를 검사할 수 있는 실행 범위에서만 수동 위치 선택을 제공합니다.</summary>
+    public bool CanSelectVideoLocations => _selectVideoFolder is not null && _resetVideoFolders is not null && _workflow.Supports(ActionId.AppFiles, false);
     /// <summary>실행 확인 영역 표시 여부입니다.</summary>
     public bool HasPreview => Preview is not null;
     /// <summary>결과 표시 여부입니다.</summary>
@@ -113,6 +130,8 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
         RestoreCommand.NotifyCanExecuteChanged(); CancelCommand.NotifyCanExecuteChanged(); DismissPreviewCommand.NotifyCanExecuteChanged();
         PrepareChoiceCommand.NotifyCanExecuteChanged();
         OpenManualCommand.NotifyCanExecuteChanged();
+        SelectAdobeFolderCommand.NotifyCanExecuteChanged();
+        SelectVideoFolderCommand.NotifyCanExecuteChanged(); ResetVideoFoldersCommand.NotifyCanExecuteChanged();
     }
     private bool CanPrepare() => !_disposed && !IsBlocked;
     private bool CanExecute() => CanPrepare() && Preview is not null;
@@ -120,6 +139,73 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     private bool CanCancel() => !_disposed && _cancellation is not null && IsWorking && !_cancellation.IsCancellationRequested;
     private bool CanRestore(RollbackItemViewModel? item) => CanPrepare() && item?.CanRestore == true;
     private bool CanPrepareChoice(ActionChoice? choice) => CanPrepare() && choice is not null && Choices.Contains(choice);
+    private bool CanSelectAdobeFolder() => CanPrepare() && CanSelectAdobeLocation;
+    private bool CanSelectVideoFolder(string? app) => CanPrepare() && CanSelectVideoLocations && app is "davinci" or "capcut";
+    private bool CanResetVideoFolders() => CanPrepare() && CanSelectVideoLocations;
+    /// <summary>앱에서 확인한 캐시 폴더를 지정하고 기존 검사 흐름에서 용량을 다시 관측합니다.</summary>
+    [RelayCommand(CanExecute = nameof(CanSelectVideoFolder))]
+    private async Task SelectVideoFolderAsync(string? app)
+    {
+        if (!CanSelectVideoFolder(app)) { return; }
+        bool? accepted = null;
+        IsWorking = true;
+        try
+        {
+            accepted = _selectVideoFolder!(app!);
+            Status = accepted switch
+            {
+                true => "캐시 위치를 이번 실행에 등록했습니다. 재검사에서 용량을 확인합니다. 파일을 삭제하지 않습니다.",
+                false => app == "davinci" ? "로컬 드라이브의 CacheClip 폴더 자체를 선택하세요. 이전 선택은 유지했습니다." : "로컬 드라이브의 Cache 폴더 자체를 선택하세요. 초안·프로젝트 상위 폴더는 선택하지 마세요.",
+                _ => "폴더 선택을 취소했습니다. 이전 선택은 유지했습니다.",
+            };
+        }
+        catch (Exception) { Status = "캐시 폴더를 선택하지 못했습니다. 파일을 변경하지 않았습니다."; }
+        finally { IsWorking = false; NotifyGates(); }
+        if (accepted == true && !_disposed) { await RescanVideoLocationsAsync(); }
+    }
+    /// <summary>수동 선택 두 개를 해제하고 기본 위치·설정 기반 검사로 돌아갑니다.</summary>
+    [RelayCommand(CanExecute = nameof(CanResetVideoFolders))]
+    private async Task ResetVideoFoldersAsync()
+    {
+        if (!CanResetVideoFolders()) { return; }
+        _resetVideoFolders!();
+        Status = "수동 위치 선택을 해제했습니다. 기본 위치와 Resolve 전역 설정으로 다시 검사합니다.";
+        await RescanVideoLocationsAsync();
+    }
+    private async Task RescanVideoLocationsAsync()
+    {
+        try { await _rescan(); }
+        catch (Exception) { if (!_disposed) { Status = "위치 선택은 반영됐지만 재검사를 시작하거나 완료하지 못했습니다. 다른 작업이 끝나면 메인 화면에서 다시 검사해 주세요."; } }
+    }
+    /// <summary>선택 위치를 메모리에만 등록한 뒤 공통 관문에서 미리보기를 만듭니다. 선택만으로 삭제하지 않습니다.</summary>
+    [RelayCommand(CanExecute = nameof(CanSelectAdobeFolder))]
+    private async Task SelectAdobeFolderAsync()
+    {
+        if (!CanSelectAdobeFolder()) { return; }
+        Preview = null;
+        ActionChoice? choice = null;
+        IsWorking = true;
+        try
+        {
+            var path = _pickAdobeFolder!();
+            if (path is null || _disposed) { return; }
+            var registration = _registerAdobeFolder!(path);
+            choice = registration.Choice;
+            if (choice is null)
+            {
+                Status = new ActionResultViewModel(new(Guid.Empty, false, false, registration.Code ?? "TargetRejected"), ActionId.AppFiles, false, "").Detail;
+                return;
+            }
+            if (!Choices.Any(c => c.Target == choice.Target))
+            {
+                Choices = [.. Choices, choice];
+                OnPropertyChanged(nameof(Choices));
+            }
+        }
+        catch (Exception) { Status = "폴더를 선택하지 못했습니다. 변경하지 않았습니다."; }
+        finally { IsWorking = false; NotifyGates(); }
+        if (choice is not null) { await PrepareAsync(choice.Id, choice.Target); }
+    }
     /// <summary>선택한 카탈로그 대상을 조회합니다. 실행은 별도 확인이 필요합니다.</summary>
     [RelayCommand(CanExecute = nameof(CanPrepareChoice))]
     private Task PrepareChoiceAsync(ActionChoice? choice) => choice is null ? Task.CompletedTask : PrepareAsync(choice.Id, choice.Target);
@@ -226,7 +312,8 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
                 var completed = r.State is RollbackState.Restored or RollbackState.Unchanged;
                 var state = r.NeedsRecovery ? "중단된 작업 — 현재 상태 확인 필요" : completed ? "복구 완료" : "적용됨";
                 var responsibility = r.Purpose == RollbackPurpose.UserUndo ? "사용자 되돌리기" : "임시 변경 복구";
-                var label = r.ActionId == ActionId.Startup && StartupRegistration.Name(r.TargetKey) is { } name ? $"자동 실행 등록 · {name}" : ActionText.Name(r.ActionId);
+                var label = r.ActionId is ActionId.Startup or ActionId.MachineStartup && StartupRegistration.Name(r.TargetKey) is { } name
+                    ? $"자동 실행 등록 · {name} · {StartupRegistration.Label(StartupRegistration.SourceOfKey(r.TargetKey)!)}" : ActionText.Name(r.ActionId);
                 Records.Add(new(r.Id, r.ActionId, label, $"{state} · {responsibility} · {r.UpdatedAt.ToLocalTime():g}", r.NeedsRecovery,
                     !completed && _workflow.Supports(r.ActionId, true)));
             }

@@ -119,7 +119,8 @@ public sealed class ScanService
     /// <param name="vendorLinks">공식 링크 표(없으면 포함 리소스에서 읽고, 그것도 실패하면 링크 없이 확인 불가로 표시).</param>
     /// <returns>검사 서비스.</returns>
     public static ScanService CreateDefault(
-        IAppLogger logger, bool limitToSystemScope = false, RuleCatalogLoader? rules = null, VendorLinkCatalog? vendorLinks = null)
+        IAppLogger logger, bool limitToSystemScope = false, RuleCatalogLoader? rules = null, VendorLinkCatalog? vendorLinks = null,
+        VideoCacheLocations? videoLocations = null)
     {
         var fileScan = FileScanService.CreateDefault();
         var links = vendorLinks ?? VendorLinkCatalogLoader.LoadEmbedded().Catalog;
@@ -142,9 +143,9 @@ public sealed class ScanService
                 new VolumeProbe(),
                 new PhysicalDiskProbe(),
                 new TrimPolicyProbe(),
-                new StartupItemsProbe(),
+                new StartupItemsProbe(limitToSystemScope),
                 new FileScanProbe(fileScan, SystemClock.Instance),
-                AppCacheProbe.CreateDefault(fileScan, rules ?? RuleCatalogLoader.CreateEmbedded()),
+                AppCacheProbe.CreateDefault(fileScan, rules ?? RuleCatalogLoader.CreateEmbedded(), videoLocations),
             ],
             [
                 new MemorySpeedRule(),
