@@ -6,7 +6,8 @@
 
 - 아래 조치 카드 UX를 포함해 앱 버전을 `0.2.1`로 변경했다. [릴리즈 노트](releases/v0.2.1.md), README와 ZIP 안내의 이전 버전·베타 배포 표기를 갱신했다. GPU 실장치 적용 미검증 등 검증 한계는 유지한다.
 - 대상: 공개 `ForUltraplayer/pc_optimizer`, `codex/sp1-actions` 브랜치, 새 태그 `v0.2.1`, 일반 릴리즈(Pre-release 아님)·Latest. 기존 릴리즈는 보존한다.
-- 배포물은 `tools/package.ps1 -Configuration Release -OutputDirectory dist/releases/v0.2.1`로 생성한다. 커밋 확정 후 빌드해 실행 파일의 제품 버전에 릴리즈 커밋을 포함한다. 최종 SHA·게시 결과는 공유 원장 후속 기록을 따른다.
+- 게시 완료: 소스/태그 **`49c90c8`**, [0.2.1 릴리즈](https://github.com/ForUltraplayer/pc_optimizer/releases/tag/v0.2.1). 공개 API로 Latest·draft=false·prerelease=false, ZIP/sha256 첨부와 해시 일치를 확인했다. ZIP 59,870,654 bytes, SHA-256 `9303C9950335DE612D5D0604E5425C06949B24E6C4BB7A29E79DCB7E5BF159FC`.
+- `tools/package.ps1 -Configuration Release -OutputDirectory dist/releases/v0.2.1` 성공. ProductVersion `0.2.1+49c90c8...`, ZIP13파일/최상위4·고지·규칙·해시 검증 통과. 기본 테스트1767/1767. 이 후속 기록 커밋은 제품/태그/ZIP을 변경하지 않는다.
 
 ## 최신 로컬 변경 — 조치 카드 UX (2026-09-28)
 

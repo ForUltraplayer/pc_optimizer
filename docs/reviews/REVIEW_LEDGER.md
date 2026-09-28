@@ -806,3 +806,10 @@
 - GitHub 조회: 저장소 PUBLIC, 기본 브랜치 `codex/sp1-actions`. 기존 태그 `v0.0.2-beta.1`은 현재 제목 'PC Optimizer 0.0.2', Latest로 표시된다. 새 태그 `v0.2.1`을 일반 릴리즈·Latest로 게시한다. 기존 배포 기록은 당시 확인 이력으로 보존한다.
 - 기존 REV-013/015/017/018 상태는 유지한다. 자체 빌드·기본 회귀·ZIP 구조/해시 확인 후 게시하며, 최종 결과는 후속 기록한다.
 - 버전 갱신 후 재검증: `dotnet test tests/PcOptimizer.Tests -c Release --no-restore -p:OutputPath=bin/ReleaseVerify021/ --filter 'Category!=Smoke&Category!=Online&Category!=ToolSmoke' --logger 'trx;LogFileName=release-0.2.1.trx' --logger 'console;verbosity=minimal'` → 1767/1767, 빌드 경고·오류 없음. 최초 기본 출력 경로는 실행 중인 앱이 exe를 점유해 MSB3027/MSB3021로 실패했고, 앱을 종료하지 않고 별도 출력 경로로 재검증했다.
+
+### 0.2.1 게시 확인
+
+- 소스/릴리즈 태그 커밋 **49c90c83a4c47869d3bfcc05adb62742b18bcd61**, `codex/sp1-actions` push 및 새 태그 `v0.2.1` 게시 완료. [공개 릴리즈](https://github.com/ForUltraplayer/pc_optimizer/releases/tag/v0.2.1).
+- 커밋 확정 후 `tools/package.ps1 -Configuration Release -OutputDirectory dist/releases/v0.2.1`로 locked restore/publish 완료, 경고·오류 없음. ZIP13파일/최상위4·필수 고지/규칙 원문/해시 검증 통과. FileVersion 0.2.1.0, ProductVersion `0.2.1+49c90c83a4c47869d3bfcc05adb62742b18bcd61`.
+- ZIP **59,870,654 bytes**, SHA-256 **9303C9950335DE612D5D0604E5425C06949B24E6C4BB7A29E79DCB7E5BF159FC**. ZIP과 .sha256 두 첨부 게시.
+- 인증 없는 GitHub API `releases/latest`에서 tag=v0.2.1, draft=false, prerelease=false 확인. 저장소 public=true. asset 크기·digest가 로컬 ZIP과 일치하며 원격 태그 peeled commit도 위 릴리즈 커밋과 일치한다. 기존 릴리즈와 실행 중인 앱은 보존했다. 이 후속 문서 커밋은 제품·태그·첨부를 바꾸지 않는다.
