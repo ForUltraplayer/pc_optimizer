@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file    : ActionCenterLayoutTests.cs
  * @author  : rudals252
  * @brief   : 실제 WPF 디스패처·닫기/재열기·기본 버튼·긴 대상·세 배율 오프스크린 검증
@@ -20,16 +20,16 @@ namespace PcOptimizer.Tests.Unit.App;
 /// <summary>창을 화면에 띄우거나 키보드 입력을 보내지 않고 WPF 레이아웃/명령을 검사합니다.</summary>
 public sealed class ActionCenterLayoutTests
 {
-    /// <summary>목록 아래에서 선택해도 미리보기/결과가 화면 위에 나타나며 선택 목록에 묻히지 않습니다.</summary>
+    /// <summary>목록 아래에서 선택해도 미리보기를 해당 카드 안에 표시하며 화면 맨 위로 이동하지 않습니다.</summary>
     [Fact]
-    public void ChoosingActionScrollsToConfirmation()
+    public void ChoosingActionKeepsConfirmationAtClickedCard()
     {
         RunOnSta(async () =>
         {
             var adapter = new ActionCenterTests.Adapter();
             var workflow = new ActionWorkflow(new OperationCoordinator(), new ActionCenterTests.Store(), () => ActionCenterTests.Session, [adapter], []);
             using var vm = new ActionCenterViewModel(workflow, new WpfUiDispatcher(Dispatcher.CurrentDispatcher), () => Task.CompletedTask,
-                Enumerable.Range(0, 10).Select(i => new ActionChoice(ActionId.Power, ActionCenterTests.Target, "전원 계획 " + i, "소비 전력과 응답성이 달라질 수 있습니다.")));
+                Enumerable.Range(0, 10).Select(i => new ActionChoice(ActionId.Power, new ActionTarget.Power(Guid.NewGuid()), "전원 계획 " + i, "소비 전력과 응답성이 달라질 수 있습니다.")));
             var window = new ActionCenterWindow(vm);
             try
             {
@@ -37,12 +37,18 @@ public sealed class ActionCenterLayoutTests
                 var groupDescription = Descendants<TextBlock>((FrameworkElement)window.Content).Single(t => t.Text.StartsWith("현재 사용 목적에 맞는"));
                 Assert.True(groupDescription.ActualHeight > groupDescription.FontSize * 2);
                 var scroll = Descendants<ScrollViewer>((FrameworkElement)window.Content).First();
-                scroll.ScrollToEnd(); window.UpdateLayout();
+                var host = Descendants<ActionFeedbackView>((FrameworkElement)window.Content).Single(v => Equals(v.Source, vm.Choices[9]));
+                var card = (FrameworkElement)VisualTreeHelper.GetParent(VisualTreeHelper.GetParent(host));
+                scroll.ScrollToVerticalOffset(card.TransformToAncestor((Visual)scroll.Content).Transform(new Point()).Y);
+                window.UpdateLayout();
                 Assert.True(scroll.VerticalOffset > 0);
                 await vm.PrepareChoiceCommand.ExecuteAsync(vm.Choices[9]);
                 await Dispatcher.CurrentDispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle);
                 Render(window, "action-selected", 1);
-                Assert.Equal(0, scroll.VerticalOffset); Assert.True(vm.HasPreview);
+                Assert.True(scroll.VerticalOffset > 0); Assert.True(vm.HasPreview);
+                Assert.Same(vm.Preview, vm.FeedbackFor(vm.Choices[9]).Preview);
+                Assert.Null(vm.StandaloneFeedback.Preview);
+                Assert.Single(Descendants<Button>(host), b => AutomationProperties.GetAutomationId(b) == "ConfirmAction");
             }
             finally { window.Close(); }
         });

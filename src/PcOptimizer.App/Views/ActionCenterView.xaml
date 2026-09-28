@@ -1,4 +1,4 @@
-<!--
+﻿<!--
 @file    : ActionCenterView.xaml
 @author  : rudals252
 @brief   : 조치 선택·확인·실행·결과·되돌리기 뷰(메인 창 페이지와 얇은 창 래퍼가 공유)
@@ -6,7 +6,8 @@
 <UserControl x:Class="PcOptimizer.App.Views.ActionCenterView"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:services="clr-namespace:PcOptimizer.App.Services">
+        xmlns:services="clr-namespace:PcOptimizer.App.Services"
+        xmlns:local="clr-namespace:PcOptimizer.App.Views">
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="/PcOptimizer;component/Resources/VisibilityTheme.xaml" /></ResourceDictionary.MergedDictionaries>
@@ -38,7 +39,7 @@
         <StackPanel DockPanel.Dock="Top">
             <TextBlock TextWrapping="Wrap" Text="어떤 점을 개선할까요?" FontSize="24" FontWeight="SemiBold" />
             <TextBlock Text="① 원하는 효과 선택  →  ② 대상·영향 확인  →  ③ 실행·재검사
-되돌릴 수 있는 설정은 아래 변경 기록에서 복원합니다." TextWrapping="Wrap" Foreground="{DynamicResource AppSecondaryTextBrush}" Margin="0,8,0,12" />
+설정은 완료 카드나 변경 기록에서 되돌릴 수 있습니다. 파일 정리는 되돌릴 수 없습니다." TextWrapping="Wrap" Foreground="{DynamicResource AppSecondaryTextBrush}" Margin="0,8,0,12" />
             <WrapPanel>
                 <Button Content="전체 작업" Command="{Binding SelectEffectCommand}" CommandParameter="all" />
                 <Button Content="공간 확보" Command="{Binding SelectEffectCommand}" CommandParameter="space" />
@@ -47,52 +48,13 @@
             </WrapPanel>
         </StackPanel>
         <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
-            <TextBlock Text="{Binding Status}" TextWrapping="Wrap" AutomationProperties.AutomationId="ActionStatus" AutomationProperties.LiveSetting="Polite" Margin="0,0,0,8" />
-            <WrapPanel>
-                <Button Content="중단 요청" Command="{Binding CancelCommand}" AutomationProperties.AutomationId="CancelAction" />
-            </WrapPanel>
+            <TextBlock Text="진행 상황·실행 확인·결과는 선택한 항목 바로 아래에 표시됩니다." TextWrapping="Wrap" AutomationProperties.AutomationId="ActionStatus" AutomationProperties.LiveSetting="Polite" Margin="0,0,0,8" />
         </StackPanel>
         <ScrollViewer services:ScrollChain.IsEnabled="True" x:Name="ActionScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel>
                 <TextBlock TextWrapping="Wrap" Text="검사·조치 또는 종료 확인이 진행 중입니다. 실행 버튼은 실제 작업이 끝난 뒤 사용할 수 있습니다."
                            Visibility="{Binding IsBlocked, Converter={StaticResource Visible}}" AutomationProperties.AutomationId="ActionBusyNote" Foreground="#915800" Margin="0,0,0,14" />
-                <Border Style="{StaticResource Card}" Visibility="{Binding HasPreview, Converter={StaticResource Visible}}" Background="#EDF4FF">
-                    <StackPanel>
-                        <StackPanel DataContext="{Binding Preview}">
-                            <TextBlock TextWrapping="Wrap" Text="실행 전 확인" FontWeight="SemiBold" Foreground="#2855D9" />
-                            <TextBlock TextWrapping="Wrap" Text="{Binding SafetyLabel}" Foreground="#915800" Margin="0,6,0,0" />
-                            <TextBlock TextWrapping="Wrap" Text="{Binding Title}" FontSize="20" FontWeight="SemiBold" Margin="0,6,0,10" />
-                            <TextBlock TextWrapping="Wrap" Text="{Binding Summary}" />
-                            <TextBlock TextWrapping="Wrap" Text="{Binding Impact}" Margin="0,6,0,0" />
-                            <TextBlock TextWrapping="Wrap" Text="{Binding Restore}" Margin="0,6,0,12" />
-                            <TextBlock TextWrapping="Wrap" Text="변경 대상" FontWeight="SemiBold" />
-                            <TextBlock TextWrapping="Wrap" Text="{Binding Target}" AutomationProperties.AutomationId="ActionTarget" Margin="0,4,0,10" />
-                            <TextBlock TextWrapping="Wrap" Text="{Binding Estimate}" Visibility="{Binding HasSpaceEstimate, Converter={StaticResource Visible}}" />
-                            <TextBlock TextWrapping="Wrap" Text="{Binding Safety}" Margin="0,6,0,0" />
-                            <TextBlock TextWrapping="Wrap" Text="{Binding Restart}" Margin="0,6,0,0" />
-                            <TextBlock TextWrapping="Wrap" Text="{Binding Expiry}" FontSize="12" Foreground="{DynamicResource AppSecondaryTextBrush}" Margin="0,10,0,14" />
-                        </StackPanel>
-                        <WrapPanel>
-                            <!-- Enter 단독 입력이 확인 전 실행을 일으키지 않도록 기본 버튼으로 지정하지 않는다. -->
-                            <Button Content="확인한 내용 실행" Command="{Binding ExecuteCommand}" Background="#2855D9" Foreground="White" BorderBrush="#2855D9" AutomationProperties.AutomationId="ConfirmAction" />
-                            <Button Content="실행하지 않기" Command="{Binding DismissPreviewCommand}" AutomationProperties.AutomationId="DismissAction" />
-                        </WrapPanel>
-                    </StackPanel>
-                </Border>
-                <Border Style="{StaticResource Card}" Visibility="{Binding HasResult, Converter={StaticResource Visible}}">
-                    <StackPanel>
-                        <StackPanel DataContext="{Binding Result}">
-                            <TextBlock TextWrapping="Wrap" Text="{Binding Title}" FontSize="20" FontWeight="SemiBold" AutomationProperties.AutomationId="ActionResultTitle" />
-                            <TextBlock TextWrapping="Wrap" Text="{Binding ActionName}" Foreground="{DynamicResource AppSecondaryTextBrush}" Margin="0,4,0,12" />
-                            <TextBlock TextWrapping="Wrap" Text="{Binding Detail}" />
-                            <TextBlock TextWrapping="Wrap" Text="{Binding Estimate}" Margin="0,12,0,6" Visibility="{Binding HasSpaceEffect, Converter={StaticResource Visible}}" />
-                            <TextBlock TextWrapping="Wrap" Text="{Binding Actual}" FontWeight="SemiBold" AutomationProperties.AutomationId="ActionActualEffect" Visibility="{Binding HasSpaceEffect, Converter={StaticResource Visible}}" />
-                            <TextBlock TextWrapping="Wrap" Text="{Binding FileCounts}" Margin="0,8,0,0" />
-                            <TextBlock TextWrapping="Wrap" Text="{Binding CacheObservation}" Margin="0,8,0,0" />
-                        </StackPanel>
-                        <TextBlock TextWrapping="Wrap" Text="{Binding RescanStatus}" Margin="0,10,0,0" />
-                    </StackPanel>
-                </Border>
+                <local:ActionFeedbackView Owner="{Binding}" Source="external" Visibility="{Binding UsesStandaloneFeedback, Converter={StaticResource Visible}}" />
                 <TextBlock TextWrapping="Wrap" Text="원하는 효과로 작업 찾기" FontSize="20" FontWeight="SemiBold" Margin="0,4,0,8" />
                 <TextBlock TextWrapping="Wrap" Text="현재 사용자 범위에서 지원하는 항목입니다. 사용할 수 없는 도구는 표시하지 않으며, 실제 대상과 설치 상태는 미리보기에서 다시 확인합니다." Margin="0,0,0,14" />
                 <TextBlock Text="{Binding ChoiceNotice}" TextWrapping="Wrap" Foreground="{DynamicResource AppSecondaryTextBrush}" Margin="0,0,0,12" />
@@ -108,6 +70,7 @@
                             <TextBlock TextWrapping="Wrap" Text="{Binding Benefit}" Margin="0,6,0,12" />
                             <Button Content="대상과 효과 확인" HorizontalAlignment="Left"
                                 Command="{Binding DataContext.PrepareChoiceCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                            <local:ActionFeedbackView Owner="{Binding DataContext, RelativeSource={RelativeSource AncestorType={x:Type local:ActionCenterView}}}" Source="{Binding}" />
                         </StackPanel></Border>
                     </DataTemplate></ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -122,6 +85,7 @@
                         <TextBlock TextWrapping="Wrap" Text="Adobe 캐시를 다른 드라이브로 옮겼나요?" FontWeight="SemiBold" />
                         <TextBlock TextWrapping="Wrap" Text="Adobe 환경설정에서 캐시 위치를 확인한 뒤 Media Cache Files 또는 Peak Files 폴더를 선택하세요. 90일 이상 된 오디오·파형 파일만 미리 확인하며, 실행 버튼을 누르기 전에는 삭제하지 않습니다." Margin="0,6,0,10" />
                         <Button Content="옮긴 Adobe 캐시 폴더 선택" HorizontalAlignment="Left" Command="{Binding SelectAdobeFolderCommand}" AutomationProperties.AutomationId="SelectAdobeCacheFolder" />
+                        <local:ActionFeedbackView Owner="{Binding}" Source="adobe" />
                     </StackPanel>
                 </Border>
                 <Border Style="{StaticResource Card}" Visibility="{Binding CanSelectVideoLocations, Converter={StaticResource Visible}}">
@@ -133,6 +97,7 @@
                             <Button Content="CapCut Cache 선택" Command="{Binding SelectVideoFolderCommand}" CommandParameter="capcut" />
                             <Button Content="기본 위치로 검사" Command="{Binding ResetVideoFoldersCommand}" />
                         </WrapPanel>
+                        <local:ActionFeedbackView Owner="{Binding}" Source="video" />
                     </StackPanel>
                 </Border>
                 <Border Style="{StaticResource Card}" Visibility="{Binding CanSelectSteamLocation, Converter={StaticResource Visible}}">
@@ -140,6 +105,7 @@
                         <TextBlock TextWrapping="Wrap" Text="Steam 라이브러리별 셰이더 캐시 정리" FontWeight="SemiBold" />
                         <TextBlock TextWrapping="Wrap" Text="검사 결과에서 위치를 확인한 뒤 해당 라이브러리의 steamapps\shadercache 폴더를 선택하세요. 30일 이상 된 파일만 미리 확인합니다. Steam·게임을 닫아 주세요. Program Files 등 보호 위치는 직접 정리하지 않습니다." Margin="0,6,0,10" />
                         <Button Content="Steam shadercache 폴더 선택" HorizontalAlignment="Left" Command="{Binding SelectSteamFolderCommand}" AutomationProperties.AutomationId="SelectSteamCacheFolder" />
+                        <local:ActionFeedbackView Owner="{Binding}" Source="steam" />
                     </StackPanel>
                 </Border>
                     </StackPanel>
@@ -153,6 +119,7 @@
                                 Command="{Binding DataContext.OpenManualCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
                             <Button Content="공식 안내 열기" HorizontalAlignment="Left" Visibility="{Binding HasSupport, Converter={StaticResource Visible}}"
                                 Command="{Binding DataContext.OpenSupportCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                            <local:ActionFeedbackView Owner="{Binding DataContext, RelativeSource={RelativeSource AncestorType={x:Type local:ActionCenterView}}}" Source="{Binding}" />
                         </StackPanel></Border>
                     </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
                 </Expander>
@@ -171,6 +138,7 @@
                                             <TextBlock TextWrapping="Wrap" Text="{Binding Availability}" Foreground="{DynamicResource AppSecondaryTextBrush}" Margin="0,0,0,10" />
                                             <Button Content="되돌리기 전 확인" HorizontalAlignment="Left"
                                                     Command="{Binding DataContext.RestoreCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                            <local:ActionFeedbackView Owner="{Binding DataContext, RelativeSource={RelativeSource AncestorType={x:Type local:ActionCenterView}}}" Source="{Binding}" />
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate>

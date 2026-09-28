@@ -1,7 +1,7 @@
 /**
  * @file    : ActionCenterView.xaml.cs
  * @author  : rudals252
- * @brief   : 조치 뷰 코드 비하인드. 확인·결과가 생기면 목록 위로 스크롤해 확인 화면이 묻히지 않게 한다
+ * @brief   : 카드 내부 조치는 위치를 유지하고 다른 페이지에서 진입한 조치만 별도 확인 영역으로 안내
  */
 using System.ComponentModel;
 using System.Windows;
@@ -29,8 +29,9 @@ public partial class ActionCenterView : UserControl
     }
     private void OnStateChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(ActionCenterViewModel.Preview) && _viewModel?.Preview is not null ||
-            e.PropertyName == nameof(ActionCenterViewModel.Result) && _viewModel?.Result is not null)
+        if (_viewModel?.UsesStandaloneFeedback == true &&
+            (e.PropertyName == nameof(ActionCenterViewModel.Preview) && _viewModel.Preview is not null ||
+            e.PropertyName == nameof(ActionCenterViewModel.Result) && _viewModel.Result is not null))
         { Dispatcher.InvokeAsync(ActionScroll.ScrollToTop, System.Windows.Threading.DispatcherPriority.Loaded); }
     }
 }

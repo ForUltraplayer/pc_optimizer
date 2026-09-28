@@ -52,6 +52,10 @@ public sealed class ActionPreviewViewModel(ActionPlan plan)
 /// <summary>원문 SID/명령/복구 바이트 없이 실행 결과와 다음 행동을 보존합니다.</summary>
 public sealed class ActionResultViewModel(ActionResult result, ActionId actionId, bool restore, string estimate)
 {
+    /// <summary>복구 버튼 표시를 위한 실제 성공 여부입니다.</summary>
+    public bool Succeeded => result.Succeeded;
+    /// <summary>되돌리기의 결과인지 구분합니다.</summary>
+    public bool IsRestore => restore;
     /// <summary>실행/복구 종류와 결과 제목입니다.</summary>
     public string Title => IsDraining ? "실제 작업이 끝나기를 기다리는 중입니다"
         : result.Code == "RestartRequested" ? "Windows에 재부팅을 요청했습니다"

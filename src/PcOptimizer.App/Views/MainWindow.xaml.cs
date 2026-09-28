@@ -78,7 +78,7 @@ public partial class MainWindow : FluentWindow
             actionCenter.PropertyChanged += (_, e) =>
             {
                 // 확인/결과가 새로 생긴 경우만 이동한다. 필터 변경으로 상태가 지워질 때는 유지한다.
-                if (viewModel.CurrentPage == MainPage.Actions &&
+                if (viewModel.CurrentPage == MainPage.Actions && actionCenter.UsesStandaloneFeedback &&
                     (e.PropertyName == nameof(ActionCenterViewModel.Preview) && actionCenter.Preview is not null ||
                      e.PropertyName == nameof(ActionCenterViewModel.Result) && actionCenter.Result is not null))
                 {

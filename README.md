@@ -1,14 +1,14 @@
-# PC Optimizer 0.0.2 Beta — Windows 11 x64
+# PC Optimizer 0.2.1 — Windows 11 x64
 
 기존 Windows·제조사·패키지 도구를 한 화면에서 연결하는 진단 앱입니다. LLM은 필요하지 않습니다. 진단은 조회 전용이며, 정리는 별도 화면에서 대상 확인과 사용자 확인 후에만 실행합니다.
 
-0.0.2 베타는 **고급 탭의 직접 제어**를 추가합니다. MPO·HAGS·게임 모드, NVIDIA 게임별 ReBAR·RTX 영상 초고해상도, AMD 동영상 업스케일링을 현재 값 조회 → 새 값 선택 → 확인 → 실행 순서로 바꿀 수 있습니다. 원래 값은 조치 기록에서 되돌립니다. BIOS/UEFI 및 안전 모드를 선택할 수 있는 고급 시작 화면으로 재부팅하는 기능도 포함합니다.
+0.2.1은 **조치 카드 안에서 진행·실행 확인·결과를 확인**하도록 개선했습니다. 이전 고급 탭의 MPO·HAGS·게임 모드, NVIDIA 게임별 ReBAR·RTX 영상 초고해상도, AMD 동영상 업스케일링 직접 제어도 포함합니다. 원래 값은 완료 카드나 조치 기록에서 되돌립니다. BIOS/UEFI 및 안전 모드를 선택할 수 있는 고급 시작 화면으로 재부팅하는 기능도 포함합니다.
 
-[0.0.2 베타 다운로드·변경 내용](https://github.com/ForUltraplayer/pc_optimizer/releases/tag/v0.0.2-beta.1) · [베타 ZIP](https://github.com/ForUltraplayer/pc_optimizer/releases/download/v0.0.2-beta.1/PcOptimizer-v0.0.2-beta.1-win-x64.zip) · [이전 0.0.1](https://github.com/ForUltraplayer/pc_optimizer/releases/tag/v0.0.1)
+[0.2.1 다운로드·변경 내용](https://github.com/ForUltraplayer/pc_optimizer/releases/tag/v0.2.1) · [Windows x64 ZIP](https://github.com/ForUltraplayer/pc_optimizer/releases/download/v0.2.1/PcOptimizer-v0.2.1-win-x64.zip) · [이전 베타](https://github.com/ForUltraplayer/pc_optimizer/releases/tag/v0.0.2-beta.1)
 
-ReBAR는 지원 설정이 관측되는 **게임 프로필**만 제어하며 BIOS 설정을 변경하지 않습니다. NVIDIA 영상 제어는 비공개 드라이버 인터페이스를 사용하는 베타입니다. AMD는 공식 ADLX를 사용하지만 이 개발 PC에 AMD 장치가 없어 실제 장치 적용은 미검증입니다. GPU 쓰기·복원은 대역으로 검증했으며 실제 장치에서의 적용/원복은 추가 평가가 필요합니다. 모르는 형식·조회 실패·다른 사용자로 승격한 SystemOnly 범위에서는 실행하지 않습니다. [검증·제한](docs/reviews/2026-09-28-gpu-beta.md)
+ReBAR는 지원 설정이 관측되는 **게임 프로필**만 제어하며 BIOS 설정을 변경하지 않습니다. NVIDIA 영상 제어는 비공개 드라이버 인터페이스를 사용합니다. AMD는 공식 ADLX를 사용하지만 이 개발 PC에 AMD 장치가 없어 실제 장치 적용은 미검증입니다. GPU 쓰기·복원은 대역으로 검증했으며 실제 장치에서의 적용/원복은 추가 평가가 필요합니다. 모르는 형식·조회 실패·다른 사용자로 승격한 SystemOnly 범위에서는 실행하지 않습니다. [검증·제한](docs/reviews/2026-09-28-gpu-beta.md)
 
-0.0.1의 높은 대비, 내부 목록 휠 전달, 탭별 스크롤 위치 보존은 유지합니다. 베타는 GitHub의 `latest` 링크에 표시되지 않을 수 있으므로 위 베타 링크를 이용하세요.
+카드에서 조치해도 스크롤 위치를 유지하며, 실행하지 못한 이유도 해당 카드에 표시합니다. 추가 앱 파일 탐색 결과(커뮤니티 규칙)는 기본 표시합니다. 파일·캐시 정리는 별도 실행 확인 후에만 동작하며 되돌릴 수 없습니다.
 
 ## 실행
 
@@ -57,4 +57,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/package.ps1
 
 [공유 리뷰 원장](docs/reviews/REVIEW_LEDGER.md), [현재 검증·제한](docs/reviews/2026-09-27-validation.md), [자동 조치 계약과 공식 명령 근거](docs/superpowers/specs/2026-09-27-first-release-actions.md)를 읽고 이어서 작업하세요.
 
-아직 평가 빌드입니다. 실제 일반 권한 UI/UAC 흐름, 모니터 DPI 전환, 별도 .NET 미설치 PC와 모든 도구 버전 조합의 검증은 남아 있습니다. rules의 읽을 수 있는 사본은 출처 확인용이며 앱은 어셈블리에 포함된 정책만 사용합니다. Winapp2의 저작자 표시·CC BY-SA 조건은 `rules/LICENSE-winapp2.md`(배포 zip의 `LICENSES/winapp2-CC-BY-SA-4.0.md`)를 따릅니다.
+실제 일반 권한 UI/UAC 흐름, 모니터 DPI 전환, 별도 .NET 미설치 PC와 모든 도구 버전 조합의 검증은 남아 있습니다. rules의 읽을 수 있는 사본은 출처 확인용이며 앱은 어셈블리에 포함된 정책만 사용합니다. Winapp2의 저작자 표시·CC BY-SA 조건은 `rules/LICENSE-winapp2.md`(배포 zip의 `LICENSES/winapp2-CC-BY-SA-4.0.md`)를 따릅니다.

@@ -1,0 +1,61 @@
+<!-- @file : ActionFeedbackView.xaml | @author : rudals252 | @brief : 누른 카드 바로 아래의 진행·확인·결과 -->
+<UserControl x:Class="PcOptimizer.App.Views.ActionFeedbackView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ <UserControl.Resources>
+  <BooleanToVisibilityConverter x:Key="Visible" />
+  <Style x:Key="Card" TargetType="Border"><Setter Property="Padding" Value="12"/><Setter Property="Margin" Value="0,8,0,0"/><Setter Property="Background" Value="#F0F5FD"/><Setter Property="BorderBrush" Value="#667994"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="7"/></Style>
+ </UserControl.Resources>
+ <ContentControl x:Name="FeedbackRoot">
+  <ContentControl.Style><Style TargetType="ContentControl"><Style.Triggers>
+   <DataTrigger Binding="{Binding HasContent}" Value="True">
+    <Setter Property="Content" Value="{Binding}" />
+    <Setter Property="ContentTemplate"><Setter.Value><DataTemplate>
+ <StackPanel Visibility="{Binding HasContent, Converter={StaticResource Visible}, FallbackValue=Collapsed}">
+  <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontWeight="SemiBold" Foreground="#174A79" Margin="0,6,0,8" AutomationProperties.LiveSetting="Polite" AutomationProperties.AutomationId="InlineActionStatus" />
+  <ProgressBar IsIndeterminate="True" Height="4" Margin="0,0,0,8" Visibility="{Binding IsWorking, Converter={StaticResource Visible}}" />
+  <Button Content="이 작업 중단 요청" HorizontalAlignment="Left" Command="{Binding Owner.CancelCommand}" Visibility="{Binding IsWorking, Converter={StaticResource Visible}}" />
+                <Border Style="{StaticResource Card}" Visibility="{Binding HasPreview, Converter={StaticResource Visible}}" Background="#EDF4FF">
+                    <StackPanel>
+                        <StackPanel DataContext="{Binding Preview}">
+                            <TextBlock TextWrapping="Wrap" Text="실행 전 확인" FontWeight="SemiBold" Foreground="#2855D9" />
+                            <TextBlock TextWrapping="Wrap" Text="{Binding SafetyLabel}" Foreground="#915800" Margin="0,6,0,0" />
+                            <TextBlock TextWrapping="Wrap" Text="{Binding Title}" FontSize="20" FontWeight="SemiBold" Margin="0,6,0,10" />
+                            <TextBlock TextWrapping="Wrap" Text="{Binding Summary}" />
+                            <TextBlock TextWrapping="Wrap" Text="{Binding Impact}" Margin="0,6,0,0" />
+                            <TextBlock TextWrapping="Wrap" Text="{Binding Restore}" Margin="0,6,0,12" />
+                            <TextBlock TextWrapping="Wrap" Text="변경 대상" FontWeight="SemiBold" />
+                            <TextBlock TextWrapping="Wrap" Text="{Binding Target}" AutomationProperties.AutomationId="ActionTarget" Margin="0,4,0,10" />
+                            <TextBlock TextWrapping="Wrap" Text="{Binding Estimate}" Visibility="{Binding HasSpaceEstimate, Converter={StaticResource Visible}}" />
+                            <TextBlock TextWrapping="Wrap" Text="{Binding Safety}" Margin="0,6,0,0" />
+                            <TextBlock TextWrapping="Wrap" Text="{Binding Restart}" Margin="0,6,0,0" />
+                            <TextBlock TextWrapping="Wrap" Text="{Binding Expiry}" FontSize="12" Foreground="{DynamicResource AppSecondaryTextBrush}" Margin="0,10,0,14" />
+                        </StackPanel>
+                        <WrapPanel>
+                            <!-- Enter 단독 입력이 확인 전 실행을 일으키지 않도록 기본 버튼으로 지정하지 않는다. -->
+                            <Button Content="확인한 내용 실행" Command="{Binding Owner.ExecuteCommand}" Background="#2855D9" Foreground="White" BorderBrush="#2855D9" AutomationProperties.AutomationId="ConfirmAction" />
+                            <Button Content="실행하지 않기" Command="{Binding Owner.DismissPreviewCommand}" AutomationProperties.AutomationId="DismissAction" />
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Card}" Visibility="{Binding HasResult, Converter={StaticResource Visible}}">
+                    <StackPanel>
+                        <StackPanel DataContext="{Binding Result}">
+                            <TextBlock TextWrapping="Wrap" Text="{Binding Title}" FontSize="20" FontWeight="SemiBold" AutomationProperties.AutomationId="ActionResultTitle" />
+                            <TextBlock TextWrapping="Wrap" Text="{Binding ActionName}" Foreground="{DynamicResource AppSecondaryTextBrush}" Margin="0,4,0,12" />
+                            <TextBlock TextWrapping="Wrap" Text="{Binding Detail}" />
+                            <TextBlock TextWrapping="Wrap" Text="{Binding Estimate}" Margin="0,12,0,6" Visibility="{Binding HasSpaceEffect, Converter={StaticResource Visible}}" />
+                            <TextBlock TextWrapping="Wrap" Text="{Binding Actual}" FontWeight="SemiBold" AutomationProperties.AutomationId="ActionActualEffect" Visibility="{Binding HasSpaceEffect, Converter={StaticResource Visible}}" />
+                            <TextBlock TextWrapping="Wrap" Text="{Binding FileCounts}" Margin="0,8,0,0" />
+                            <TextBlock TextWrapping="Wrap" Text="{Binding CacheObservation}" Margin="0,8,0,0" />
+                        </StackPanel>
+                        <TextBlock TextWrapping="Wrap" Text="{Binding RescanStatus}" Margin="0,10,0,0" />
+                    </StackPanel>
+                </Border>
+
+  <Button Content="이 설정 되돌리기 확인" HorizontalAlignment="Left" Command="{Binding Owner.UndoFeedbackCommand}" CommandParameter="{Binding}" Visibility="{Binding CanUndo, Converter={StaticResource Visible}}" Margin="0,8,0,0"/>
+ </StackPanel>
+    </DataTemplate></Setter.Value></Setter>
+   </DataTrigger>
+  </Style.Triggers></Style></ContentControl.Style>
+ </ContentControl>
+</UserControl>

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file    : MainViewModelTests.cs
  * @author  : rudals252
  * @brief   : 메인 화면 모델의 상태 전이·Finding 기준 건수·바로 할 수 있는 것/직접 해야 하는 것 요약·정리 창 노출 조건·온라인 비교 완료 판정·분류 필터·취소 후 재검사·종료 중 표시·내보내기·다른 관리자 계정 실행·사용자 확인 불가 시 시스템 범위 안내 배너(문구 구분)와 사용자 범위 프로브 건너뜀·내 PC 사양 전환(첫 진입 새로 고침을 기다리지 않는 전환, 검사 중 새로 고침 막기와 검사 후 자동 읽기, 사양 읽는 중 검사 시작 막기, 사양·검사 프로브 종료 대기 중 상호 차단)을 가짜 프로브와 즉시 실행 마샬러로 검증
@@ -224,8 +224,11 @@ public sealed class MainViewModelTests
         Assert.Equal("fixture:action", Assert.Single(vm.VisibleCards).Finding.Id);
         Assert.Equal(3, vm.LastResult!.Report.Findings.Count);
         vm.ShowAllCommand.Execute(null);
-        Assert.Equal(2, vm.VisibleCards.Count());
+        Assert.True(vm.ShowCommunityDetails);
+        Assert.Equal(3, vm.VisibleCards.Count());
         Assert.Contains(vm.VisibleCards, c => c.Finding.Id == "fixture:cache");
+        vm.ShowCommunityDetails = false;
+        Assert.Equal(2, vm.VisibleCards.Count());
         vm.ShowCommunityDetails = true;
         Assert.Equal(3, vm.VisibleCards.Count());
         vm.ShowRecommendationsCommand.Execute(null);
