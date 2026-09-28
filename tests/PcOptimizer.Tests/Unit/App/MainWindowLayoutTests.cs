@@ -84,7 +84,7 @@ public sealed class MainWindowLayoutTests
     }
     /// <summary>탭마다 보던 위치를 복원하고 빠른 탭 전환과 명시적인 대상 확인을 구분합니다.</summary>
     [Fact]
-    public void NavigationRestoresEachPageAndOnlyNewConfirmationReturnsToTop()
+    public void NavigationRestoresEachPageAndInlineConfirmationKeepsPosition()
     {
         ActionCenterLayoutTests.RunOnSta(async () =>
         {
@@ -92,7 +92,7 @@ public sealed class MainWindowLayoutTests
             var workflow = new ActionWorkflow(new PcOptimizer.Core.Actions.OperationCoordinator(), new ActionCenterTests.Store(),
                 () => ActionCenterTests.Session, [adapter], []);
             using var actions = new ActionCenterViewModel(workflow, new WpfUiDispatcher(Dispatcher.CurrentDispatcher), () => Task.CompletedTask,
-                Enumerable.Range(0, 20).Select(i => new ActionChoice(PcOptimizer.Core.Actions.ActionId.Power, ActionCenterTests.Target, "전원 계획 " + i, "전력 사용과 응답성")));
+                Enumerable.Range(0, 20).Select(i => new ActionChoice(PcOptimizer.Core.Actions.ActionId.Power, new PcOptimizer.Core.Actions.ActionTarget.Power(Guid.NewGuid()), "전원 계획 " + i, "전력 사용과 응답성")));
             using var vm = CreateScannedViewModel(actions: actions);
             var window = new MainWindow(vm);
             try
@@ -135,12 +135,16 @@ public sealed class MainWindowLayoutTests
                 await actions.PrepareChoiceCommand.ExecuteAsync(actions.Choices[0]);
                 await Settle();
                 Assert.True(actions.HasPreview);
-                Assert.Equal(0, scroll.VerticalOffset);
+                Assert.Equal(actionOffset, scroll.VerticalOffset, 1);
                 scroll.ScrollToVerticalOffset(230); Layout();
                 var previewOffset = scroll.VerticalOffset;
                 actions.Preview = null;
                 await Settle();
                 Assert.Equal(previewOffset, scroll.VerticalOffset, 1);
+                // 다른 페이지에서 진입한 조치에는 별도 확인 영역을 보여 준다.
+                await actions.PrepareAsync(PcOptimizer.Core.Actions.ActionId.Power, ActionCenterTests.Target);
+                await Settle();
+                Assert.Equal(0, scroll.VerticalOffset);
             }
             finally { window.Close(); }
         });

@@ -114,10 +114,10 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     /// <summary>진단 경고 개수와 별도로 사용자가 고를 수 있는 관리 기능을 효과별로 묶습니다.</summary>
     public IReadOnlyList<ActionChoiceGroup> ChoiceGroups => new[]
     {
-        new ActionChoiceGroup("디스크 공간 확보", "정리 가능한 실제 파일과 예상 크기를 먼저 확인합니다. 성능 향상을 보장하는 정리는 아닙니다.", Choices.Where(c => ActionText.IsSpaceAction(c.Id)).ToArray()),
-        new ActionChoiceGroup("로그인할 때 자동 실행 줄이기", "필요 없는 항목만 직접 고르세요. 프로그램은 삭제하지 않으며 원래 등록을 복원할 수 있습니다.", Choices.Where(c => c.Target is ActionTarget.Startup).ToArray()),
-        new ActionChoiceGroup("전력·발열·응답성 조정", "현재 사용 목적에 맞는 전원 계획을 선택합니다. 더 빠른 성능이나 절전 효과가 항상 보장되지는 않습니다.", Choices.Where(c => c.Id == ActionId.Power).ToArray()),
-    }.Where(g => g.Items.Count > 0 && (EffectFilter == "all" || g.Items.Any(c => EffectFilter switch
+        new ActionChoiceGroup("디스크 공간 확보", "정리 가능한 실제 파일과 예상 크기를 먼저 확인합니다. 성능 향상을 보장하는 정리는 아닙니다.", DisplayChoices.Where(c => ActionText.IsSpaceAction(c.Id)).ToArray()),
+        new ActionChoiceGroup("로그인할 때 자동 실행 줄이기", "필요 없는 항목만 직접 고르세요. 프로그램은 삭제하지 않으며 원래 등록을 복원할 수 있습니다.", DisplayChoices.Where(c => c.Target is ActionTarget.Startup).ToArray()),
+        new ActionChoiceGroup("전력·발열·응답성 조정", "현재 사용 목적에 맞는 전원 계획을 선택합니다. 더 빠른 성능이나 절전 효과가 항상 보장되지는 않습니다.", DisplayChoices.Where(c => c.Id == ActionId.Power).ToArray()),
+    }.Where(g => g.Items.Count > 0 && (EffectFilter == "all" || g.Items.Any(c => c == _activeChoice && FeedbackFor(c).HasPreview) || g.Items.Any(c => EffectFilter switch
         { "space" => ActionText.IsSpaceAction(c.Id), "startup" => c.Target is ActionTarget.Startup, "power" => c.Id == ActionId.Power, _ => true }))).ToArray();
     /// <summary>빈 목록을 정상 판정으로 오해하지 않도록 현재 선택의 한계를 안내합니다.</summary>
     public string ChoiceNotice => ChoiceGroups.Count > 0 ? "각 항목의 확인 버튼에서 실제 적용 조건과 영향을 확인하세요." : EffectFilter == "startup"
@@ -161,14 +161,14 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     /// <summary>메인 화면에서도 진행/결과 안내를 보존합니다.</summary>
     public string Overview => IsWorking ? "조치가 진행 중입니다. 창을 닫아도 종료 확인을 계속합니다." : Result?.Title ?? HistoryStatus;
 
-    partial void OnIsWorkingChanged(bool value) => NotifyGates();
+    partial void OnIsWorkingChanged(bool value) { CurrentFeedback.IsWorking = value; NotifyGates(); }
     partial void OnIsLoadingChanged(bool value) => NotifyGates();
-    partial void OnResultChanged(ActionResultViewModel? value) => OnPropertyChanged(nameof(Overview));
+    partial void OnResultChanged(ActionResultViewModel? value) { UpdateFeedbackResult(value); OnPropertyChanged(nameof(Overview)); }
     partial void OnHistoryStatusChanged(string value) => OnPropertyChanged(nameof(Overview));
     private void NotifyGates()
     {
         OnPropertyChanged(nameof(IsBlocked)); OnPropertyChanged(nameof(Overview));
-        ExecuteCommand.NotifyCanExecuteChanged(); RefreshCommand.NotifyCanExecuteChanged();
+        ExecuteCommand.NotifyCanExecuteChanged(); RefreshCommand.NotifyCanExecuteChanged(); UndoFeedbackCommand.NotifyCanExecuteChanged();
         RestoreCommand.NotifyCanExecuteChanged(); CancelCommand.NotifyCanExecuteChanged(); DismissPreviewCommand.NotifyCanExecuteChanged();
         PrepareChoiceCommand.NotifyCanExecuteChanged();
         OpenManualCommand.NotifyCanExecuteChanged();
@@ -189,13 +189,15 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     private async Task SelectSteamFolderAsync()
     {
         if (!CanSelectSteamFolder()) { return; }
+        ActivateFeedback("steam");
+        Status = "폴더를 선택한 뒤 대상을 확인합니다.";
         Preview = null;
         ActionChoice? choice = null;
         IsWorking = true;
         try
         {
             var path = _pickSteamFolder!();
-            if (path is null || _disposed) { return; }
+            if (path is null || _disposed) { Status = "폴더 선택을 취소했습니다. 변경하지 않았습니다."; return; }
             var registration = _registerSteamFolder!(path);
             choice = registration.Choice;
             if (choice is null)
@@ -207,7 +209,7 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
         }
         catch (Exception) { Status = "Steam 캐시 폴더를 선택하지 못했습니다. 파일을 변경하지 않았습니다."; }
         finally { IsWorking = false; NotifyGates(); }
-        if (choice is not null) { await PrepareAsync(choice.Id, choice.Target); }
+        if (choice is not null) { await PrepareCoreAsync(choice.Id, choice.Target, false); }
     }
     private bool CanOpenSupport(ManualActionChoice? choice) => CanPrepare() && _openSupport is not null && choice?.HasSupport == true && ManualChoices.Contains(choice);
     /// <summary>공식 안내만 일반 권한 브라우저로 열며 캐시 정리 완료로 기록하지 않습니다.</summary>
@@ -215,6 +217,7 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     private void OpenSupport(ManualActionChoice? choice)
     {
         if (!CanOpenSupport(choice)) { return; }
+        ActivateFeedback(choice!);
         Status = _openSupport!(choice!.SupportUrl!) ? "공식 안내를 열었습니다. 직접 조치한 뒤 다시 검사하세요." : "공식 안내를 열지 못했습니다. 기본 브라우저와 데스크톱 세션을 확인하세요.";
     }
     private bool CanSelectVideoFolder(string? app) => CanPrepare() && CanSelectVideoLocations && app is "davinci" or "capcut";
@@ -224,6 +227,7 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     private async Task SelectVideoFolderAsync(string? app)
     {
         if (!CanSelectVideoFolder(app)) { return; }
+        ActivateFeedback("video");
         bool? accepted = null;
         IsWorking = true;
         try
@@ -245,6 +249,7 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     private async Task ResetVideoFoldersAsync()
     {
         if (!CanResetVideoFolders()) { return; }
+        ActivateFeedback("video");
         _resetVideoFolders!();
         Status = "수동 위치 선택을 해제했습니다. 기본 위치와 Resolve 전역 설정으로 다시 검사합니다.";
         await RescanVideoLocationsAsync();
@@ -259,13 +264,15 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     private async Task SelectAdobeFolderAsync()
     {
         if (!CanSelectAdobeFolder()) { return; }
+        ActivateFeedback("adobe");
+        Status = "폴더를 선택한 뒤 대상을 확인합니다.";
         Preview = null;
         ActionChoice? choice = null;
         IsWorking = true;
         try
         {
             var path = _pickAdobeFolder!();
-            if (path is null || _disposed) { return; }
+            if (path is null || _disposed) { Status = "폴더 선택을 취소했습니다. 변경하지 않았습니다."; return; }
             var registration = _registerAdobeFolder!(path);
             choice = registration.Choice;
             if (choice is null)
@@ -282,22 +289,29 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
         }
         catch (Exception) { Status = "폴더를 선택하지 못했습니다. 변경하지 않았습니다."; }
         finally { IsWorking = false; NotifyGates(); }
-        if (choice is not null) { await PrepareAsync(choice.Id, choice.Target); }
+        if (choice is not null) { await PrepareCoreAsync(choice.Id, choice.Target, false); }
     }
     /// <summary>선택한 카탈로그 대상을 조회합니다. 실행은 별도 확인이 필요합니다.</summary>
     [RelayCommand(CanExecute = nameof(CanPrepareChoice))]
-    private Task PrepareChoiceAsync(ActionChoice? choice) => choice is null ? Task.CompletedTask : PrepareAsync(choice.Id, choice.Target);
+    private Task PrepareChoiceAsync(ActionChoice? choice) => !CanPrepareChoice(choice) ? Task.CompletedTask : PrepareInlineAsync(choice!.Id, choice.Target, choice);
     private bool CanOpenManual(ManualActionChoice? choice) => CanPrepare() && _openSettings is not null && choice?.HasSettings == true && ManualChoices.Contains(choice);
     /// <summary>코드 허용 목록의 공식 설정으로 연결하며 자체 변경 완료로 기록하지 않습니다.</summary>
     [RelayCommand(CanExecute = nameof(CanOpenManual))]
     private void OpenManual(ManualActionChoice? choice)
     {
         if (!CanOpenManual(choice)) { return; }
+        ActivateFeedback(choice!);
         Status = _openSettings!(choice!.SettingsUri!) ? "Windows 설정에서 조치한 뒤 메인 화면에서 다시 검사해 주세요." : "설정을 열지 못했습니다. Windows 설정에서 해당 항목을 직접 열어 주세요.";
     }
 
     /// <summary>후속 조치 카드에서 호출하는 미리보기 진입점입니다. 준비만으로 실행하지 않습니다.</summary>
     public async Task PrepareAsync(ActionId id, ActionTarget target, bool restore = false)
+    {
+        if (!CanPrepare()) { return; }
+        ActivateFeedback("external");
+        await PrepareCoreAsync(id, target, restore);
+    }
+    private async Task PrepareCoreAsync(ActionId id, ActionTarget target, bool restore)
     {
         if (!CanPrepare()) { Status = "다른 작업이 끝난 뒤 다시 확인해 주세요."; return; }
         Preview = null;
@@ -324,7 +338,7 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     }
     /// <summary>복구 목록에서 선택한 기록의 현재 상태부터 확인합니다.</summary>
     [RelayCommand(CanExecute = nameof(CanRestore))]
-    private Task RestoreAsync(RollbackItemViewModel? item) => item is null ? Task.CompletedTask : PrepareAsync(item.ActionId, new ActionTarget.Restore(item.Id), true);
+    private Task RestoreAsync(RollbackItemViewModel? item) => !CanRestore(item) ? Task.CompletedTask : PrepareInlineAsync(item!.ActionId, new ActionTarget.Restore(item.Id), item, true);
     /// <summary>확인 화면을 취소합니다. 원본 계획은 실행되지 않고 자체 만료됩니다.</summary>
     [RelayCommand(CanExecute = nameof(CanDismiss))]
     private void DismissPreview() { Preview = null; Status = "실행하지 않고 확인 화면을 닫았습니다."; }
@@ -379,11 +393,16 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
     private async Task RefreshAsync()
     {
         if (!CanPrepare()) { return; }
-        IsLoading = true;
+        IsLoading = true; _readingHistory = true;
         try
         {
             var catalog = await _workflow.InspectAsync(CancellationToken.None);
             if (_disposed) { return; }
+            foreach (var feedback in _feedback.Values)
+            {
+                if (feedback.Undo is { } undo && !catalog.Records.Any(r => r.Id == undo.Id && r.State is not (RollbackState.Restored or RollbackState.Unchanged)))
+                { feedback.Undo = null; }
+            }
             Records.Clear();
             foreach (var r in catalog.Records.OrderByDescending(r => r.NeedsRecovery).ThenByDescending(r => r.UpdatedAt))
             {
@@ -403,7 +422,7 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
             Status = "복구 기록을 확인했습니다. 되돌리기는 선택한 항목만 실행합니다.";
         }
         catch (Exception) { if (!_disposed) { HistoryStatus = "복구 기록을 확인하지 못했습니다. 권한 또는 파일 상태를 확인해 주세요."; } }
-        finally { IsLoading = false; }
+        finally { _readingHistory = false; IsLoading = false; }
     }
 
     private void OnOperationsChanged(object? sender, EventArgs e) => _ = HandleOperationsChangedAsync();
@@ -439,13 +458,14 @@ public sealed partial class ActionCenterViewModel : ObservableObject, IDisposabl
             if (refresh && !_disposed) { await OnUiAsync(RefreshAsync); }
             if (rescan && !_disposed)
             {
+                var feedback = CurrentFeedback;
                 try
                 {
-                    await _dispatcher.InvokeAsync(() => RescanStatus = "변경 후 상태를 다시 검사합니다.");
+                    await _dispatcher.InvokeAsync(() => SetRescanFeedback(feedback, "변경 후 상태를 다시 검사합니다."));
                     await OnUiAsync(_rescan);
-                    await _dispatcher.InvokeAsync(() => RescanStatus = "재검사가 끝났습니다. 메인 화면에서 결과를 확인해 주세요.");
+                    await _dispatcher.InvokeAsync(() => SetRescanFeedback(feedback, "재검사가 끝났습니다. 메인 화면에서 결과를 확인해 주세요."));
                 }
-                catch (Exception) { await _dispatcher.InvokeAsync(() => RescanStatus = "자동 재검사를 시작하지 못했습니다. 메인 화면에서 다시 검사해 주세요."); }
+                catch (Exception) { await _dispatcher.InvokeAsync(() => SetRescanFeedback(feedback, "자동 재검사를 시작하지 못했습니다. 메인 화면에서 다시 검사해 주세요.")); }
             }
         }
         finally { _reconcile.Release(); }

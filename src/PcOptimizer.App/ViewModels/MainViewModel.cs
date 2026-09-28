@@ -48,7 +48,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool _disposed;
 
     [ObservableProperty]
-    private bool _showCommunityDetails;
+    private bool _showCommunityDetails = true;
 
     /// <summary>접어 둔 커뮤니티 규칙 카드 수를 보여 줍니다.</summary>
     public string CommunitySummary => DisplayText.Format(Strings.Community_Summary, _allCards.Count(IsCommunityCard));

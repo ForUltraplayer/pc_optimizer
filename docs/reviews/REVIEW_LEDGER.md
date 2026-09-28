@@ -789,3 +789,20 @@
 - 패키지 초기 실행은 샌드박스의 NuGet.Config 읽기 거절로 중단됐다. **패키징만** 정상 권한으로 재실행해 locked restore/publish 성공, ZIP13파일/최상위4·필수 고지·규칙 원본·SHA 검증 통과. 앱/GPU 테스트를 실행하지 않았다.
 - 실행 파일 FileVersion `0.0.2.0`, ProductVersion `0.0.2-beta.1+bf6f483...`. ZIP **59,866,386 bytes**, SHA-256 **`95C83B800DEAD912619F5C298FEB29C70F5C91BF8F08F1EC37B3AA0A846A5C0B`**.
 - 인증 없는 GitHub API에서 public=true, draft=false, prerelease=true, 첨부 ZIP/sha256 두 개 확인. 원격 ZIP asset digest가 위 로컬 SHA와 일치. 기존0.0.1을 변경하거나 master 병합하지 않았다.
+
+## 2026-09-28 조치 카드 내부 진행·확인·결과 / 자체 검증
+
+- 기준 `172b413`. 사용자 승인: 상단 공통 확인 영역의 UX 개선, 커뮤니티 결과 기본 표시, 오래된 임시파일의 실행 확인 여부 점검. [변경 파일·재현·검증 기록](2026-09-28-inline-action-feedback.md).
+- REV-015 사용성 후속: 누른 카드 아래에 진행/거절/확인/결과를 유지하고 카드 내부 조치 시 스크롤 위치를 유지한다. 복구 가능한 설정만 완료 카드에서 원복 확인을 연다. 추가 앱 파일 결과는 기본 표시하되 안전한 정리 후보로 승격하지 않는다.
+- REV-013: 준비 거절은 실행 결과를 만들지 않고 해당 카드에 미실행 사유를 표시한다. 반복 실패·별도 실행 확인·삭제 호출0회·설정 원복 준비 시 쓰기 없음 회귀 통과. 오래된 임시파일은 원래 확인→실행 두 단계였으므로 삭제 정책/실행기는 그대로다.
+- REV-017/018: 공통 실행기와 실제 작업 수명 관문은 유지한다. 카드마다 실행기를 만들지 않고 기존 명령을 연결한다. 지연 재검사 알림은 작업 당시 카드에 남긴다.
+- `dotnet test tests/PcOptimizer.Tests -c Release --no-restore --filter 'Category!=Smoke&Category!=Online&Category!=ToolSmoke' --logger 'trx;LogFileName=inline-full.trx' --logger 'console;verbosity=minimal'` → **1767/1767**. 실제 WPF 내/외부 스크롤·확인 위치·100/150/200% 좁은 렌더 확인. 자체 검증이며 기존 발견/독립 재검증 상태는 바꾸지 않는다.
+- 실행용 로컬 Release 빌드를 제공한다. 실제 정리/설정 변경, Smoke/Online/ToolSmoke, 새 ZIP/버전/태그/원격 배포 없음. 공개 beta.1 ZIP은 이전 버전이다.
+
+## 2026-09-28 0.2.1 일반 릴리즈 요청
+
+- 사용자가 조치 카드 UX 변경의 커밋·push와 **0.2.1** 릴리즈 게시를 명시 요청했다. 직전 기록의 '로컬 변경만' 범위를 이번 요청이 확장한다. 기존 태그/ZIP은 보존한다.
+- `PcOptimizer.App.csproj` Version 0.2.1, README 다운로드 링크·설명, ZIP 실행 안내, `docs/releases/v0.2.1.md`, HANDOFF를 갱신했다. 릴리즈 이름에서 베타를 제거하되 GPU 실제 적용 미검증 등의 제한을 삭제하지 않았다.
+- GitHub 조회: 저장소 PUBLIC, 기본 브랜치 `codex/sp1-actions`. 기존 태그 `v0.0.2-beta.1`은 현재 제목 'PC Optimizer 0.0.2', Latest로 표시된다. 새 태그 `v0.2.1`을 일반 릴리즈·Latest로 게시한다. 기존 배포 기록은 당시 확인 이력으로 보존한다.
+- 기존 REV-013/015/017/018 상태는 유지한다. 자체 빌드·기본 회귀·ZIP 구조/해시 확인 후 게시하며, 최종 결과는 후속 기록한다.
+- 버전 갱신 후 재검증: `dotnet test tests/PcOptimizer.Tests -c Release --no-restore -p:OutputPath=bin/ReleaseVerify021/ --filter 'Category!=Smoke&Category!=Online&Category!=ToolSmoke' --logger 'trx;LogFileName=release-0.2.1.trx' --logger 'console;verbosity=minimal'` → 1767/1767, 빌드 경고·오류 없음. 최초 기본 출력 경로는 실행 중인 앱이 exe를 점유해 MSB3027/MSB3021로 실패했고, 앱을 종료하지 않고 별도 출력 경로로 재검증했다.
