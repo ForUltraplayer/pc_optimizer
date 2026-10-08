@@ -871,3 +871,11 @@
 - 이번 버전도 외부 프로그램 자동 설치/실행 기능을 추가하지 않는다. 기존 REV 상태를 바꾸거나 GPU/다른 계정 등의 실기 검증을 완료했다고 선언하지 않는다.
 
 - 버전 갱신 후 `dotnet test tests/PcOptimizer.Tests -c Release --no-restore -p:OutputPath=bin/Release022/ --filter "Category!=Smoke&Category!=Online&Category!=ToolSmoke" --logger "console;verbosity=minimal"` → **1768/1768**, 컴파일 경고·오류 출력 없음. `git diff --check` 통과. 실제 장치·온라인/도구 실행 검증 범위는 확장하지 않았다.
+
+### 0.2.2 게시 확인
+
+- 제품 소스·태그 커밋 **`ac4bb57b2a55f8d98e4252aa04d296f662d38cc2`**, `codex/sp1-actions` 및 새 annotated tag `v0.2.2` push 완료. [공개 일반 릴리즈](https://github.com/ForUltraplayer/pc_optimizer/releases/tag/v0.2.2)를 Latest로 게시했다.
+- 커밋 후 `powershell -NoProfile -ExecutionPolicy Bypass -File tools/package.ps1 -Configuration Release -OutputDirectory dist/releases/v0.2.2` 성공. locked restore/publish 경고·오류 출력 없음. 단일 실행 파일·런타임 포함, ZIP13파일/최상위4·필수 고지/규칙 원문/해시·추가 CRC 확인 통과.
+- EXE FileVersion **0.2.2.0**, ProductVersion **`0.2.2+ac4bb57b2a55f8d98e4252aa04d296f662d38cc2`**. ZIP **59,875,201 bytes**, SHA-256 **`25431FBC128BAA9CDB84009BA3289BA91AAB8A6A1992B0797F68980ABA3EBE37`**. ZIP과 .sha256 첨부2개.
+- 인증 없는 GitHub API로 저장소 Public, `releases/latest` tag=v0.2.2, draft=false, prerelease=false 확인. 두 첨부의 크기·GitHub digest가 각각 로컬 파일과 일치한다. 원격 tag의 peeled commit도 제품 커밋과 일치한다.
+- 기존 릴리즈·태그·ZIP·실행 중 앱은 보존했다. 이 후속 문서 커밋은 제품/태그/ZIP 내용을 바꾸지 않는다. 기존 REV 상태와 미검증 실기 범위를 유지한다.
