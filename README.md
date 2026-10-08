@@ -1,10 +1,12 @@
-# PC Optimizer 0.2.1 — Windows 11 x64
+# PC Optimizer 0.2.2 — Windows 11 x64
 
 기존 Windows·제조사·패키지 도구를 한 화면에서 연결하는 진단 앱입니다. LLM은 필요하지 않습니다. 진단은 조회 전용이며, 정리는 별도 화면에서 대상 확인과 사용자 확인 후에만 실행합니다.
 
-0.2.1은 **조치 카드 안에서 진행·실행 확인·결과를 확인**하도록 개선했습니다. 이전 고급 탭의 MPO·HAGS·게임 모드, NVIDIA 게임별 ReBAR·RTX 영상 초고해상도, AMD 동영상 업스케일링 직접 제어도 포함합니다. 원래 값은 완료 카드나 조치 기록에서 되돌립니다. BIOS/UEFI 및 안전 모드를 선택할 수 있는 고급 시작 화면으로 재부팅하는 기능도 포함합니다.
+0.2.2는 **유틸리티 공식 다운로드 바로가기 19개를 추가**했습니다. 글의 본문 15개와 소개된 대안 6개를 반영했고, 기존 HWiNFO·CrystalDiskInfo를 재사용해 외부 도구 카드가 총34개입니다. 용도·사용법·무료 범위·업무용 조건을 카드에서 확인합니다.
 
-[0.2.1 다운로드·변경 내용](https://github.com/ForUltraplayer/pc_optimizer/releases/tag/v0.2.1) · [Windows x64 ZIP](https://github.com/ForUltraplayer/pc_optimizer/releases/download/v0.2.1/PcOptimizer-v0.2.1-win-x64.zip) · [이전 베타](https://github.com/ForUltraplayer/pc_optimizer/releases/tag/v0.0.2-beta.1)
+0.2.1에서 개선한 조치 카드 안의 진행·실행 확인·결과 표시와 기존 고급 기능도 포함합니다. 이전 고급 탭의 MPO·HAGS·게임 모드, NVIDIA 게임별 ReBAR·RTX 영상 초고해상도, AMD 동영상 업스케일링 직접 제어도 포함합니다. 원래 값은 완료 카드나 조치 기록에서 되돌립니다. BIOS/UEFI 및 안전 모드를 선택할 수 있는 고급 시작 화면으로 재부팅하는 기능도 포함합니다.
+
+[0.2.2 다운로드·변경 내용](https://github.com/ForUltraplayer/pc_optimizer/releases/tag/v0.2.2) · [Windows x64 ZIP](https://github.com/ForUltraplayer/pc_optimizer/releases/download/v0.2.2/PcOptimizer-v0.2.2-win-x64.zip) · [이전 베타](https://github.com/ForUltraplayer/pc_optimizer/releases/tag/v0.0.2-beta.1)
 
 ReBAR는 지원 설정이 관측되는 **게임 프로필**만 제어하며 BIOS 설정을 변경하지 않습니다. NVIDIA 영상 제어는 비공개 드라이버 인터페이스를 사용합니다. AMD는 공식 ADLX를 사용하지만 이 개발 PC에 AMD 장치가 없어 실제 장치 적용은 미검증입니다. GPU 쓰기·복원은 대역으로 검증했으며 실제 장치에서의 적용/원복은 추가 평가가 필요합니다. 모르는 형식·조회 실패·다른 사용자로 승격한 SystemOnly 범위에서는 실행하지 않습니다. [검증·제한](docs/reviews/2026-09-28-gpu-beta.md)
 

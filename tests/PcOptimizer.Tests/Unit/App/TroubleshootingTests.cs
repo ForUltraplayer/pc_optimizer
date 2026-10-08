@@ -195,6 +195,33 @@ public sealed class TroubleshootingTests
         Assert.All(Catalog.Tools.SelectMany(t => t.ExtraLinks), l => Assert.Contains(Links.Entries, e => e.Id == l.LinkId));
     }
 
+    /// <summary>글에서 소개한 도구와 대안은 중복 없이 유틸리티 탭에 나타나고 실제 카드 명령은 허용된 배포 페이지로 연결됩니다.</summary>
+    [Fact]
+    public async Task ArticleUtilitiesAreUniqueAndOpenRegisteredDownloadPages()
+    {
+        string[] ids = ["bandizip", "7-zip", "everything", "wiztree", "windirstat", "sharex", "picpick", "obs-studio", "vlc", "potplayer",
+            "gimp", "paint-net", "xnconvert", "photocraft", "photon-studio", "powertoys", "hwinfo64", "crystaldiskinfo", "libreoffice", "notepad-plus-plus", "ditto"];
+        var opened = new List<string>();
+        var service = new TroubleshootingService(new OperationCoordinator(), null, new RepairCommandRunner(null, @"C:\Windows\System32", "C:"),
+            () => throw new InvalidOperationException("Unexpected repair"), _ => throw new InvalidOperationException("Unexpected process"), @"C:\Windows\System32");
+        using var vm = new TroubleshootingViewModel(Catalog, service, new ImmediateUiDispatcher(), url => { opened.Add(url); return true; },
+            _ => throw new InvalidOperationException("Unexpected settings"), Links);
+        var cards = vm.UtilityGroups.SelectMany(g => g.Cards).ToList();
+        foreach (var id in ids)
+        {
+            var card = Assert.Single(cards, c => c.Tool.Id == id);
+            Assert.Equal(ToolMode.ExternalGuide, card.Tool.Mode);
+            Assert.False(card.Tool.RebootRequired);
+            var link = Assert.Single(Links.Entries, l => l.Id == card.Tool.LinkId);
+            var count = opened.Count;
+            await card.ActCommand.ExecuteAsync(null);
+            Assert.Equal(count + 1, opened.Count);
+            Assert.Equal(link.Url, opened[^1]);
+            Assert.True(Links.IsAllowedLink(opened[^1]));
+        }
+        Assert.Equal(ids.Length, opened.Distinct(StringComparer.Ordinal).Count());
+    }
+
     private sealed class SynchronousProgress(List<string> lines) : IProgress<string>
     {
         public void Report(string value) => lines.Add(value);
