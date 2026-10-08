@@ -295,6 +295,196 @@
       "label": "홍차의 꿈 블로그 · Rufus 글 모음(한국어 안내)",
       "url": "https://jsb000.tistory.com/search/rufus",
       "officialDomains": ["jsb000.tistory.com"]
+    },
+    {
+      "id": "bandizip",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "반디집 공식 다운로드",
+      "url": "https://kr.bandisoft.com/bandizip/",
+      "officialDomains": [
+        "bandisoft.com"
+      ]
+    },
+    {
+      "id": "7-zip",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "7-Zip 공식 다운로드",
+      "url": "https://www.7-zip.org/",
+      "officialDomains": [
+        "7-zip.org"
+      ]
+    },
+    {
+      "id": "everything",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "Everything 공식 다운로드",
+      "url": "https://www.voidtools.com/ko-kr/downloads/",
+      "officialDomains": [
+        "voidtools.com"
+      ]
+    },
+    {
+      "id": "wiztree",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "WizTree 공식 다운로드",
+      "url": "https://diskanalyzer.com/download",
+      "officialDomains": [
+        "diskanalyzer.com"
+      ]
+    },
+    {
+      "id": "windirstat",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "WinDirStat 공식 다운로드",
+      "url": "https://windirstat.net/download.html",
+      "officialDomains": [
+        "windirstat.net"
+      ]
+    },
+    {
+      "id": "sharex",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "ShareX 공식 다운로드",
+      "url": "https://getsharex.com/",
+      "officialDomains": [
+        "getsharex.com"
+      ]
+    },
+    {
+      "id": "picpick",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "PicPick 공식 다운로드",
+      "url": "https://picpick.app/ko/download/",
+      "officialDomains": [
+        "picpick.app"
+      ]
+    },
+    {
+      "id": "obs-studio",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "OBS Studio 공식 다운로드",
+      "url": "https://obsproject.com/download",
+      "officialDomains": [
+        "obsproject.com"
+      ]
+    },
+    {
+      "id": "vlc",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "VLC 공식 다운로드",
+      "url": "https://www.videolan.org/vlc/",
+      "officialDomains": [
+        "videolan.org"
+      ]
+    },
+    {
+      "id": "potplayer",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "팟플레이어 공식 다운로드",
+      "url": "https://potplayer.tv/?lang=ko",
+      "officialDomains": [
+        "potplayer.tv"
+      ]
+    },
+    {
+      "id": "gimp",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "GIMP 공식 다운로드",
+      "url": "https://www.gimp.org/downloads/",
+      "officialDomains": [
+        "gimp.org"
+      ]
+    },
+    {
+      "id": "paint-net",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "Paint.NET 공식 다운로드",
+      "url": "https://paint.net/download.html",
+      "officialDomains": [
+        "paint.net"
+      ]
+    },
+    {
+      "id": "xnconvert",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "XnConvert 공식 다운로드",
+      "url": "https://www.xnview.com/en/xnconvert/#downloads",
+      "officialDomains": [
+        "xnview.com"
+      ]
+    },
+    {
+      "id": "photocraft",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "PhotoCraft 공식 다운로드",
+      "url": "https://getartcraft.com/apps/photocraft",
+      "officialDomains": [
+        "getartcraft.com"
+      ]
+    },
+    {
+      "id": "photon-studio",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "Photon Studio 공식 다운로드",
+      "url": "https://tenzen.studio/photon/#get-photon",
+      "officialDomains": [
+        "tenzen.studio"
+      ]
+    },
+    {
+      "id": "powertoys",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "PowerToys 공식 다운로드",
+      "url": "https://learn.microsoft.com/ko-kr/windows/powertoys/install",
+      "officialDomains": [
+        "learn.microsoft.com"
+      ]
+    },
+    {
+      "id": "libreoffice",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "LibreOffice 공식 다운로드",
+      "url": "https://ko.libreoffice.org/download/libreoffice-stable/",
+      "officialDomains": [
+        "libreoffice.org"
+      ]
+    },
+    {
+      "id": "notepad-plus-plus",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "Notepad++ 공식 다운로드",
+      "url": "https://notepad-plus-plus.org/downloads/",
+      "officialDomains": [
+        "notepad-plus-plus.org"
+      ]
+    },
+    {
+      "id": "ditto",
+      "kind": "tool",
+      "key": "troubleshooting",
+      "label": "Ditto 공식 다운로드",
+      "url": "https://sabrogden.github.io/Ditto/",
+      "officialDomains": [
+        "sabrogden.github.io"
+      ]
     }
   ]
 }

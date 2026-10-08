@@ -813,3 +813,61 @@
 - 커밋 확정 후 `tools/package.ps1 -Configuration Release -OutputDirectory dist/releases/v0.2.1`로 locked restore/publish 완료, 경고·오류 없음. ZIP13파일/최상위4·필수 고지/규칙 원문/해시 검증 통과. FileVersion 0.2.1.0, ProductVersion `0.2.1+49c90c83a4c47869d3bfcc05adb62742b18bcd61`.
 - ZIP **59,870,654 bytes**, SHA-256 **9303C9950335DE612D5D0604E5425C06949B24E6C4BB7A29E79DCB7E5BF159FC**. ZIP과 .sha256 두 첨부 게시.
 - 인증 없는 GitHub API `releases/latest`에서 tag=v0.2.1, draft=false, prerelease=false 확인. 저장소 public=true. asset 크기·digest가 로컬 ZIP과 일치하며 원격 태그 peeled commit도 위 릴리즈 커밋과 일치한다. 기존 릴리즈와 실행 중인 앱은 보존했다. 이 후속 문서 커밋은 제품·태그·첨부를 바꾸지 않는다.
+
+## 2026-10-08 유틸리티 카탈로그 확장 — 퀘이사존 무료 프로그램 15선
+
+- 사용자 요청: 링크 글에서 소개한 도구와 공식 다운로드를 기존 유틸리티 카드 형식으로 추가.
+- 기준: `codex/sp1-actions` HEAD `3caa925`, 작업 전 clean. 기존 공개 릴리즈는 `v0.2.1`; 이번 작업은 로컬 변경만이며 commit·push·버전 변경·ZIP 게시 요청 없음.
+- 원문: https://quasarzone.com/bbs/qc_plan/views/41399 — 「구독료 없이 쓰는 무료 프로그램 15선」. 검색 도구로 본문을 읽지 못해 in-app browser로 본문·목차·링크를 직접 확인했다. 본문 15개와 실제 대안으로 소개된 7-Zip·WinDirStat·PicPick·팟플레이어·PhotoCraft·Photon Studio를 포함해 **21개**. 상용 비교 대상인 Photoshop·Microsoft Office 및 Windows 기본 앱은 별도 추가 대상으로 해석하지 않았다.
+- 관련 원장: REV-004 공식/기존 도구 연결·허용 목록, REV-013 미실행/실행 구분, REV-015 카드 설명. 기존 발견 내용·상태는 변경하지 않는다.
+- 변경: `rules/troubleshooting-tools.json`에 외부 카드 19개와 목적별 분류·사용 시점·주의·절차를 추가. HWiNFO와 CrystalDiskInfo는 중복 없이 재사용(외부 카드 15→34). `rules/vendor-links.json`에 tool 링크 19개 등록. 기존 허용 목록/브라우저 위임으로만 연다. 다운로드·설치·도구 실행 기능은 추가하지 않았다.
+- 무료 범위: 반디집의 기본/유료 고급 기능, Paint.NET의 Free/Paid 배포, WizTree 개인/업무 사용, XnConvert 개인·교육·비영리/회사 사용, HWiNFO 비상업/업무용 Pro 조건을 제작사 안내로 확인했다. PicPick 한국어판의 무료 조건도 공식 다운로드·약관 페이지를 확인해 표시했다.
+- PhotoCraft·Photon Studio: 제작사에서 Windows용 무료 편집기를 안내한다. PSD 호환성은 사본으로 확인하도록 썼으며, 본문의 추측성 법률 평가는 복제하지 않았다. Photon의 다른 앱·온라인 요금과 무료 Photon을 구분한다.
+- 팟플레이어: 옛 `potplayer.daum.net`은 DNS 실패했고 KakaoTV 안내는 서비스 종료로 연결된다. 현재 `potplayer.tv/?lang=ko`의 Kakao 표기·공식 CDN 다운로드·이용 약관을 확인해 사용했다. 버전별 EXE 주소를 고정하지 않았다.
+- 유틸리티 안내 문구를 목적 중심으로 변경하고 카드마다 무료 범위·업무 조건을 확인하도록 안내한다.
+
+### 배포 페이지 확인 목록 (2026-10-08)
+
+아래 제작사/공식 프로젝트 페이지의 제품·배포 안내를 웹 또는 브라우저로 확인했다. 다운로드 파일의 서명·해시, 실제 설치·제품 작동을 검증했다는 뜻은 아니다.
+
+| 도구 | 카드 ID | 등록 URL | 처리 |
+| --- | --- | --- | --- |
+| 반디집 | `bandizip` | https://kr.bandisoft.com/bandizip/ | 추가 |
+| 7-Zip | `7-zip` | https://www.7-zip.org/ | 추가 |
+| Everything | `everything` | https://www.voidtools.com/ko-kr/downloads/ | 추가 |
+| WizTree | `wiztree` | https://diskanalyzer.com/download | 추가 |
+| WinDirStat | `windirstat` | https://windirstat.net/download.html | 추가 |
+| ShareX | `sharex` | https://getsharex.com/ | 추가 |
+| PicPick | `picpick` | https://picpick.app/ko/download/ | 추가 |
+| OBS Studio | `obs-studio` | https://obsproject.com/download | 추가 |
+| VLC | `vlc` | https://www.videolan.org/vlc/ | 추가 |
+| 팟플레이어 | `potplayer` | https://potplayer.tv/?lang=ko | 추가 |
+| GIMP | `gimp` | https://www.gimp.org/downloads/ | 추가 |
+| Paint.NET | `paint-net` | https://paint.net/download.html | 추가 |
+| XnConvert | `xnconvert` | https://www.xnview.com/en/xnconvert/#downloads | 추가 |
+| PhotoCraft | `photocraft` | https://getartcraft.com/apps/photocraft | 추가 |
+| Photon Studio | `photon-studio` | https://tenzen.studio/photon/#get-photon | 추가 |
+| PowerToys | `powertoys` | https://learn.microsoft.com/ko-kr/windows/powertoys/install | 추가 |
+| HWiNFO | `hwinfo64` | https://www.hwinfo.com/download/ | 기존 카드 재사용·이용 조건 보완 |
+| CrystalDiskInfo | `crystaldiskinfo` | https://crystalmark.info/en/software/crystaldiskinfo/ | 기존 카드 재사용 |
+| LibreOffice | `libreoffice` | https://ko.libreoffice.org/download/libreoffice-stable/ | 추가 |
+| Notepad++ | `notepad-plus-plus` | https://notepad-plus-plus.org/downloads/ | 추가 |
+| Ditto | `ditto` | https://sabrogden.github.io/Ditto/ | 추가 |
+
+### 구현자 자체 검증
+
+- 추가 회귀 `ArticleUtilitiesAreUniqueAndOpenRegisteredDownloadPages`: 글의 21개 카드가 유틸리티에서 각각 한 번 나타나며 실제 카드 명령은 등록 URL을 정확히 한 번 요청한다. 브라우저는 대역으로 받으며 복구·프로세스·설정 실행 대역은 호출 시 실패하도록 구성했다. 단순 링크와 자동 조치를 혼동하지 않는다.
+- `dotnet test tests/PcOptimizer.Tests -c Release --no-restore -p:OutputPath=bin/ReleaseUtilities/ --filter "FullyQualifiedName~TroubleshootingTests|FullyQualifiedName~UtilitiesLayoutTests|FullyQualifiedName~VendorLinkCatalog|FullyQualifiedName~LinkPolicyTests" --logger "console;verbosity=minimal"` → **105/105**. 실제 오프스크린 WPF 분류·카드·버튼·절차 배치를 포함.
+- `dotnet test tests/PcOptimizer.Tests -c Release --no-build --no-restore -p:OutputPath=bin/ReleaseUtilities/ --filter "Category!=Smoke&Category!=Online&Category!=ToolSmoke" --logger "console;verbosity=minimal"` → **1768/1768**.
+- `dotnet build src/PcOptimizer.App -c Release --no-restore -p:OutputPath=bin/ReleaseUtilities/ --verbosity minimal` → **경고0·오류0**. 기본 출력 경로 점유 가능성을 피하려고 별도 출력 경로 사용.
+- 로컬 실행 파일: `src/PcOptimizer.App/bin/ReleaseUtilities/PcOptimizer.exe` (.NET Desktop Runtime 필요). 이번 변경을 포함한 새 ZIP은 만들지 않았다.
+- 자체 검증이며 독립 리뷰 없음. Smoke·Online·ToolSmoke, 사용자 화면에서 21개 실제 브라우저 클릭, 외부 프로그램 설치/실행은 미실행. 공개 `v0.2.1` ZIP에는 이 변경이 포함되지 않는다.
+
+## 2026-10-08 0.2.2 일반 릴리즈 요청
+
+- 사용자가 직전 유틸리티 추가본을 **0.2.2로 게시**하도록 명시 요청했다. 직전 '로컬 변경만' 범위를 이번 요청이 확장한다. 기존 배포는 보존한다.
+- GitHub 현재 확인: `ForUltraplayer/pc_optimizer` PUBLIC, 기본 브랜치 `codex/sp1-actions`, 원격/로컬 HEAD 모두 `3caa925`. `v0.2.2` 원격 태그와 릴리즈 없음. 새 일반 릴리즈·Latest로 ZIP과 SHA-256을 첨부한다.
+- 앱 Version0.2.2, README 다운로드 링크·변경 요약, ZIP 실행 안내, `docs/releases/v0.2.2.md`, HANDOFF를 갱신한다. 유틸리티34개와 본문21개 대응, 원장 기록·회귀를 함께 커밋한다.
+- 이번 버전도 외부 프로그램 자동 설치/실행 기능을 추가하지 않는다. 기존 REV 상태를 바꾸거나 GPU/다른 계정 등의 실기 검증을 완료했다고 선언하지 않는다.
+
+- 버전 갱신 후 `dotnet test tests/PcOptimizer.Tests -c Release --no-restore -p:OutputPath=bin/Release022/ --filter "Category!=Smoke&Category!=Online&Category!=ToolSmoke" --logger "console;verbosity=minimal"` → **1768/1768**, 컴파일 경고·오류 출력 없음. `git diff --check` 통과. 실제 장치·온라인/도구 실행 검증 범위는 확장하지 않았다.

@@ -45,7 +45,7 @@
             </ResourceDictionary>
     </UserControl.Resources>
     <StackPanel>
-        <TextBlock TextWrapping="Wrap" Text="컴퓨터를 잘 아는 사람들이 흔히 쓰는 무료·공식 도구입니다. 이 앱은 공식 배포처만 열어 주고 파일은 직접 받습니다. 버전은 사이트에서 최신을 고르세요." Foreground="{DynamicResource AppSecondaryTextBrush}" Margin="0,0,0,16" />
+        <TextBlock TextWrapping="Wrap" Text="필요한 작업에 맞춰 골라 쓰는 유틸리티입니다. [공식 사이트 열기]에서 다운로드 페이지를 엽니다. 무료 범위·업무용 조건은 각 카드에서 확인하세요." Foreground="{DynamicResource AppSecondaryTextBrush}" Margin="0,0,0,16" />
         <ItemsControl ItemsSource="{Binding UtilityGroups}" AutomationProperties.AutomationId="UtilityGroups">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>

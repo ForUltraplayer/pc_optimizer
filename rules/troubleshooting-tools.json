@@ -298,7 +298,7 @@
       "name": "HWiNFO64 (온도·클럭·센서)",
       "when": "발열·소음이 심하거나 성능이 갑자기 떨어질 때 온도와 클럭을 봅니다.",
       "what": "CPU·GPU·SSD 온도, 클럭, 전력, 팬 속도를 실시간으로 보여 줍니다.",
-      "caution": "값이 많아 어렵게 보이지만 온도(Temperature) 항목만 보면 됩니다.",
+      "caution": "개인·비상업용은 무료이며 업무용 HWiNFO64는 Pro 라이선스가 필요합니다. 온도·클럭부터 확인하세요.",
       "mode": "external",
       "linkId": "hwinfo",
       "safety": "safe",
@@ -526,6 +526,310 @@
         "[열기]를 누르면 그래프가 뜹니다. 빨간 X가 있는 날짜를 클릭합니다.",
         "아래 표에서 '응용 프로그램 오류'·'Windows 오류'의 요약을 읽습니다. 문제가 시작된 날짜에 설치한 프로그램·업데이트가 있는지 확인합니다.",
         "'기술 정보 보기'로 어떤 파일에서 오류가 났는지 볼 수 있습니다."
+      ],
+      "rebootRequired": false
+    },
+    {
+      "id": "bandizip",
+      "category": "파일 검색·압축",
+      "name": "반디집 (압축·압축 해제)",
+      "when": "ZIP·7Z·RAR·ALZ·EGG 압축 파일을 열거나 파일을 묶어 보낼 때 씁니다.",
+      "what": "여러 압축 형식과 분할 압축을 지원하는 한국어 압축 프로그램입니다.",
+      "caution": "기본 기능은 무료이고 고급 기능은 유료입니다. 모르는 압축 파일 안의 실행 파일은 주의하세요.",
+      "mode": "external",
+      "linkId": "bandizip",
+      "safety": "safe",
+      "steps": [
+        "공식 페이지에서 Windows용 무료 다운로드를 선택합니다.",
+        "압축 파일을 열어 내용을 확인한 뒤 별도 폴더에 풉니다. 출처를 모르는 실행 파일은 실행하지 마세요."
+      ],
+      "rebootRequired": false
+    },
+    {
+      "id": "7-zip",
+      "category": "파일 검색·압축",
+      "name": "7-Zip (무료 압축 도구)",
+      "when": "광고 없는 무료 압축 도구로 7Z·ZIP 파일을 만들거나 RAR 파일을 풀 때 씁니다.",
+      "what": "파일 압축·해제와 암호 설정을 지원하는 오픈 소스 도구입니다.",
+      "caution": "개인·회사에서 무료로 사용할 수 있습니다. RAR은 풀 수 있지만 RAR 형식으로 압축하지는 못합니다.",
+      "mode": "external",
+      "linkId": "7-zip",
+      "safety": "safe",
+      "steps": [
+        "공식 페이지에서 PC에 맞는 x64·ARM64 설치 파일을 선택합니다.",
+        "파일 우클릭 메뉴 또는 7-Zip File Manager에서 압축하거나 별도 폴더로 압축을 풉니다."
+      ],
+      "rebootRequired": false
+    },
+    {
+      "id": "everything",
+      "category": "파일 검색·압축",
+      "name": "Everything (파일 이름 빠른 검색)",
+      "when": "파일 이름 일부는 기억나는데 어디에 저장했는지 찾기 어려울 때 씁니다.",
+      "what": "파일·폴더 이름을 색인해 빠르게 찾는 무료 검색 도구입니다.",
+      "caution": "이름 검색이 중심이며 문서 본문까지 자동 검색하는 도구는 아닙니다. 전체 디스크 색인에는 권한이 필요할 수 있습니다.",
+      "mode": "external",
+      "linkId": "everything",
+      "safety": "safe",
+      "steps": [
+        "공식 다운로드에서 Windows용 설치형 또는 포터블을 선택합니다.",
+        "처음 색인이 끝나면 파일 이름 일부를 입력하고, 결과의 경로를 확인해 엽니다."
+      ],
+      "rebootRequired": false
+    },
+    {
+      "id": "wiztree",
+      "category": "공간 사용 확인",
+      "name": "WizTree (큰 파일·폴더 찾기)",
+      "when": "저장 공간이 부족해 어떤 폴더가 많이 차지하는지 확인할 때 씁니다.",
+      "what": "디스크 사용량을 목록과 크기별 사각형으로 보여 줍니다.",
+      "caution": "개인용은 무료이며 업무·회사 사용은 유료 라이선스가 필요합니다. 큰 파일이라고 불필요한 파일인 것은 아닙니다.",
+      "mode": "external",
+      "linkId": "wiztree",
+      "safety": "caution",
+      "steps": [
+        "공식 페이지에서 Windows용 설치형 또는 포터블을 선택합니다.",
+        "드라이브를 선택해 스캔한 뒤 큰 폴더의 경로와 용도를 확인합니다. 삭제 메뉴는 실제 파일을 지우므로 확인 후 사용하세요."
+      ],
+      "rebootRequired": false
+    },
+    {
+      "id": "windirstat",
+      "category": "공간 사용 확인",
+      "name": "WinDirStat (디스크 사용량 지도)",
+      "when": "무료 오픈 소스 도구로 폴더별·파일 종류별 용량을 살펴볼 때 씁니다.",
+      "what": "디스크 공간을 차지하는 파일과 폴더를 시각적인 지도로 표시합니다.",
+      "caution": "큰 파일이 캐시라는 뜻은 아닙니다. 프로그램·게임·개인 자료를 삭제하기 전에 경로와 용도를 확인하세요.",
+      "mode": "external",
+      "linkId": "windirstat",
+      "safety": "caution",
+      "steps": [
+        "공식 다운로드 페이지에서 Windows용 최신 버전을 선택합니다.",
+        "분석할 드라이브나 폴더를 고르고 목록·지도에서 용량이 큰 항목을 확인합니다. 자동 정리 도구로 생각하고 일괄 삭제하지 마세요."
+      ],
+      "rebootRequired": false
+    },
+    {
+      "id": "sharex",
+      "category": "화면 캡처·녹화",
+      "name": "ShareX (캡처·스크롤 캡처·OCR)",
+      "when": "화면에 표시나 설명을 넣어 공유하거나 긴 페이지와 화면 속 글자를 캡처할 때 씁니다.",
+      "what": "영역·스크롤 캡처, 화면 녹화, OCR 등을 제공하는 무료 오픈 소스 도구입니다.",
+      "caution": "캡처 후 작업에 업로드가 설정되어 있으면 외부로 전송됩니다. 개인 정보가 있는 화면은 로컬 저장 설정을 확인하세요.",
+      "mode": "external",
+      "linkId": "sharex",
+      "safety": "caution",
+      "steps": [
+        "공식 페이지에서 설치형 또는 포터블을 선택합니다.",
+        "캡처 후 작업과 업로드 설정을 확인하고, 먼저 민감 정보 없는 화면으로 저장·캡처를 시험합니다."
+      ],
+      "rebootRequired": false
+    },
+    {
+      "id": "picpick",
+      "category": "화면 캡처·녹화",
+      "name": "PicPick (캡처·그림 표시)",
+      "when": "스크린샷에 화살표·설명·크기 표시를 쉽게 넣고 싶을 때 씁니다.",
+      "what": "화면·스크롤 캡처와 이미지 편집, 색상 추출 등을 묶은 도구입니다.",
+      "caution": "공식 안내상 한국어 버전은 무료입니다. 다른 언어판과 클라우드 기능의 이용 조건은 별도로 확인하세요.",
+      "mode": "external",
+      "linkId": "picpick",
+      "safety": "safe",
+      "steps": [
+        "한국어 공식 다운로드 페이지에서 정식 버전을 선택합니다.",
+        "필요한 영역을 캡처한 뒤 화살표·텍스트로 표시하고 파일로 저장합니다. 공유 전에 화면 속 개인 정보를 확인하세요."
+      ],
+      "rebootRequired": false
+    },
+    {
+      "id": "obs-studio",
+      "category": "화면 캡처·녹화",
+      "name": "OBS Studio (화면 녹화·방송)",
+      "when": "게임·강의·작업 화면과 마이크 소리를 녹화하거나 방송할 때 씁니다.",
+      "what": "화면·창·카메라와 음성을 조합해 녹화·방송하는 무료 오픈 소스 도구입니다.",
+      "caution": "녹화는 저장 공간과 GPU·CPU 자원을 사용합니다. 녹화할 창, 저장 위치, 마이크 입력을 먼저 확인하세요.",
+      "mode": "external",
+      "linkId": "obs-studio",
+      "safety": "safe",
+      "steps": [
+        "공식 다운로드에서 Windows용을 선택하고 자동 구성 마법사로 녹화 또는 방송 용도를 정합니다.",
+        "소스와 오디오 입력을 추가한 뒤 짧게 녹화해 영상·소리·저장 위치를 확인합니다."
+      ],
+      "rebootRequired": false
+    },
+    {
+      "id": "vlc",
+      "category": "미디어 재생",
+      "name": "VLC (동영상·음악 재생)",
+      "when": "기본 플레이어로 열리지 않는 동영상이나 자막을 재생할 때 씁니다.",
+      "what": "다양한 영상·음악 형식을 지원하는 무료 오픈 소스 미디어 플레이어입니다.",
+      "caution": "파일 연결을 바꾸면 기본 재생 프로그램도 달라집니다. 필요할 때 파일 하나만 VLC로 열어 볼 수 있습니다.",
+      "mode": "external",
+      "linkId": "vlc",
+      "safety": "safe",
+      "steps": [
+        "VideoLAN 공식 페이지에서 Windows용 VLC를 선택합니다.",
+        "동영상 파일을 VLC로 열고 자막·오디오 트랙을 선택합니다. 기본 앱 변경은 필요할 때만 선택하세요."
+      ],
+      "rebootRequired": false
+    },
+    {
+      "id": "potplayer",
+      "category": "미디어 재생",
+      "name": "팟플레이어 (동영상·자막 재생)",
+      "when": "동영상의 자막·음성·재생 설정을 세밀하게 조절하고 싶을 때 씁니다.",
+      "what": "여러 영상 형식과 자막, 하드웨어 가속을 지원하는 Windows 미디어 플레이어입니다.",
+      "caution": "무료 플레이어입니다. 설치 중 추가 항목과 파일 연결 선택을 확인하고, 필요한 항목만 선택하세요.",
+      "mode": "external",
+      "linkId": "potplayer",
+      "safety": "safe",
+      "steps": [
+        "공식 배포 페이지에서 PC에 맞는 x64 또는 ARM64 버전을 선택합니다.",
+        "동영상을 열어 자막과 오디오를 확인하고, 기본 재생 앱으로 쓸지는 직접 선택합니다."
+      ],
+      "rebootRequired": false
+    },
+    {
+      "id": "gimp",
+      "category": "이미지 편집·변환",
+      "name": "GIMP (사진·레이어 편집)",
+      "when": "사진 보정, 배경 편집, 레이어를 이용한 이미지 작업이 필요할 때 씁니다.",
+      "what": "레이어·마스크·필터 등을 제공하는 무료 오픈 소스 이미지 편집기입니다.",
+      "caution": "다른 편집기의 PSD 효과·글꼴 등이 완전히 같게 열리지는 않을 수 있습니다. 원본을 보존하고 사본으로 작업하세요.",
+      "mode": "external",
+      "linkId": "gimp",
+      "safety": "safe",
+      "steps": [
+        "공식 다운로드에서 Windows용 정식 버전을 선택합니다.",
+        "원본 사본을 열어 편집하고 작업용 파일과 공유용 PNG·JPEG를 나누어 저장합니다."
+      ],
+      "rebootRequired": false
+    },
+    {
+      "id": "paint-net",
+      "category": "이미지 편집·변환",
+      "name": "Paint.NET (간단한 사진·레이어 편집)",
+      "when": "그림판보다 많은 기능으로 사진 크기·색상·레이어를 편집하고 싶을 때 씁니다.",
+      "what": "Windows에서 사진 보정과 레이어 편집을 할 수 있는 이미지 편집기입니다.",
+      "caution": "공식 사이트의 무료 배포판과 유료 배포판이 함께 있습니다. 설치 전에 Windows·CPU 요구 사항도 확인하세요.",
+      "mode": "external",
+      "linkId": "paint-net",
+      "safety": "safe",
+      "steps": [
+        "공식 다운로드 페이지에서 Free로 표시된 배포판을 선택하고 시스템 요구 사항을 확인합니다.",
+        "사진 사본을 열어 크기·색상을 조절하고, 레이어를 유지할 작업 파일과 이미지 파일을 나누어 저장합니다."
+      ],
+      "rebootRequired": false
+    },
+    {
+      "id": "xnconvert",
+      "category": "이미지 편집·변환",
+      "name": "XnConvert (이미지 일괄 변환)",
+      "when": "사진 여러 장의 크기·형식·품질을 한 번에 바꾸고 싶을 때 씁니다.",
+      "what": "이미지 묶음에 크기 변경·회전·형식 변환 등을 순서대로 적용합니다.",
+      "caution": "개인·교육·비영리 용도는 무료이며 회사 사용은 라이선스가 필요합니다. 출력 폴더를 따로 정해 원본 덮어쓰기를 피하세요.",
+      "mode": "external",
+      "linkId": "xnconvert",
+      "safety": "caution",
+      "steps": [
+        "공식 페이지의 Downloads에서 Windows용 설치형 또는 ZIP을 선택합니다.",
+        "입력 이미지와 변환 작업을 고르고 별도 출력 폴더로 몇 장 먼저 시험한 뒤 전체 변환합니다."
+      ],
+      "rebootRequired": false
+    },
+    {
+      "id": "photocraft",
+      "category": "이미지 편집·변환",
+      "name": "PhotoCraft (레이어·PSD 편집)",
+      "when": "레이어와 마스크를 사용하는 무료 이미지 편집 도구를 살펴볼 때 씁니다.",
+      "what": "PSD·PSB 작업과 레이어 편집을 지원하는 무료 오픈 소스 편집기입니다.",
+      "caution": "제작사에서 Windows 설치형·포터블을 제공합니다. 사용 중인 PSD·글꼴·효과의 호환성은 사본으로 확인하세요.",
+      "mode": "external",
+      "linkId": "photocraft",
+      "safety": "safe",
+      "steps": [
+        "공식 PhotoCraft 페이지의 Windows 항목에서 설치형 또는 포터블을 선택합니다.",
+        "작업 파일 사본을 열어 레이어·글꼴·효과를 확인하고, 저장한 사본도 다시 열어 확인합니다."
+      ],
+      "rebootRequired": false
+    },
+    {
+      "id": "photon-studio",
+      "category": "이미지 편집·변환",
+      "name": "Photon Studio (사진·PSD 편집)",
+      "when": "PSD 파일과 레이어를 편집할 다른 무료 사진 편집기를 살펴볼 때 씁니다.",
+      "what": "PSD·PSB와 레이어, 사진 보정 기능을 제공하는 데스크톱 편집기입니다.",
+      "caution": "Photon Studio는 무료로 안내되지만 같은 사이트의 다른 앱·온라인 서비스에는 별도 요금이 있습니다. PSD 호환성은 사본으로 확인하세요.",
+      "mode": "external",
+      "linkId": "photon-studio",
+      "safety": "safe",
+      "steps": [
+        "공식 Photon 페이지에서 무료 Photon의 Windows 다운로드를 선택합니다.",
+        "원본 사본에서 레이어·글꼴·효과를 확인하고 저장 결과를 다시 열어 봅니다. 다른 유료 제품 구매는 필요하지 않습니다."
+      ],
+      "rebootRequired": false
+    },
+    {
+      "id": "powertoys",
+      "category": "Windows 편의 기능",
+      "name": "PowerToys (Windows 편의 도구 모음)",
+      "when": "창 배치, 키보드 키 변경, 일괄 이름 변경 같은 편의 기능이 필요할 때 씁니다.",
+      "what": "Microsoft가 제공하는 무료 오픈 소스 Windows 유틸리티 모음입니다.",
+      "caution": "필요한 기능만 켜세요. 키 재매핑·단축키를 바꾸면 기존 입력 동작과 겹칠 수 있습니다.",
+      "mode": "external",
+      "linkId": "powertoys",
+      "safety": "caution",
+      "steps": [
+        "Microsoft 공식 설치 안내에서 Windows용 배포처와 요구 사항을 확인합니다.",
+        "PowerToys 설정에서 필요한 도구만 켜고, 키·단축키 변경은 적용한 값을 기록해 둡니다."
+      ],
+      "rebootRequired": false
+    },
+    {
+      "id": "libreoffice",
+      "category": "문서·클립보드",
+      "name": "LibreOffice (무료 문서·표·발표)",
+      "when": "유료 오피스 없이 문서·스프레드시트·발표 파일을 만들거나 열 때 씁니다.",
+      "what": "Writer·Calc·Impress 등을 묶은 무료 오픈 소스 오피스입니다.",
+      "caution": "Microsoft Office 파일의 서식·매크로가 완전히 호환되지는 않을 수 있습니다. 사본으로 열고 제출 전 PDF 등으로 확인하세요.",
+      "mode": "external",
+      "linkId": "libreoffice",
+      "safety": "safe",
+      "steps": [
+        "공식 한국어 다운로드에서 Windows용 버전을 선택합니다.",
+        "원본 사본을 열어 서식·수식·글꼴을 확인하고, 편집 후 다시 열거나 PDF로 내보내 결과를 확인합니다."
+      ],
+      "rebootRequired": false
+    },
+    {
+      "id": "notepad-plus-plus",
+      "category": "문서·클립보드",
+      "name": "Notepad++ (텍스트·코드 편집)",
+      "when": "로그·설정 파일이나 긴 텍스트에서 검색·비교·편집이 필요할 때 씁니다.",
+      "what": "탭, 문법 강조, 검색·바꾸기 등을 제공하는 무료 오픈 소스 편집기입니다.",
+      "caution": "저장하면 실제 파일이 바뀝니다. 설정 파일은 사본을 보관하고 문자 인코딩·줄바꿈 형식을 확인하세요.",
+      "mode": "external",
+      "linkId": "notepad-plus-plus",
+      "safety": "safe",
+      "steps": [
+        "공식 Downloads에서 안정 버전의 Windows 설치형 또는 포터블을 선택합니다.",
+        "편집할 파일 사본을 열고 인코딩을 확인합니다. 여러 파일 바꾸기는 적용 대상을 먼저 확인하세요."
+      ],
+      "rebootRequired": false
+    },
+    {
+      "id": "ditto",
+      "category": "문서·클립보드",
+      "name": "Ditto (클립보드 기록)",
+      "when": "앞서 복사한 글·이미지를 다시 찾아 붙여넣고 싶을 때 씁니다.",
+      "what": "복사한 항목을 보관하고 검색해 다시 붙여넣는 무료 오픈 소스 클립보드 도구입니다.",
+      "caution": "비밀번호·개인 정보도 기록에 남을 수 있습니다. 기록 보관과 삭제, 동기화 설정을 확인하세요.",
+      "mode": "external",
+      "linkId": "ditto",
+      "safety": "caution",
+      "steps": [
+        "공식 Ditto 페이지에서 Windows용 설치형 또는 포터블을 선택합니다.",
+        "기록 보관 설정과 호출 단축키를 정하고, 민감 정보가 들어간 기록은 삭제합니다."
       ],
       "rebootRequired": false
     }
