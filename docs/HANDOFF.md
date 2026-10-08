@@ -6,7 +6,9 @@
 
 - 사용자가 유틸리티 확장본을 **0.2.2로 게시**하도록 요청했다. 소스 commit·push, `v0.2.2` 일반 릴리즈·Latest, Windows x64 ZIP·SHA-256 첨부를 진행한다. 기존 태그·릴리즈는 보존한다.
 - [릴리즈 노트](releases/v0.2.2.md). 카드19개 추가와 기존2개 재사용, 외부 도구 총34개. 앱 버전·README 다운로드 링크·ZIP 실행 안내를0.2.2로 갱신했다.
-- 버전 갱신 후 기본 회귀와 런타임 포함 ZIP 검증을 수행한다. 게시 완료 여부·커밋·원격 첨부 해시 확인은 공유 리뷰 원장의 후속 기록에서 확인할 것. 기존 REV 상태와 실제 장치 미검증 범위는 유지한다.
+- 게시 완료: 제품·태그 커밋 **`ac4bb57`**, [공개 일반 릴리즈·Latest](https://github.com/ForUltraplayer/pc_optimizer/releases/tag/v0.2.2). ZIP·SHA-256 첨부2개 및 공개 API의 크기·digest 일치, 원격 tag peeled commit을 확인했다. 기본1768/1768, ZIP13파일/최상위4·고지·규칙·해시·CRC 확인 통과.
+- ZIP59,875,201 bytes, SHA-256 `25431FBC128BAA9CDB84009BA3289BA91AAB8A6A1992B0797F68980ABA3EBE37`. EXE FileVersion0.2.2.0, ProductVersion `0.2.2+ac4bb57...`. 위치: `dist/releases/v0.2.2/PcOptimizer-v0.2.2-win-x64.zip`. 후속 문서 커밋은 제품·태그·ZIP을 바꾸지 않는다. 실기 미검증·기존 REV 상태는 유지한다.
+
 
 
 ## 최신 로컬 변경 — 유틸리티 21개 도구 연결 (2026-10-08)
